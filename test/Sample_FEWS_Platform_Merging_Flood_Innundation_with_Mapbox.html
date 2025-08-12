@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>3D Buildings over Categorized Flood Depth</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.14.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.14.0/mapbox-gl.js"></script>
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiYXhsaHRtIiwiYSI6ImNtMnN3bTNwNjAyNDMycnM1YWd3Z2t2MzUifQ.8uiPvhorJXNuYOLJRnmWmg';
+
+const map = new mapboxgl.Map({
+    style: 'mapbox://styles/mapbox/standard',
+    center: [106.8456, -6.2088], // Jakarta coordinates (longitude, latitude)
+    zoom: 15.5,
+    pitch: 45,
+    bearing: -17.6,
+    container: 'map',
+    antialias: true
+});
+
+map.on('style.load', () => {
+
+    // 1️⃣ Add your GeoJSON layer first (base layer)
+    map.addSource('flood-data', {
+        type: 'geojson',
+        data: 'Average_Flood_Depth_2024_EPSG_4326.geojson'
+    });
+
+    map.addLayer({
+        'id': 'flood-layer',
+        'type': 'fill-extrusion',
+        'source': 'flood-data',
+        'paint': {
+            'fill-extrusion-color': [
+                'step',
+                ['get', 'Avg_height'],
+                '#afd1e7', 50,   // 0–50
+                '#3e8ec4', 150,  // 50–150
+                '#08306b'        // 150–215
+            ],
+            'fill-extrusion-height': [
+                'interpolate', ['linear'], ['get', 'Avg_height'],
+                0, 0.1, // minimal height for 0 flood
+                5, 0.5  // small height for 5m flood
+            ],
+            'fill-extrusion-base': 0,
+            'fill-extrusion-opacity': 1
+        }
+    });
+
+
+    // 2️⃣ Find a label layer to place 3D buildings beneath
+    const layers = map.getStyle().layers;
+    const labelLayerId = layers.find(
+        (layer) => layer.type === 'symbol' && layer.layout['text-field']
+    ).id;
+
+    // 3️⃣ Add 3D building layer AFTER the GeoJSON so it appears on top
+    map.addLayer({
+        id: 'add-3d-buildings',
+        source: 'composite',
+        'source-layer': 'building',
+        filter: ['==', 'extrude', 'true'],
+        type: 'fill-extrusion',
+        minzoom: 15,
+        paint: {
+            'fill-extrusion-color': '#aaa',
+            'fill-extrusion-height': [
+                'interpolate', ['linear'], ['zoom'],
+                15, 0,
+                15.05, ['get', 'height']
+            ],
+            'fill-extrusion-base': [
+                'interpolate', ['linear'], ['zoom'],
+                15, 0,
+                15.05, ['get', 'min_height']
+            ],
+            'fill-extrusion-opacity': 0.6
+        }
+    }, labelLayerId);
+
+});
+</script>
+</body>
+</html>
