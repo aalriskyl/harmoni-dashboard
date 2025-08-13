@@ -1,6 +1,8 @@
+/* eslint-disable no-unused-vars */
 import React from "react";
 
 const MapPopup = ({ point, onChartClick, onAwareClick, onDetailsClick }) => {
+  if (!point) return null;
   if (point.type === "Rain" || point.type === "Water") {
     const readingKey = point.type === "Rain" ? "precipitation" : "level";
     const readingValue = point.latestReading[readingKey];
@@ -14,7 +16,6 @@ const MapPopup = ({ point, onChartClick, onAwareClick, onDetailsClick }) => {
 
     return (
       <div className="max-w-xs">
-        {/* Popup content for Rain/Water sensors */}
         <button onClick={() => onChartClick(point)}>{chartButtonText}</button>
         <button onClick={() => onAwareClick(point)}>AWARE</button>
       </div>

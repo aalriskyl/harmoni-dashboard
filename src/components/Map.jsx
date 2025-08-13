@@ -6,10 +6,13 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { createRoot } from 'react-dom/client';
 import mapboxgl from "mapbox-gl";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import "mapbox-gl/dist/mapbox-gl.css";
 import LocationGraph from "./LocationGraph";
+import FloodLayer from "./FloodLayer";
+import FloodPopup from './FloodPopup';
 import axios from "axios";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
@@ -42,6 +45,102 @@ const Map = () => {
   });
   const [controlsVisible, setControlsVisible] = useState(false);
   const [activePopupId, setActivePopupId] = useState(null);
+  const [showFloodLayer, setShowFloodLayer] = useState(false);
+  const [rainfallAmount, setRainfallAmount] = useState(0);
+  const [floodPopupInfo, setFloodPopupInfo] = useState(null);
+
+  useEffect(() => {
+    if (floodPopupInfo && map.current) {
+      const placeholder = document.createElement('div');
+      const root = createRoot(placeholder);
+      root.render(<FloodPopup 
+        WADMKC={floodPopupInfo.WADMKC}
+        WADMKD={floodPopupInfo.WADMKD}
+        WADMKK={floodPopupInfo.WADMKK}
+        kelurahan={floodPopupInfo.kelurahan}
+        City={floodPopupInfo.City}
+        District={floodPopupInfo.District}
+        Sub_distri={floodPopupInfo.Sub_distri}
+        Year={floodPopupInfo.Year}
+        Month={floodPopupInfo.Month}
+        Min_height={floodPopupInfo.Min_height}
+        Max_height={floodPopupInfo.Max_height}
+        Avg_height={floodPopupInfo.Avg_height}
+        day_in_the={floodPopupInfo.day_in_the}
+        days_poole={floodPopupInfo.days_poole}
+      />);
+
+      const popup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        closeOnMove: false,
+        className: 'flood-popup',
+        maxWidth: 'none',
+        offset: [0, 0]
+      })
+        .setLngLat([floodPopupInfo.lng, floodPopupInfo.lat])
+        .setDOMContent(placeholder)
+        .addTo(map.current);
+
+      popup.on('close', () => {
+        setFloodPopupInfo(null);
+      });
+
+      // Clean up popup when component unmounts or floodPopupInfo changes
+      return () => {
+        popup.remove();
+        root.unmount();
+      };
+    }
+  }, [floodPopupInfo]);
+
+  useEffect(() => {
+    const handleSimulationStateChange = (event) => {
+      console.log('[Map.jsx] Received simulationStateChange:', event.detail);
+      setShowFloodLayer(event.detail.isActive);
+      setRainfallAmount(event.detail.rainfall);
+    };
+
+    window.addEventListener(
+      "simulationStateChange",
+      handleSimulationStateChange
+    );
+
+    return () => {
+      window.removeEventListener(
+        "simulationStateChange",
+        handleSimulationStateChange
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleFloodLayerClick = (event) => {
+      setFloodPopupInfo(event.detail);
+    };
+
+    const handleShowFloodPopup = (event) => {
+      const { floodData } = event.detail;
+      setFloodPopupInfo(floodData);
+      
+      // Center map on the flood data location
+      if (map.current && floodData.lng && floodData.lat) {
+        map.current.flyTo({
+          center: [floodData.lng, floodData.lat],
+          zoom: 14,
+          essential: true
+        });
+      }
+    };
+
+    window.addEventListener('floodLayerClick', handleFloodLayerClick);
+    window.addEventListener('showFloodPopup', handleShowFloodPopup);
+
+    return () => {
+      window.removeEventListener('floodLayerClick', handleFloodLayerClick);
+      window.removeEventListener('showFloodPopup', handleShowFloodPopup);
+    };
+  }, []);
 
   // Fetch and process waterpump data
   useEffect(() => {
@@ -63,7 +162,8 @@ const Map = () => {
           ];
 
           const stations = data.features.map((feature, index) => {
-            const randomStatus = pumpStatuses[Math.floor(Math.random() * pumpStatuses.length)];
+            const randomStatus =
+              pumpStatuses[Math.floor(Math.random() * pumpStatuses.length)];
             return {
               id: 1000 + index, // Start from 1000 to avoid conflicts with existing pinPoints
               lng: feature.geometry.coordinates[0],
@@ -152,13 +252,13 @@ const Map = () => {
       const el = document.createElement("div");
       el.className =
         "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
-      el.style.backgroundColor = "#677056"; // Static dark green background
-      el.style.border = "2px solid white";
+      el.style.backgroundColor = "#4e583b"; // Static green background
+      el.style.border = "2px solid #677056";
       el.style.boxShadow = "0 0 0 2px rgba(0,0,0,0.1)";
 
       const icon = document.createElement("img");
       icon.src = "/assets/img/pump-icon.svg";
-      icon.className = "w-4 h-4";
+      icon.className = "w-6 h-6 p-1";
       icon.style.filter = "brightness(0) invert(1)"; // Make icon white
       el.appendChild(icon);
 
@@ -180,7 +280,11 @@ const Map = () => {
             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
               <span class="text-gray-600">Status:</span>
               <span class="font-medium ${
-                point.status === "Running" ? "text-green-500" : point.status === "Idle" ? "text-yellow-400" : "text-red-500"
+                point.status === "Running"
+                  ? "text-[#28a745]"
+                  : point.status === "Idle"
+                  ? "text-[#677056]"
+                  : "text-[#dc3545]"
               }">${point.status}</span>
               <span class="text-gray-600">Device ID:</span>
               <span>${point.deviceId}</span>
@@ -415,6 +519,18 @@ const Map = () => {
         selectedPoint={selectedPoint}
         onClose={() => setSelectedPoint(null)}
       />
+
+      {console.log(`[Map.jsx] Rendering FloodLayer with show: ${showFloodLayer}, rainfall: ${rainfallAmount}`)}
+      {showFloodLayer && <FloodLayer map={map.current} show={showFloodLayer} rainfall={rainfallAmount} />}
+      {floodPopupInfo && (
+        <FloodPopup
+          lng={floodPopupInfo.lng}
+          lat={floodPopupInfo.lat}
+          avgHeight={floodPopupInfo.avgHeight}
+          location={floodPopupInfo.location}
+          onClose={() => setFloodPopupInfo(null)}
+        />
+      )}
 
       <style>{`
         .mapboxgl-popup.custom-popup {

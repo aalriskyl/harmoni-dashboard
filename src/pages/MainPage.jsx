@@ -14,7 +14,7 @@ const MainPage = ({ selectedMenu, setShowWeather }) => {
       ) : (
         <FloatingContainer />
       )}
-      <MapToolbox />
+      {/* <MapToolbox /> */}
       {/* <Weather /> */}
     </div>
   );

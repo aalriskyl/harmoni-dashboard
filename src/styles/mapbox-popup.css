@@ -1,0 +1,45 @@
+/* Mapbox Popup Styling */
+.mapboxgl-popup.flood-popup {
+  will-change: auto;
+  pointer-events: auto;
+}
+
+.mapboxgl-popup.flood-popup .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0;
+  width: 320px;
+  max-height: 80vh;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background: white;
+}
+
+.mapboxgl-popup.flood-popup .mapboxgl-popup-tip {
+  display: none;
+}
+
+/* Custom scrollbar for popup */
+.mapboxgl-popup.flood-popup .mapboxgl-popup-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mapboxgl-popup.flood-popup .mapboxgl-popup-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.mapboxgl-popup.flood-popup .mapboxgl-popup-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.mapboxgl-popup.flood-popup .mapboxgl-popup-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Remove the close button since we're handling it in the content */
+.mapboxgl-popup-close-button {
+  display: none;
+}
