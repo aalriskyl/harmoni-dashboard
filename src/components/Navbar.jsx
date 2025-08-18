@@ -4,9 +4,9 @@ const Navbar = ({ onMenuSelect }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSimulationDropdownOpen, setIsSimulationDropdownOpen] =
     useState(false);
-  const [selectedSimulation, setSelectedSimulation] = useState("Simulations");
+  const [selectedSimulation, setSelectedSimulation] = useState("Flood Simulations");
   const [selectedFloodType, setSelectedFloodType] = useState(
-    "Realtime Flood Simulation"
+    "Flood Simulations"
   );
   const [currentTime, setCurrentTime] = useState({ time: "", date: "" });
   const [showWeather, setShowWeather] = useState(false); // State for weather panel visibility
@@ -68,64 +68,6 @@ const Navbar = ({ onMenuSelect }) => {
               </div>
 
               {/* Dropdown container */}
-              <div className="relative">
-                <button
-                  className="bg-[#cfcfcd] text-[#636059] border-[#636059] border px-4 py-2 rounded-xl flex items-center"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                >
-                  {selectedFloodType}
-                  <svg
-                    className={`ml-2 w-4 h-4 transition-transform ${
-                      isDropdownOpen ? "rotate-180" : ""
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-
-                {/* Dropdown menu */}
-                {isDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-48 bg-[#636059] rounded-xl shadow-lg z-50">
-                    <div className="py-1">
-                      <a
-                        href="#"
-                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd]"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedFloodType("Realtime Flood Simulation");
-                          setIsDropdownOpen(false);
-                          onMenuSelect("warnings");
-                        }}
-                      >
-                        Realtime Flood Simulation
-                      </a>
-                      <a
-                        href="#"
-                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd]"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedFloodType(
-                            "Return Period Flood Simulation"
-                          );
-                          setIsDropdownOpen(false);
-                          onMenuSelect("simulations");
-                        }}
-                      >
-                        Return period flood simulation
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* Second Dropdown container */}
               <div className="relative">
@@ -154,39 +96,44 @@ const Navbar = ({ onMenuSelect }) => {
                   </svg>
                 </button>
 
-                {/* Second Dropdown menu */}
                 {isSimulationDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-56 bg-[#636059] rounded-xl shadow-lg z-50">
+                  <div className="absolute left-0 mt-2 w-72 bg-[#636059] rounded-xl shadow-lg z-50">
                     <div className="py-1">
                       <a
                         href="#"
-                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd]"
+                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd] text-sm"
                         onClick={(e) => {
                           e.preventDefault();
-                          setSelectedSimulation(
-                            "Warnings and Vulnerable Areas"
-                          );
+                          setSelectedSimulation("Realtime Flood Simulation");
                           setSelectedFloodType("Realtime Flood Simulation");
-                          setIsSimulationDropdownOpen(false);
-                          onMenuSelect("warnings");
-                        }}
-                      >
-                        Warnings and Vulnerable Areas
-                      </a>
-                      <a
-                        href="#"
-                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd]"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedSimulation("Flood Simulations");
-                          setSelectedFloodType(
-                            "Return Period Flood Simulation"
-                          );
                           setIsSimulationDropdownOpen(false);
                           onMenuSelect("simulations");
                         }}
                       >
-                        Flood Simulations
+                        Realtime Flood Simulation
+                      </a>
+                      <a
+                        href="#"
+                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setSelectedSimulation(
+                            "Return Period Flood Simulation"
+                          );
+                          setSelectedFloodType(
+                            "Return Period Flood Simulation"
+                          );
+                          setIsSimulationDropdownOpen(false);
+                          onMenuSelect("warnings");
+                        }}
+                      >
+                        Realtime Period Flood Simulation
+                      </a>
+                      <a
+                        href="#"
+                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
+                      >
+                        Crowdsourced Flood Incidents
                       </a>
                     </div>
                   </div>

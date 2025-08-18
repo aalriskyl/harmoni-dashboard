@@ -5,17 +5,49 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  createElement,
 } from "react";
-import { createRoot } from 'react-dom/client';
+import { createRoot } from "react-dom/client";
 import mapboxgl from "mapbox-gl";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import "mapbox-gl/dist/mapbox-gl.css";
+import ReactDOM from "react-dom/client";
 import LocationGraph from "./LocationGraph";
 import FloodLayer from "./FloodLayer";
-import FloodPopup from './FloodPopup';
+import FloodPopup from "./FloodPopup";
 import axios from "axios";
 
+// Constants
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+const INITIAL_VIEW_STATE = {
+  lng: 106.8272,
+  lat: -6.1751,
+  zoom: 12,
+  pitch: 45,
+  bearing: -20,
+};
+const PUMP_STATUSES = [
+  { status: "Running", color: "#22c55e" },
+  { status: "Idle", color: "#facc15" },
+  { status: "Not Running", color: "#ef4444" },
+];
+
+// Add styles for the popup chart
+const style = document.createElement("style");
+style.textContent = `
+  .mapboxgl-popup-content {
+    padding: 0 !important;
+    max-width: 400px !important;
+  }
+  .mapboxgl-popup-content .popup-content {
+    padding: 12px;
+  }
+  .chart-wrapper {
+    width: 100%;
+    height: 100%;
+  }
+`;
+document.head.appendChild(style);
 
 if (MAPBOX_TOKEN) {
   mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -25,16 +57,21 @@ if (MAPBOX_TOKEN) {
   );
 }
 
-const Map = () => {
-  const [waterPumps, setWaterPumps] = useState([]);
-  const [pumpStations, setPumpStations] = useState([]);
+const Map = ({ showPumps = true }) => {
+  // Refs
   const mapContainer = useRef(null);
   const map = useRef(null);
-  const [_lng] = useState(106.8272);
-  const [_lat] = useState(-6.1751);
-  const [_zoom] = useState(12);
   const markers = useRef([]);
   const popups = useRef([]);
+
+  // State
+
+  const [waterPumps, setWaterPumps] = useState([]);
+  const [pumpStations, setPumpStations] = useState([]);
+  const [floodData, setFloodData] = useState([]);
+  const [showFloodHeatmap, setShowFloodHeatmap] = useState(false);
+  const [waterLevelData, setWaterLevelData] = useState([]);
+  const [rainRecorderData, setRainRecorderData] = useState([]);
   const [selectedPoint, setSelectedPoint] = useState(null);
   const [lightPreset, setLightPreset] = useState("day");
   const [labelVisibility, setLabelVisibility] = useState({
@@ -48,159 +85,114 @@ const Map = () => {
   const [showFloodLayer, setShowFloodLayer] = useState(false);
   const [rainfallAmount, setRainfallAmount] = useState(0);
   const [floodPopupInfo, setFloodPopupInfo] = useState(null);
+  const [showChart, setShowChart] = useState(false);
+  const [chartPoint, setChartPoint] = useState(null);
+  // Add this inside the Map component (near other state declarations)
+  const [showVulnerabilityLayer, setShowVulnerabilityLayer] = useState(false);
 
+  // Add this method inside the Map component
+  const toggleVulnerabilityLayer = useCallback(
+    (show) => {
+      setShowVulnerabilityLayer(show);
+
+      if (!map.current) return;
+
+      const layerId = "vulnerability-layer";
+      const sourceId = "vulnerability-source";
+
+      if (show) {
+        // Hide flood layer if it's visible
+        if (showFloodLayer) {
+          setShowFloodLayer(false);
+        }
+
+        // Coordinates for the image bounds
+        const bounds = [
+          [106.6849284, -6.0790941], // Upper left
+          [106.9742925, -6.0790941], // Upper right
+          [106.9742925, -6.3729514], // Lower right
+          [106.6849284, -6.3729514], // Lower left
+        ];
+
+        if (map.current.getSource(sourceId)) {
+          map.current.setLayoutProperty(layerId, "visibility", "visible");
+        } else {
+          map.current.addSource(sourceId, {
+            type: "image",
+            url: "/assets/img/Social_Vulnerability_8000px.png",
+            coordinates: bounds,
+          });
+
+          map.current.addLayer({
+            id: layerId,
+            type: "raster",
+            source: sourceId,
+            paint: {
+              "raster-opacity": 0.4,
+            },
+          });
+        }
+      } else {
+        if (map.current.getLayer(layerId)) {
+          map.current.setLayoutProperty(layerId, "visibility", "none");
+        }
+      }
+    },
+    [showFloodLayer]
+  );
+
+  // Add this useEffect to handle the layer visibility changes
   useEffect(() => {
-    if (floodPopupInfo && map.current) {
-      const placeholder = document.createElement('div');
-      const root = createRoot(placeholder);
-      root.render(<FloodPopup 
-        WADMKC={floodPopupInfo.WADMKC}
-        WADMKD={floodPopupInfo.WADMKD}
-        WADMKK={floodPopupInfo.WADMKK}
-        kelurahan={floodPopupInfo.kelurahan}
-        City={floodPopupInfo.City}
-        District={floodPopupInfo.District}
-        Sub_distri={floodPopupInfo.Sub_distri}
-        Year={floodPopupInfo.Year}
-        Month={floodPopupInfo.Month}
-        Min_height={floodPopupInfo.Min_height}
-        Max_height={floodPopupInfo.Max_height}
-        Avg_height={floodPopupInfo.Avg_height}
-        day_in_the={floodPopupInfo.day_in_the}
-        days_poole={floodPopupInfo.days_poole}
-      />);
+    if (!map.current) return;
+    toggleVulnerabilityLayer(showVulnerabilityLayer);
+  }, [showVulnerabilityLayer, toggleVulnerabilityLayer]);
 
-      const popup = new mapboxgl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        closeOnMove: false,
-        className: 'flood-popup',
-        maxWidth: 'none',
-        offset: [0, 0]
-      })
-        .setLngLat([floodPopupInfo.lng, floodPopupInfo.lat])
-        .setDOMContent(placeholder)
-        .addTo(map.current);
-
-      popup.on('close', () => {
-        setFloodPopupInfo(null);
-      });
-
-      // Clean up popup when component unmounts or floodPopupInfo changes
-      return () => {
-        popup.remove();
-        root.unmount();
-      };
-    }
-  }, [floodPopupInfo]);
-
+  // Add this event listener inside the existing useEffect for event listeners
   useEffect(() => {
-    const handleSimulationStateChange = (event) => {
-      console.log('[Map.jsx] Received simulationStateChange:', event.detail);
-      setShowFloodLayer(event.detail.isActive);
-      setRainfallAmount(event.detail.rainfall);
+    const handleShowVulnerabilityLayer = (event) => {
+      setShowVulnerabilityLayer(event.detail.show);
     };
 
     window.addEventListener(
-      "simulationStateChange",
-      handleSimulationStateChange
+      "showVulnerabilityLayer",
+      handleShowVulnerabilityLayer
     );
 
     return () => {
       window.removeEventListener(
-        "simulationStateChange",
-        handleSimulationStateChange
+        "showVulnerabilityLayer",
+        handleShowVulnerabilityLayer
       );
     };
   }, []);
+  // Derived state
+  const pinPoints = useMemo(
+    () => [...pumpStations, ...waterLevelData, ...rainRecorderData],
+    [pumpStations, waterLevelData, rainRecorderData]
+  );
 
-  useEffect(() => {
-    const handleFloodLayerClick = (event) => {
-      setFloodPopupInfo(event.detail);
-    };
+  const pointsToShow = useMemo(
+    () => (showPumps ? pinPoints : []),
+    [pinPoints, showPumps]
+  );
 
-    const handleShowFloodPopup = (event) => {
-      const { floodData } = event.detail;
-      setFloodPopupInfo(floodData);
-      
-      // Center map on the flood data location
-      if (map.current && floodData.lng && floodData.lat) {
-        map.current.flyTo({
-          center: [floodData.lng, floodData.lat],
-          zoom: 14,
-          essential: true
-        });
-      }
-    };
+  // Helper functions
+  const getTimeBasedPreset = (hour) => {
+    if (hour >= 5 && hour < 7) return "dawn";
+    if (hour >= 7 && hour < 17) return "day";
+    if (hour >= 17 && hour < 19) return "dusk";
+    return "night";
+  };
 
-    window.addEventListener('floodLayerClick', handleFloodLayerClick);
-    window.addEventListener('showFloodPopup', handleShowFloodPopup);
-
-    return () => {
-      window.removeEventListener('floodLayerClick', handleFloodLayerClick);
-      window.removeEventListener('showFloodPopup', handleShowFloodPopup);
-    };
+  const updateTimeBasedPreset = useCallback(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    const newPreset = getTimeBasedPreset(hour);
+    setLightPreset(newPreset);
+    if (map.current) {
+      map.current.setConfigProperty("basemap", "lightPreset", newPreset);
+    }
   }, []);
-
-  // Fetch and process waterpump data
-  useEffect(() => {
-    const fetchWaterpumps = async () => {
-      try {
-        const response = await axios.get(
-          "/data/Waterpump_Stasioner_EPSG_4326.geojson"
-        );
-        const data = response.data;
-        console.log(data);
-        setWaterPumps(data);
-
-        // Process pump stations from GeoJSON
-        if (data && data.features) {
-          const pumpStatuses = [
-            { status: "Running", color: "#22c55e" }, // green-500
-            { status: "Idle", color: "#facc15" }, // yellow-400
-            { status: "Not Running", color: "#ef4444" }, // red-500
-          ];
-
-          const stations = data.features.map((feature, index) => {
-            const randomStatus =
-              pumpStatuses[Math.floor(Math.random() * pumpStatuses.length)];
-            return {
-              id: 1000 + index, // Start from 1000 to avoid conflicts with existing pinPoints
-              lng: feature.geometry.coordinates[0],
-              lat: feature.geometry.coordinates[1],
-              title: feature.properties.Pompa || "Pump Station",
-              type: "Waterpump",
-              color: randomStatus.color,
-              status: randomStatus.status,
-              deviceId: `PMP-${String(index + 1).padStart(3, "0")}`,
-              location: feature.properties.Alamat || "Unknown location",
-              latestReading: {
-                status: "Operational",
-                date: new Date().toISOString().split("T")[0],
-                time: new Date().toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-                capacity: feature.properties.Capacity
-                  ? `${feature.properties.Capacity} m³/s`
-                  : "N/A",
-              },
-            };
-          });
-          setPumpStations(stations);
-        }
-      } catch (error) {
-        console.error("Error fetching waterpump data:", error);
-      }
-    };
-
-    fetchWaterpumps();
-  }, []);
-
-  const pinPoints = useMemo(() => {
-    // The pin points are now exclusively from the GeoJSON file.
-    return pumpStations;
-  }, [pumpStations]);
 
   const setupRainEffect = useCallback(() => {
     if (!map.current) return;
@@ -223,112 +215,193 @@ const Map = () => {
     });
   }, []);
 
-  const getTimeBasedPreset = (hour) => {
-    if (hour >= 5 && hour < 7) return "dawn";
-    if (hour >= 7 && hour < 17) return "day";
-    if (hour >= 17 && hour < 19) return "dusk";
-    return "night";
-  };
+  // Data fetching
+  const fetchWaterpumps = useCallback(async () => {
+    try {
+      const response = await axios.get(
+        "/data/Waterpump_Stasioner_EPSG_4326.geojson"
+      );
+      const data = response.data;
+      setWaterPumps(data);
 
-  const updateTimeBasedPreset = useCallback(() => {
-    const now = new Date();
-    const hour = now.getHours();
-    const newPreset = getTimeBasedPreset(hour);
-    setLightPreset(newPreset);
-    if (map.current) {
-      map.current.setConfigProperty("basemap", "lightPreset", newPreset);
+      if (data?.features) {
+        const stations = data.features.map((feature, index) => {
+          const randomStatus =
+            PUMP_STATUSES[Math.floor(Math.random() * PUMP_STATUSES.length)];
+          return {
+            id: 1000 + index,
+            lng: feature.geometry.coordinates[0],
+            lat: feature.geometry.coordinates[1],
+            title: feature.properties.Pompa || "Pump Station",
+            type: "Waterpump",
+            color: randomStatus.color,
+            status: randomStatus.status,
+            deviceId: `PMP-${String(index + 1).padStart(3, "0")}`,
+            location: feature.properties.Alamat || "Unknown location",
+            latestReading: {
+              status: "Operational",
+              date: new Date().toISOString().split("T")[0],
+              time: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              capacity: feature.properties.Capacity
+                ? `${feature.properties.Capacity} m³/s`
+                : "N/A",
+            },
+          };
+        });
+        setPumpStations(stations);
+      }
+    } catch (error) {
+      console.error("Error fetching waterpump data:", error);
     }
   }, []);
 
-  const addPinPoints = useCallback(() => {
-    markers.current.forEach((marker) => marker.remove());
-    popups.current.forEach((popup) => popup.remove());
-    markers.current = [];
-    popups.current = [];
+  const fetchRainRecorderData = useCallback(async () => {
+    try {
+      const response = await axios.get(
+        "/data/Automatic_Rain_Recorder_(ARR)_with_Data-_Jakarta.geojson"
+      );
+      const data = response.data;
 
-    // Create and add new markers and popups for each pump station
-    pinPoints.forEach((point) => {
-      // Create a custom marker element
-      const el = document.createElement("div");
-      el.className =
-        "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
-      el.style.backgroundColor = "#4e583b"; // Static green background
-      el.style.border = "2px solid #677056";
-      el.style.boxShadow = "0 0 0 2px rgba(0,0,0,0.1)";
+      if (data?.features) {
+        const processedData = data.features.map((feature, index) => {
+          const [lng, lat] = feature.geometry.coordinates;
+          const props = feature.properties;
+          const precipitationData = props.Precipitation_Rate || {};
+          const sortedDates = Object.keys(precipitationData).sort();
+          const latestDate = sortedDates.pop() || "";
+          const latestRainfall = latestDate ? precipitationData[latestDate] : 0;
 
-      const icon = document.createElement("img");
-      icon.src = "/assets/img/pump-icon.svg";
-      icon.className = "w-6 h-6 p-1";
-      icon.style.filter = "brightness(0) invert(1)"; // Make icon white
-      el.appendChild(icon);
+          const rainfallData = sortedDates.slice(-24).map((date) => ({
+            time: date,
+            formattedTime: new Date(date).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            formattedDate: new Date(date).toLocaleDateString("en-GB"),
+            rainfall: parseFloat(precipitationData[date]) || 0,
+          }));
 
-      // Create the popup content
-      const popupContent = document.createElement("div");
-      popupContent.innerHTML = `
-        <div class="max-w-xs font-sans">
-          <div class="flex items-center mb-2">
-            <div class="w-5 h-5 mr-2 rounded-full flex items-center justify-center" style="background-color: ${
-              point.color
-            }">
-              <img src="/assets/img/pump-icon.svg" class="w-3 h-3" alt="Pump icon" />
-            </div>
-            <h3 class="font-bold text-base">${point.title}</h3>
-          </div>
-          
-          <div class="border-t border-gray-200 pt-2 mt-2">
-            <h4 class="font-semibold text-sm mb-1">Device Information</h4>
-            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-              <span class="text-gray-600">Status:</span>
-              <span class="font-medium ${
-                point.status === "Running"
-                  ? "text-[#28a745]"
-                  : point.status === "Idle"
-                  ? "text-[#677056]"
-                  : "text-[#dc3545]"
-              }">${point.status}</span>
-              <span class="text-gray-600">Device ID:</span>
-              <span>${point.deviceId}</span>
-              <span class="text-gray-600">Location:</span>
-              <span>${point.location}</span>
-            </div>
-          </div>
+          return {
+            id: 2000 + index,
+            lng,
+            lat,
+            title: props.Nama_Pos || `Rain Recorder ${index + 1}`,
+            type: "RainRecorder",
+            color: "#3b82f6",
+            status: props.Kondisi_Po || "Active",
+            deviceId: `RR-${String(index + 1).padStart(3, "0")}`,
+            location:
+              [props.Kelurahan, props.Kecamatan, props.Kota]
+                .filter(Boolean)
+                .join(", ") || "Unknown location",
+            latestReading: {
+              rainfall: latestRainfall,
+              date: latestDate,
+              condition:
+                latestRainfall > 50
+                  ? "Heavy Rain"
+                  : latestRainfall > 20
+                  ? "Moderate Rain"
+                  : latestRainfall > 0
+                  ? "Light Rain"
+                  : "No Rain",
+            },
+            details: {
+              jenisAlat: props.Jenis_Alat || "N/A",
+              merkAlat: props.Merk_Alat || "N/A",
+              provinsi: props.Provinsi || "N/A",
+              pengelola: props.Pengelola || "N/A",
+              tahunDibangun: props.Didirikan || "N/A",
+              wilayahSungai: props.WS || "N/A",
+              kondisiAlat: props.Kondisi_Al || "N/A",
+            },
+            rainfallData:
+              rainfallData.length > 0
+                ? rainfallData
+                : [
+                    { time: "00:00", rainfall: 0 },
+                    { time: "06:00", rainfall: 0 },
+                    { time: "12:00", rainfall: 0 },
+                    { time: "18:00", rainfall: 0 },
+                  ],
+          };
+        });
+        setRainRecorderData(processedData);
+      }
+    } catch (error) {
+      console.error("Error fetching flood data:", error);
+    }
+  }, []);
 
-          <div class="border-t border-gray-200 pt-2 mt-2">
-            <h4 class="font-semibold text-sm mb-1">Latest Reading</h4>
-            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-              <span class="text-gray-600">Capacity:</span>
-              <span class="font-medium">${point.latestReading.capacity}</span>
-              <span class="text-gray-600">Date:</span>
-              <span>${point.latestReading.date}</span>
-              <span class="text-gray-600">Time:</span>
-              <span>${point.latestReading.time}</span>
-            </div>
-          </div>
+  const fetchWaterLevelData = useCallback(async () => {
+    try {
+      const response = await axios.get(
+        "/data/Automatic_Water_Level_Recorder_(AWLR)_with_Data-_Jakarta.geojson"
+      );
+      const data = response.data;
 
-          <div class="mt-3 w-full">
-            <button class="read-more-btn w-full bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs py-2 px-3 rounded transition-colors">
-              Read More
-            </button>
-          </div>
-        </div>
-      `;
+      if (data?.features) {
+        const processedData = data.features
+          .map((feature, index) => {
+            const waterLevels = feature.properties["Water Level Rate"] || {};
+            const latestDate = Object.keys(waterLevels).sort().pop();
+            const latestLevel = latestDate ? waterLevels[latestDate] : "N/A";
 
-      // Create the popup
-      const popup = new mapboxgl.Popup({
-        offset: 30,
-        className: "custom-popup",
-      }).setDOMContent(popupContent);
+            const lng = parseFloat(feature.properties.Longitude);
+            const lat = parseFloat(feature.properties.Latitude);
 
-      // Create the marker and add it to the map
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([point.lng, point.lat])
-        .setPopup(popup)
-        .addTo(map.current);
+            if (isNaN(lng) || isNaN(lat)) return null;
 
-      markers.current.push(marker);
-      popups.current.push(popup);
-    });
-  }, [pinPoints]);
+            return {
+              id: 3000 + index,
+              lng,
+              lat,
+              title:
+                feature.properties.Nama_Pos ||
+                `Water Level Station ${index + 1}`,
+              type: "WaterLevel",
+              color: "#06b6d4",
+              status: feature.properties.Kondisi_Po || "Unknown",
+              deviceId: `WL-${String(index + 1).padStart(3, "0")}`,
+              location:
+                [
+                  feature.properties.Kelurahan,
+                  feature.properties.Kecamatan,
+                  feature.properties.Kota,
+                  feature.properties.Provinsi,
+                ]
+                  .filter(Boolean)
+                  .join(", ") || "Unknown location",
+              latestReading: {
+                level: latestLevel,
+                date: latestDate || "N/A",
+                condition: feature.properties.Kondisi_Al || "N/A",
+              },
+              manager: feature.properties.Pengelola || "N/A",
+              installedYear: feature.properties.Didirikan || "N/A",
+            };
+          })
+          .filter(Boolean);
+        setWaterLevelData(processedData);
+      }
+    } catch (error) {
+      console.error("Error fetching water level data:", error);
+    }
+  }, []);
+
+  // Event handlers
+  const toggleChart = (point) => {
+    setChartPoint(point);
+    setShowChart(!showChart);
+  };
+
+  const closeChart = () => {
+    setShowChart(false);
+    setChartPoint(null);
+  };
 
   const handleLightPresetChange = (e) => {
     const preset = e.target.value;
@@ -349,27 +422,462 @@ const Map = () => {
     }
   };
 
-  useEffect(() => {
-    updateTimeBasedPreset();
-    const intervalId = setInterval(updateTimeBasedPreset, 60 * 60 * 1000);
-    return () => clearInterval(intervalId);
-  }, [updateTimeBasedPreset]);
+  // Marker and popup utilities
+  const getStatusButtonClass = (point) => {
+    if (point.type === "Waterpump") {
+      return point.status === "Not Running"
+        ? "bg-red-600 hover:bg-red-700"
+        : point.status === "Idle"
+        ? "bg-yellow-500 hover:bg-yellow-600"
+        : "bg-green-600 hover:bg-green-700";
+    } else if (point.type === "RainRecorder") {
+      return point.latestReading.rainfall > 50
+        ? "bg-red-600 hover:bg-red-700"
+        : point.latestReading.rainfall > 20
+        ? "bg-yellow-500 hover:bg-yellow-600"
+        : "bg-green-600 hover:bg-green-700";
+    } else if (point.type === "WaterLevel") {
+      return point.latestReading.level > 3
+        ? "bg-red-600 hover:bg-red-700"
+        : point.latestReading.level > 1.5
+        ? "bg-yellow-500 hover:bg-yellow-600"
+        : "bg-green-600 hover:bg-green-700";
+    }
+    return "bg-blue-600 hover:bg-blue-700";
+  };
 
+  const getStatusText = (point) => {
+    if (point.type === "Waterpump") {
+      return point.status === "Not Running"
+        ? "High Alert"
+        : point.status === "Idle"
+        ? "Caution Advised"
+        : "Normal Operation";
+    } else if (point.type === "RainRecorder") {
+      return point.latestReading.rainfall > 50
+        ? "High Alert"
+        : point.latestReading.rainfall > 20
+        ? "Caution Advised"
+        : "Normal Conditions";
+    } else if (point.type === "WaterLevel") {
+      return point.latestReading.level > 3
+        ? "High Alert"
+        : point.latestReading.level > 1.5
+        ? "Caution Advised"
+        : "Normal Conditions";
+    }
+    return "View Status";
+  };
+
+  const getIconSrc = (type) => {
+    switch (type) {
+      case "Waterpump":
+        return "/assets/img/pump-icon.svg";
+      case "RainRecorder":
+        return "/assets/img/rain-gauge-icon.svg";
+      case "WaterLevel":
+        return "/assets/img/water-level-icon.svg";
+      default:
+        return "/assets/img/marker-icon.svg";
+    }
+  };
+
+  const renderInfoRows = (point) => {
+    if (point.type === "Waterpump") {
+      return `
+        <span class="text-gray-600">Status:</span>
+        <span class="font-medium ${
+          point.status === "Running"
+            ? "text-[#28a745]"
+            : point.status === "Idle"
+            ? "text-[#677056]"
+            : "text-[#dc3545]"
+        }">${point.status}</span>
+        <span class="text-gray-600">Device ID:</span>
+        <span>${point.deviceId}</span>
+        <span class="text-gray-600">Location:</span>
+        <span>${point.location}</span>
+      `;
+    } else if (point.type === "RainRecorder") {
+      return `
+        <span class="text-gray-600">Status:</span>
+        <span class="font-medium ${
+          point.status === "Active" ? "text-green-600" : "text-red-600"
+        }">${point.status}</span>
+        <span class="text-gray-600">Device ID:</span>
+        <span>${point.deviceId}</span>
+        <span class="text-gray-600">Location:</span>
+        <span>${point.location}</span>
+        <span class="text-gray-600">Type:</span>
+        <span>${point.details?.jenisAlat || "N/A"}</span>
+        <span class="text-gray-600">Brand:</span>
+        <span>${point.details?.merkAlat || "N/A"}</span>
+        <span class="text-gray-600">Manager:</span>
+        <span>${point.details?.pengelola || "N/A"}</span>
+        <span class="text-gray-600">Built Year:</span>
+        <span>${point.details?.tahunDibangun || "N/A"}</span>
+        <span class="text-gray-600">Condition:</span>
+        <span>${point.details?.kondisiAlat || "N/A"}</span>
+      `;
+    } else if (point.type === "WaterLevel") {
+      return `
+        <span class="text-gray-600">Status:</span>
+        <span class="font-medium ${
+          point.status === "Functioned" ? "text-green-600" : "text-red-600"
+        }">${point.status}</span>
+        <span class="text-gray-600">Device ID:</span>
+        <span>${point.deviceId}</span>
+        <span class="text-gray-600">Location:</span>
+        <span>${point.location}</span>
+        <span class="text-gray-600">Manager:</span>
+        <span>${point.manager || "N/A"}</span>
+        <span class="text-gray-600">Installed:</span>
+        <span>${point.installedYear || "N/A"}</span>
+      `;
+    }
+    return "";
+  };
+
+  const renderLatestReading = (point) => {
+    if (point.type === "Waterpump") {
+      return `
+        <span class="text-gray-600">Capacity:</span>
+        <span class="font-medium">${point.latestReading.capacity}</span>
+        <span class="text-gray-600">Date:</span>
+        <span>${point.latestReading.date}</span>
+        <span class="text-gray-600">Time:</span>
+        <span>${point.latestReading.time}</span>
+      `;
+    } else if (point.type === "RainRecorder") {
+      return `
+        <span class="text-gray-600">Rainfall:</span>
+        <span class="font-medium">${point.latestReading.rainfall} mm</span>
+        <span class="text-gray-600">Date:</span>
+        <span>${point.latestReading.date || "N/A"}</span>
+        <span class="text-gray-600">Condition:</span>
+        <span>${point.latestReading.condition}</span>
+      `;
+    } else if (point.type === "WaterLevel") {
+      return `
+        <span class="text-gray-600">Water Level:</span>
+        <span class="font-medium">${point.latestReading.level} m</span>
+        <span class="text-gray-600">Date:</span>
+        <span>${point.latestReading.date}</span>
+        <span class="text-gray-600">Condition:</span>
+        <span>${point.latestReading.condition}</span>
+      `;
+    }
+    return "";
+  };
+
+  const renderPopupContent = (point) => {
+    return `
+      <div class="max-w-xs font-sans">
+        <div class="flex items-center mb-2">
+          <div class="w-5 h-5 mr-2 rounded-full flex items-center justify-center" style="background-color: ${
+            point.color
+          }">
+            <img src="${getIconSrc(point.type)}" class="w-3 h-3" alt="${
+      point.type
+    } icon" />
+          </div>
+          <h3 class="font-bold text-base">${point.title}</h3>
+        </div>
+        
+        <div class="border-t border-gray-200 pt-2 mt-2">
+          <h4 class="font-semibold text-sm mb-1">${
+            point.type === "Waterpump"
+              ? "Device"
+              : point.type === "Flood"
+              ? "Flood"
+              : "Station"
+          } Information</h4>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            ${renderInfoRows(point)}
+          </div>
+        </div>
+
+        ${
+          point.latestReading
+            ? `
+        <div class="border-t border-gray-200 pt-2 mt-2">
+          <h4 class="font-semibold text-sm mb-1">Latest Reading</h4>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            ${renderLatestReading(point)}
+          </div>
+        </div>
+        `
+            : ""
+        }
+
+        <div class="mt-4 flex flex-col gap-2">
+          <button class="w-full py-2 px-3 rounded text-white text-sm font-medium ${getStatusButtonClass(
+            point
+          )}" 
+                  onclick="alert('${
+                    point.type === "Waterpump"
+                      ? `Status: ${point.status}`
+                      : point.type === "RainRecorder"
+                      ? `Rainfall: ${point.latestReading.rainfall}mm`
+                      : `Water Level: ${point.latestReading.level}m`
+                  }')">
+            ${getStatusText(point)}
+          </button>
+          <button type="button" class="chart-btn w-full py-2 px-3 bg-[#946e31] hover:bg-[#6e4f1f] text-white rounded text-sm font-medium" onclick="event.preventDefault(); event.stopPropagation();">
+            Show Chart
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  const updateMarkers = useCallback(() => {
+    if (!map.current) return;
+
+    // Clear existing markers
+    markers.current.forEach((marker) => marker.remove());
+    markers.current = [];
+    popups.current = [];
+
+    if (!pointsToShow || pointsToShow.length === 0) return;
+
+    pointsToShow.forEach((point, index) => {
+      const el = document.createElement("div");
+      el.className =
+        "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
+
+      const markerStyles = {
+        Waterpump: { bgColor: "#4e583b", borderColor: "#677056" },
+        RainRecorder: { bgColor: "#6A7F53", borderColor: "#6A7F53" },
+        WaterLevel: { bgColor: "#677056", borderColor: "#677056" },
+        default: { bgColor: "#6b7280", borderColor: "#9ca3af" },
+      };
+
+      const style = markerStyles[point.type] || markerStyles.default;
+      el.style.backgroundColor = style.bgColor;
+      el.style.border = `2px solid ${style.borderColor}`;
+      el.style.boxShadow = "0 0 0 2px rgba(0,0,0,0.1)";
+
+      const icon = document.createElement("img");
+      icon.src = getIconSrc(point.type);
+      icon.className = "w-6 h-6 p-1";
+      icon.style.filter = "brightness(0) invert(1)";
+      el.appendChild(icon);
+
+      const popupContent = document.createElement("div");
+      popupContent.className = "popup-content";
+      popupContent.innerHTML = renderPopupContent(point);
+
+      const popup = new mapboxgl.Popup({
+        offset: 30,
+        className: "custom-popup",
+      }).setDOMContent(popupContent);
+
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([point.lng, point.lat])
+        .setPopup(popup)
+        .addTo(map.current);
+
+      // Add click handler for chart button
+      const chartButton = popupContent.querySelector(".chart-btn");
+      if (chartButton) {
+        chartButton.onclick = (e) => {
+          e.stopPropagation();
+          toggleChart(point);
+        };
+      }
+
+      markers.current.push(marker);
+      popups.current.push(popup);
+    });
+  }, [pointsToShow]);
+
+  // Event listeners
+  useEffect(() => {
+    // Inside the useEffect for event listeners in Map.jsx
+    const handleSimulationStateChange = (event) => {
+      console.log("Simulation state changed:", event.detail);
+      setShowFloodLayer(event.detail.isActive);
+      setRainfallAmount(event.detail.rainfall);
+
+      // Always show vulnerability layer when simulation is active
+      if (event.detail.isActive) {
+        console.log("Ensuring vulnerability layer is visible from simulation");
+        setShowVulnerabilityLayer(true);
+
+        // Use a timeout to ensure this runs after any other state updates
+        if (map.current) {
+          const layerId = "flood-vulnerability-layer";
+          const sourceId = "flood-vulnerability";
+
+          // Add source if it doesn't exist
+          if (!map.current.getSource(sourceId)) {
+            console.log("Adding vulnerability source");
+            map.current.addSource(sourceId, {
+              type: "image",
+              url: "/assets/img/Social_Vulnerability_8000px.png",
+              coordinates: [
+                [106.6849284, -6.0790941], // Upper Left
+                [106.9742925, -6.0790941], // Upper Right
+                [106.9742925, -6.3729514], // Lower Right
+                [106.6849284, -6.3729514], // Lower Left
+              ],
+            });
+          }
+
+          // Add layer if it doesn't exist
+          if (!map.current.getLayer(layerId)) {
+            console.log("Adding vulnerability layer");
+            map.current.addLayer({
+              id: layerId,
+              type: "raster",
+              source: sourceId,
+              paint: {
+                "raster-opacity": 0.4,
+              },
+              layout: {
+                visibility: "visible",
+              },
+            });
+          } else {
+            // Make sure it's visible
+            console.log("Setting layer visibility to visible");
+            map.current.setLayoutProperty(layerId, "visibility", "visible");
+          }
+
+          // Double-check after a short delay
+          setTimeout(() => {
+            if (map.current && map.current.getLayer(layerId)) {
+              console.log("Double-checking layer visibility");
+              map.current.setLayoutProperty(layerId, "visibility", "visible");
+            }
+          }, 100);
+        }
+      }
+    };
+
+    const handleShowVulnerabilityLayer = (event) => {
+      console.log("Show vulnerability layer event:", event.detail);
+      setShowVulnerabilityLayer(true);
+
+      if (map.current) {
+        const layerId = "flood-vulnerability-layer";
+        const sourceId = "flood-vulnerability";
+
+        // Add source if it doesn't exist
+        if (!map.current.getSource(sourceId)) {
+          console.log("Adding vulnerability source from button");
+          map.current.addSource(sourceId, {
+            type: "image",
+            url: "/assets/img/Social_Vulnerability_8000px.png",
+            coordinates: [
+              [106.6849284, -6.0790941], // Upper Left
+              [106.9742925, -6.0790941], // Upper Right
+              [106.9742925, -6.3729514], // Lower Right
+              [106.6849284, -6.3729514], // Lower Left
+            ],
+          });
+        }
+
+        // Add layer if it doesn't exist
+        if (!map.current.getLayer(layerId)) {
+          console.log("Adding vulnerability layer from button");
+          map.current.addLayer({
+            id: layerId,
+            type: "raster",
+            source: sourceId,
+            paint: {
+              "raster-opacity": 0.4,
+            },
+          });
+        }
+
+        // Make sure it's visible
+        map.current.setLayoutProperty(layerId, "visibility", "visible");
+      }
+    };
+
+    const handleFloodLayerClick = (event) => {
+      setFloodPopupInfo(event.detail);
+    };
+
+    const handleShowFloodPopup = (event) => {
+      const { floodData, lng, lat } = event.detail;
+      setFloodPopupInfo(floodData);
+
+      if (map.current && ((lng && lat) || (floodData?.lng && floodData?.lat))) {
+        const targetLng = lng || floodData.lng;
+        const targetLat = lat || floodData.lat;
+
+        map.current.flyTo({
+          center: [targetLng, targetLat],
+          zoom: 14,
+          essential: true,
+        });
+      }
+    };
+
+    const handleCenterMap = (event) => {
+      if (map.current && event.detail) {
+        const { lng, lat, zoom = 14 } = event.detail;
+        map.current.flyTo({
+          center: [lng, lat],
+          zoom: zoom,
+          essential: true,
+        });
+      }
+    };
+
+    window.addEventListener(
+      "simulationStateChange",
+      handleSimulationStateChange
+    );
+    window.addEventListener("floodLayerClick", handleFloodLayerClick);
+    window.addEventListener("showFloodPopup", handleShowFloodPopup);
+    window.addEventListener("centerMapOnCoordinates", handleCenterMap);
+    window.addEventListener(
+      "showVulnerabilityLayer",
+      handleShowVulnerabilityLayer
+    );
+
+    return () => {
+      window.removeEventListener(
+        "simulationStateChange",
+        handleSimulationStateChange
+      );
+      window.removeEventListener("floodLayerClick", handleFloodLayerClick);
+      window.removeEventListener("showFloodPopup", handleShowFloodPopup);
+      window.removeEventListener("centerMapOnCoordinates", handleCenterMap);
+      window.removeEventListener(
+        "showVulnerabilityLayer",
+        handleShowVulnerabilityLayer
+      );
+    };
+  }, []);
+
+  // Initial data fetching
+  useEffect(() => {
+    fetchWaterpumps();
+    fetchRainRecorderData();
+    fetchWaterLevelData();
+  }, [fetchWaterpumps, fetchRainRecorderData, fetchWaterLevelData]);
+
+  // Map initialization
   useEffect(() => {
     if (map.current) return;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/standard",
-      center: [_lng, _lat],
-      zoom: _zoom,
-      pitch: 45,
-      bearing: -20,
+      center: [INITIAL_VIEW_STATE.lng, INITIAL_VIEW_STATE.lat],
+      zoom: INITIAL_VIEW_STATE.zoom,
+      pitch: INITIAL_VIEW_STATE.pitch,
+      bearing: INITIAL_VIEW_STATE.bearing,
     });
 
     map.current.on("load", () => {
       setupRainEffect();
-      addPinPoints();
+      updateMarkers();
       map.current.setConfigProperty("basemap", "lightPreset", lightPreset);
       Object.entries(labelVisibility).forEach(([key, value]) => {
         map.current.setConfigProperty("basemap", key, value);
@@ -396,19 +904,75 @@ const Map = () => {
         map.current = null;
       }
     };
-  }, [
-    _lng,
-    _lat,
-    _zoom,
-    addPinPoints,
-    setupRainEffect,
-    lightPreset,
-    labelVisibility,
-  ]);
+  }, [setupRainEffect, lightPreset, labelVisibility, updateMarkers]);
+
+  // Time-based updates
+  useEffect(() => {
+    updateTimeBasedPreset();
+    const intervalId = setInterval(updateTimeBasedPreset, 60 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, [updateTimeBasedPreset]);
+
+  // Marker updates
+  useEffect(() => {
+    updateMarkers();
+  }, [updateMarkers]);
+
+  // Flood popup effect
+  useEffect(() => {
+    if (floodPopupInfo && map.current) {
+      const placeholder = document.createElement("div");
+      const root = createRoot(placeholder);
+      root.render(
+        <FloodPopup
+          WADMKC={floodPopupInfo.WADMKC}
+          WADMKD={floodPopupInfo.WADMKD}
+          WADMKK={floodPopupInfo.WADMKK}
+          kelurahan={floodPopupInfo.kelurahan}
+          City={floodPopupInfo.City}
+          District={floodPopupInfo.District}
+          Sub_distri={floodPopupInfo.Sub_distri}
+          Year={floodPopupInfo.Year}
+          Month={floodPopupInfo.Month}
+          Min_height={floodPopupInfo.Min_height}
+          Max_height={floodPopupInfo.Max_height}
+          Avg_height={floodPopupInfo.Avg_height}
+          day_in_the={floodPopupInfo.day_in_the}
+          days_poole={floodPopupInfo.days_poole}
+        />
+      );
+
+      const popup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        closeOnMove: false,
+        className: "flood-popup",
+        maxWidth: "none",
+        offset: [0, 0],
+      })
+        .setLngLat([floodPopupInfo.lng, floodPopupInfo.lat])
+        .setDOMContent(placeholder)
+        .addTo(map.current);
+
+      popup.on("close", () => {
+        setFloodPopupInfo(null);
+      });
+
+      return () => {
+        popup.remove();
+        root.unmount();
+      };
+    }
+  }, [floodPopupInfo]);
 
   return (
     <div className="w-full h-screen relative">
       <div ref={mapContainer} className="w-full h-full" />
+
+      {/* Render the chart */}
+      {showChart && chartPoint && (
+        <LocationGraph selectedPoint={chartPoint} onClose={closeChart} />
+      )}
 
       <button
         onClick={() => setControlsVisible(!controlsVisible)}
@@ -426,7 +990,7 @@ const Map = () => {
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+            d="M4 6h16M4 12h16M4 18h16"
           />
         </svg>
       </button>
@@ -451,77 +1015,39 @@ const Map = () => {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="showPlaceLabels"
-                className="text-sm font-medium text-gray-700"
-              >
-                Place Labels
-              </label>
-              <input
-                type="checkbox"
-                id="showPlaceLabels"
-                checked={labelVisibility.showPlaceLabels}
-                onChange={handleLabelVisibilityChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="showPointOfInterestLabels"
-                className="text-sm font-medium text-gray-700"
-              >
-                POI Labels
-              </label>
-              <input
-                type="checkbox"
-                id="showPointOfInterestLabels"
-                checked={labelVisibility.showPointOfInterestLabels}
-                onChange={handleLabelVisibilityChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="showRoadLabels"
-                className="text-sm font-medium text-gray-700"
-              >
-                Road Labels
-              </label>
-              <input
-                type="checkbox"
-                id="showRoadLabels"
-                checked={labelVisibility.showRoadLabels}
-                onChange={handleLabelVisibilityChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="showTransitLabels"
-                className="text-sm font-medium text-gray-700"
-              >
-                Transit Labels
-              </label>
-              <input
-                type="checkbox"
-                id="showTransitLabels"
-                checked={labelVisibility.showTransitLabels}
-                onChange={handleLabelVisibilityChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-            </div>
+            {Object.entries({
+              showPlaceLabels: "Place Labels",
+              showPointOfInterestLabels: "POI Labels",
+              showRoadLabels: "Road Labels",
+              showTransitLabels: "Transit Labels",
+            }).map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between">
+                <label
+                  htmlFor={key}
+                  className="text-sm font-medium text-gray-700"
+                >
+                  {label}
+                </label>
+                <input
+                  type="checkbox"
+                  id={key}
+                  checked={labelVisibility[key]}
+                  onChange={handleLabelVisibilityChange}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      <LocationGraph
-        selectedPoint={selectedPoint}
-        onClose={() => setSelectedPoint(null)}
-      />
-
-      {console.log(`[Map.jsx] Rendering FloodLayer with show: ${showFloodLayer}, rainfall: ${rainfallAmount}`)}
-      {showFloodLayer && <FloodLayer map={map.current} show={showFloodLayer} rainfall={rainfallAmount} />}
+      {showFloodLayer && !showVulnerabilityLayer && (
+        <FloodLayer
+          map={map.current}
+          show={showFloodLayer}
+          rainfall={rainfallAmount}
+        />
+      )}
       {floodPopupInfo && (
         <FloodPopup
           lng={floodPopupInfo.lng}

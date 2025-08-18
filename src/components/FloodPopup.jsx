@@ -29,13 +29,17 @@ const FloodPopup = ({
     });
   };
 
-  // Determine hazard level
+  // Determine hazard level in meters
   const hazardLevel =
-    Max_height > 50 ? "High" : Max_height > 20 ? "Medium" : "Low";
+    Max_height >= 1.5
+      ? "Tinggi (Alert)"
+      : Max_height >= 0.76
+      ? "Sedang (Cautious)"
+      : "Rendah (Normal)";
   const hazardColor = {
-    High: "bg-red-500 hover:bg-red-600",
-    Medium: "bg-yellow-500 hover:bg-yellow-600",
-    Low: "bg-green-500 hover:bg-green-600",
+    "Tinggi (Alert)": "bg-red-500 hover:bg-red-600",
+    "Sedang (Cautious)": "bg-yellow-500 hover:bg-yellow-600",
+    "Rendah (Normal)": "bg-green-500 hover:bg-green-600",
   };
 
   const popupRef = useRef();
@@ -85,7 +89,9 @@ const FloodPopup = ({
             <div className="flex justify-between">
               <span className="text-gray-500">Provinsi:</span>
               <span className="text-gray-800 font-medium">
-                {WADMKK || "N/A"}
+                {(WADMKK &&
+                  (WADMKK.includes("JAKARTA") ? "DKI Jakarta" : WADMKK)) ||
+                  "N/A"}
               </span>
             </div>
             <div className="flex justify-between">

@@ -1,119 +1,82 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
-const FloodLayer = ({ map, show, rainfall }) => {
-  const sourceId = 'flood-data';
-  const layerId = 'flood-layer';
+const FloodLayer = ({ map, show, rainfall = 0 }) => {
+  const sourceId = "flood-vulnerability";
+  const layerId = "flood-vulnerability-layer";
+  const isInitialized = useRef(false);
 
+  // Initialize the layer
   useEffect(() => {
     if (!map) return;
 
-    const onSourceData = (e) => {
-      if (e.sourceId === sourceId && e.isSourceLoaded) {
-        window.dispatchEvent(new CustomEvent('floodLayerStateChange', { detail: { loading: false } }));
-      }
-    };
-
-    const handleLayerClick = (e) => {
-      if (e.features && e.features.length > 0) {
-        const feature = e.features[0];
-        const { 
-          WADMKK, WADMKC, WADMKD, 
-          City, District, Sub_distri, 
-          Year, Month, day_in_the,
-          Min_height, Max_height, Avg_height,
-          days_poole, kelurahan
-        } = feature.properties;
-        
-        const { lng, lat } = e.lngLat;
-
-        window.dispatchEvent(new CustomEvent('floodLayerClick', {
-          detail: {
-            lng,
-            lat,
-            WADMKC,
-            WADMKD,
-            WADMKK,
-            kelurahan,
-            City,
-            District,
-            Sub_distri,
-            Year,
-            Month,
-            Min_height,
-            Max_height,
-            Avg_height,
-            day_in_the,
-            days_poole
-          }
-        }));
-      }
-    };
-
     const setupLayer = () => {
-      if (map.getSource(sourceId)) return;
+      // Only set up the layer if it doesn't exist
+      if (map.getSource(sourceId) || map.getLayer(layerId)) return;
 
-      window.dispatchEvent(new CustomEvent('floodLayerStateChange', { detail: { loading: true } }));
-      map.on('sourcedata', onSourceData);
-
+      // Add image source for the vulnerability map
       map.addSource(sourceId, {
-        type: 'geojson',
-        data: '/data/Average_Flood_Depth_2024_EPSG_4326.geojson',
+        type: 'image',
+        url: '/assets/img/Social_Vulnerability_8000px.png',
+        coordinates: [
+          [106.5, -6.0],  // top-left
+          [107.2, -6.0],  // top-right
+          [107.2, -6.5],  // bottom-right
+          [106.5, -6.5],  // bottom-left
+        ],
       });
 
+      // Add the raster layer
       map.addLayer({
         id: layerId,
-        type: 'fill-extrusion',
+        type: 'raster',
         source: sourceId,
-        layout: { 'visibility': 'none' },
         paint: {
-          'fill-extrusion-color': [
-            'step',
-            ['get', 'Avg_height'],
-            '#afd1e7', 50, '#62a1cf', 100, '#3282b8', 150, '#1b6ca8', 200, '#0f4c75',
-          ],
-          'fill-extrusion-height': 0,
-          'fill-extrusion-opacity': 0.7,
+          'raster-opacity': 0.7,
+        },
+        layout: { 
+          visibility: show ? 'visible' : 'none' 
         },
       });
-
-      map.on('click', layerId, handleLayerClick);
+      
+      isInitialized.current = true;
     };
 
     if (map.isStyleLoaded()) {
       setupLayer();
     } else {
-      map.once('load', setupLayer);
+      map.once("load", setupLayer);
     }
 
+    // Cleanup function
     return () => {
-      if (map.isStyleLoaded()) {
-        map.off('click', layerId, handleLayerClick);
-        map.off('sourcedata', onSourceData);
-        if (map.getLayer(layerId)) map.removeLayer(layerId);
-        if (map.getSource(sourceId)) map.removeSource(sourceId);
+      if (map.getLayer(layerId)) {
+        map.removeLayer(layerId);
       }
+      if (map.getSource(sourceId)) {
+        map.removeSource(sourceId);
+      }
+      isInitialized.current = false;
     };
   }, [map]);
 
+  // Update layer visibility when show prop changes
   useEffect(() => {
-    console.log(`[FloodLayer] Updating layer with show: ${show}, rainfall: ${rainfall}`);
-    if (!map || !map.getLayer(layerId)) {
-      console.log('[FloodLayer] Guard clause triggered: map or layer not ready.');
-      return;
-    }
-
-    const isVisible = show && rainfall > 0;
-    console.log(`[FloodLayer] Setting visibility to: ${isVisible ? 'visible' : 'none'}`);
-    map.setLayoutProperty(layerId, 'visibility', isVisible ? 'visible' : 'none');
-
-    if (isVisible) {
-      map.setPaintProperty(layerId, 'fill-extrusion-height', [
-        'interpolate',
-        ['linear'],
-        ['get', 'Avg_height'],
-        0, 0,
-        300, ['*', ['get', 'Avg_height'], ['/', rainfall, 25]]
-      ]);
+    if (!map || !isInitialized.current) return;
+    
+    const layer = map.getLayer(layerId);
+    if (!layer) return;
+    
+    // Set the layer visibility based on the show prop
+    map.setLayoutProperty(
+      layerId,
+      "visibility",
+      show ? "visible" : "none"
+    );
+    
+    // Adjust opacity based on rainfall if needed
+    if (show) {
+      const opacity = Math.min(0.7, 0.3 + (rainfall / 100));
+      map.setPaintProperty(layerId, 'raster-opacity', opacity);
     }
   }, [map, show, rainfall]);
 
