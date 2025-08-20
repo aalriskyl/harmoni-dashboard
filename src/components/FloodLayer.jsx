@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef } from "react";
 
 const FloodLayer = ({ map, show, rainfall = 0 }) => {
@@ -15,29 +16,29 @@ const FloodLayer = ({ map, show, rainfall = 0 }) => {
 
       // Add image source for the vulnerability map
       map.addSource(sourceId, {
-        type: 'image',
-        url: '/assets/img/Social_Vulnerability_8000px.png',
+        type: "image",
+        url: "/assets/img/Social_Vulnerability_8000px.png",
         coordinates: [
-          [106.5, -6.0],  // top-left
-          [107.2, -6.0],  // top-right
-          [107.2, -6.5],  // bottom-right
-          [106.5, -6.5],  // bottom-left
+          [106.5, -6.0], // top-left
+          [107.2, -6.0], // top-right
+          [107.2, -6.5], // bottom-right
+          [106.5, -6.5], // bottom-left
         ],
       });
 
       // Add the raster layer
       map.addLayer({
         id: layerId,
-        type: 'raster',
+        type: "raster",
         source: sourceId,
         paint: {
-          'raster-opacity': 0.7,
+          "raster-opacity": 0.7,
         },
-        layout: { 
-          visibility: show ? 'visible' : 'none' 
+        layout: {
+          visibility: show ? "visible" : "none",
         },
       });
-      
+
       isInitialized.current = true;
     };
 
@@ -62,21 +63,17 @@ const FloodLayer = ({ map, show, rainfall = 0 }) => {
   // Update layer visibility when show prop changes
   useEffect(() => {
     if (!map || !isInitialized.current) return;
-    
+
     const layer = map.getLayer(layerId);
     if (!layer) return;
-    
+
     // Set the layer visibility based on the show prop
-    map.setLayoutProperty(
-      layerId,
-      "visibility",
-      show ? "visible" : "none"
-    );
-    
+    map.setLayoutProperty(layerId, "visibility", show ? "visible" : "none");
+
     // Adjust opacity based on rainfall if needed
     if (show) {
-      const opacity = Math.min(0.7, 0.3 + (rainfall / 100));
-      map.setPaintProperty(layerId, 'raster-opacity', opacity);
+      const opacity = Math.min(0.7, 0.3 + rainfall / 100);
+      map.setPaintProperty(layerId, "raster-opacity", opacity);
     }
   }, [map, show, rainfall]);
 

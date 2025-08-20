@@ -2,8 +2,8 @@ import React from "react";
 
 const FloatingContainer = () => {
   return (
-    <div className="fixed left-8 top-65 w-80 bg-white/90 rounded-2xl shadow-lg z-30">
-      <div className="flex flex-col p-4 space-y-3">
+    <div className="fixed left-8 top-[180px] w-80 bg-white/90 rounded-2xl shadow-lg z-30">
+      <div className="flex flex-col p-3 space-y-3">
         <div className="flex flex-col gap-2 overflow-hidden p-2 h-fit sm:h-full relative">
           <div className="w-full gap-1">
             <div className="flex items-center gap-2">

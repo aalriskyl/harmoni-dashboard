@@ -1,26 +1,28 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
+import { DateFilterProvider } from "../context/DateFilterContext";
 import Map from "../components/Map";
 import FloatingContainer from "../components/FloatingContainer";
 import FloatingFlood from "../components/FloatingFlood";
-import Weather from "../components/Weather";
-import MapToolbox from "../components/MapToolbox";
-import PumpControls from "../components/PumpControls";
+import FloatingCrowdsourced from "../components/FloatingCrowdSourced";
+import FloatingTweets from "../components/FloatingTweets";
 
-const MainPage = ({ selectedMenu, setShowWeather }) => {
-  const [showPumps, setShowPumps] = useState(true);
-
-  const handleTogglePumps = useCallback((isVisible) => {
-    setShowPumps(isVisible);
-  }, []);
+const MainPage = ({ selectedMenu = "simulations", setShowWeather }) => {
   return (
     <div className="w-full h-screen relative bg-blue-900">
-      <Map showPumps={showPumps} />
-      {selectedMenu === "simulations" ? (
-        <FloatingContainer />
-      ) : (
-        <FloatingFlood setShowWeather={setShowWeather} />
-      )}
-      <PumpControls onTogglePumps={handleTogglePumps} />
+      <DateFilterProvider>
+        <Map />
+        {selectedMenu === "warnings" ? (
+          <FloatingContainer />
+        ) : selectedMenu === "simulations" ? (
+          <FloatingFlood setShowWeather={setShowWeather} />
+        ) : selectedMenu === "crowdsourced" && (
+          <>
+            <FloatingCrowdsourced setShowWeather={setShowWeather} />
+            <FloatingTweets />
+          </>
+        )}
+      </DateFilterProvider>
+      {/* <PumpControls onTogglePumps={handleTogglePumps} /> */}
       {/* <MapToolbox /> */}
       {/* <Weather /> */}
     </div>

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
 import React, {
   useRef,
@@ -89,6 +90,71 @@ const Map = ({ showPumps = true }) => {
   const [chartPoint, setChartPoint] = useState(null);
   // Add this inside the Map component (near other state declarations)
   const [showVulnerabilityLayer, setShowVulnerabilityLayer] = useState(false);
+  const [floodIncidents, setFloodIncidents] = useState([]);
+
+  // Define image bounds for overlays
+  const imageBounds = [
+    [106.6849284, -6.0790941], // Upper left
+    [106.9742925, -6.0790941], // Upper right
+    [106.9742925, -6.3729514], // Lower right
+    [106.6849284, -6.3729514], // Lower left
+  ];
+
+  // Add or update flood image overlay
+  const updateFloodImage = useCallback((imagePath) => {
+    if (!map.current) return;
+
+    const layerId = 'flood-image-layer';
+    const sourceId = 'flood-image-source';
+    const vulnerabilityLayerId = 'vulnerability-layer';
+
+    // Hide and remove vulnerability layer when showing flood/risk layer
+    if (map.current.getLayer(vulnerabilityLayerId)) {
+      map.current.removeLayer(vulnerabilityLayerId);
+    }
+    if (map.current.getSource('vulnerability-source')) {
+      map.current.removeSource('vulnerability-source');
+    }
+
+    // Remove existing layer and source if they exist
+    if (map.current.getLayer(layerId)) {
+      map.current.removeLayer(layerId);
+    }
+    if (map.current.getSource(sourceId)) {
+      map.current.removeSource(sourceId);
+    }
+
+    // Only add new layer if we have a valid image path
+    if (imagePath) {
+      // Add new source and layer
+      map.current.addSource(sourceId, {
+        type: 'image',
+        url: imagePath,
+        coordinates: imageBounds,
+      });
+
+      map.current.addLayer({
+        id: layerId,
+        type: 'raster',
+        source: sourceId,
+        paint: {
+          'raster-opacity': 0.7,
+        },
+      });
+    }
+  }, []);
+
+  // Add event listener for flood image updates
+  useEffect(() => {
+    const handleUpdateFloodImage = (event) => {
+      updateFloodImage(event.detail.imagePath);
+    };
+
+    window.addEventListener('updateFloodImage', handleUpdateFloodImage);
+    return () => {
+      window.removeEventListener('updateFloodImage', handleUpdateFloodImage);
+    };
+  }, [updateFloodImage]);
 
   // Add this method inside the Map component
   const toggleVulnerabilityLayer = useCallback(
@@ -99,20 +165,17 @@ const Map = ({ showPumps = true }) => {
 
       const layerId = "vulnerability-layer";
       const sourceId = "vulnerability-source";
+      const floodLayerId = 'flood-image-layer';
 
       if (show) {
-        // Hide flood layer if it's visible
-        if (showFloodLayer) {
-          setShowFloodLayer(false);
+        // Hide flood layer if it exists
+        if (map.current.getLayer(floodLayerId)) {
+          map.current.removeLayer(floodLayerId);
         }
-
-        // Coordinates for the image bounds
-        const bounds = [
-          [106.6849284, -6.0790941], // Upper left
-          [106.9742925, -6.0790941], // Upper right
-          [106.9742925, -6.3729514], // Lower right
-          [106.6849284, -6.3729514], // Lower left
-        ];
+        const floodSourceId = 'flood-image-source';
+        if (map.current.getSource(floodSourceId)) {
+          map.current.removeSource(floodSourceId);
+        }
 
         if (map.current.getSource(sourceId)) {
           map.current.setLayoutProperty(layerId, "visibility", "visible");
@@ -120,7 +183,7 @@ const Map = ({ showPumps = true }) => {
           map.current.addSource(sourceId, {
             type: "image",
             url: "/assets/img/Social_Vulnerability_8000px.png",
-            coordinates: bounds,
+            coordinates: imageBounds,
           });
 
           map.current.addLayer({
@@ -692,6 +755,134 @@ const Map = ({ showPumps = true }) => {
     });
   }, [pointsToShow]);
 
+  // Handle flood incidents layer updates
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Remove existing flood incident markers
+    markers.current.forEach((marker) => marker.remove());
+    markers.current = [];
+    popups.current.forEach((popup) => popup.remove());
+    popups.current = [];
+
+    // Add new markers for each flood incident
+    floodIncidents.forEach((incident) => {
+      const el = document.createElement("div");
+      el.className = "flood-incident-marker";
+      
+      // Set the marker style based on severity
+      const iconColor = incident.severity === "High" ? "#ef4444" : 
+                       incident.severity === "Medium" ? "#f59e0b" : "#10b981";
+      
+      // Create a simple house icon with color based on severity
+      el.innerHTML = `
+        <div style="
+          width: 24px;
+          height: 24px;
+          background: ${iconColor};
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 14px;
+          font-weight: bold;
+          box-shadow: 0 0 0 2px white, 0 0 0 4px ${iconColor};
+        ">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3L4 9v12h5v-7h6v7h5V9l-8-6z"/>
+          </svg>
+        </div>
+      `;
+
+      // Create popup with custom styling
+      const popup = new mapboxgl.Popup({ 
+        offset: 25,
+        className: 'flood-popup',
+        closeButton: false,
+        closeOnClick: false
+      }).setHTML(`
+        <div class="p-4">
+          <div class="flex justify-between items-start mb-3">
+            <h3 class="text-lg font-semibold text-gray-900">
+              ${incident.type} - ${incident.severity}
+            </h3>
+            ${incident.verified ? '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Verified</span>' : ''}
+          </div>
+          
+          <div class="space-y-2 text-sm text-gray-700">
+            <div class="flex justify-between">
+              <span class="font-medium">Date:</span>
+              <span>${incident.timestamp || 'N/A'}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-medium">Kecamatan:</span>
+              <span>${incident.properties?.Kecamatan || 'N/A'}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-medium">Kelurahan:</span>
+              <span>${incident.properties?.Kelurahan || 'N/A'}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-medium">Location:</span>
+              <span class="text-right">${incident.location || 'N/A'}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-medium">Water Depth:</span>
+              <span>${incident.description || 'N/A'}</span>
+            </div>
+          </div>
+          
+          <div class="mt-4 flex justify-end">
+            <button 
+              class="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              onclick="this.closest('.mapboxgl-popup').remove();"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      `);
+
+      // Create the marker
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([incident.coordinates.lng, incident.coordinates.lat])
+        .setPopup(popup)
+        .addTo(map.current);
+
+      markers.current.push(marker);
+      popups.current.push(popup);
+    });
+
+    // Fit bounds to show all markers if there are any
+    if (floodIncidents.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      floodIncidents.forEach((incident) => {
+        bounds.extend([incident.coordinates.lng, incident.coordinates.lat]);
+      });
+      map.current.fitBounds(bounds, { padding: 50 });
+    }
+  }, [floodIncidents]);
+
+  // Listen for flood incidents updates
+  useEffect(() => {
+    const handleUpdateIncidentsLayer = (e) => {
+      setFloodIncidents(e.detail.incidents);
+    };
+
+    const handleHideIncidentsLayer = () => {
+      setFloodIncidents([]);
+    };
+
+    window.addEventListener("updateIncidentsLayer", handleUpdateIncidentsLayer);
+    window.addEventListener("hideIncidentsLayer", handleHideIncidentsLayer);
+
+    return () => {
+      window.removeEventListener("updateIncidentsLayer", handleUpdateIncidentsLayer);
+      window.removeEventListener("hideIncidentsLayer", handleHideIncidentsLayer);
+    };
+  }, []);
+
   // Event listeners
   useEffect(() => {
     // Inside the useEffect for event listeners in Map.jsx
@@ -700,12 +891,11 @@ const Map = ({ showPumps = true }) => {
       setShowFloodLayer(event.detail.isActive);
       setRainfallAmount(event.detail.rainfall);
 
-      // Always show vulnerability layer when simulation is active
-      if (event.detail.isActive) {
-        console.log("Ensuring vulnerability layer is visible from simulation");
+      // Only show vulnerability layer if explicitly requested
+      if (event.detail.isActive && event.detail.showVulnerability) {
+        console.log("Showing vulnerability layer from simulation");
         setShowVulnerabilityLayer(true);
 
-        // Use a timeout to ensure this runs after any other state updates
         if (map.current) {
           const layerId = "flood-vulnerability-layer";
           const sourceId = "flood-vulnerability";
@@ -758,7 +948,10 @@ const Map = ({ showPumps = true }) => {
 
     const handleShowVulnerabilityLayer = (event) => {
       console.log("Show vulnerability layer event:", event.detail);
-      setShowVulnerabilityLayer(true);
+      // Only update if the show property is explicitly provided
+      if (event.detail && typeof event.detail.show !== 'undefined') {
+        setShowVulnerabilityLayer(event.detail.show);
+      }
 
       if (map.current) {
         const layerId = "flood-vulnerability-layer";

@@ -2,66 +2,96 @@ import React, { useState, useEffect } from "react";
 import MapRaster from "./MapRaster";
 
 const FloatingFlood = ({ setShowWeather }) => {
-  const Legend = ({ viewMode }) => {
-    const getLegendContent = () => {
+  const Legend = ({ viewMode, className = "" }) => {
+    const getLegendConfig = () => {
       switch (viewMode) {
         case "simulation":
           return {
-            title: "Flood Depth",
-            items: [
-              { color: "bg-green-500", label: "Low (< 0.76m)" },
-              { color: "bg-yellow-500", label: "Medium (0.76m - 1.5m)" },
-              { color: "bg-red-500", label: "High (> 1.5m)" },
-            ],
+            title: "Flood Depth (m)",
+            gradient:
+              "bg-gradient-to-t from-green-500 via-yellow-400 to-red-600", // vertical
+            labels: ["0", "0.76", "1.5", "3.0+"],
+            categories: ["Tinggi", "Sedang", "Rendah"], // Inverted order
+            colors: ["bg-red-600", "bg-yellow-600", "bg-green-600"], // Changed to background colors
           };
         case "vulnerability":
           return {
             title: "Vulnerability Level",
-            items: [
-              { color: "bg-green-500", label: "Low" },
-              { color: "bg-yellow-500", label: "Medium" },
-              { color: "bg-red-500", label: "High" },
-            ],
+            gradient:
+              "bg-gradient-to-t from-green-500 via-yellow-400 to-red-600",
+            labels: ["0", "0.3", "0.6", "1.0"],
+            categories: ["Tinggi", "Sedang", "Rendah"], // Inverted order
+            colors: ["bg-red-600", "bg-yellow-600", "bg-green-600"], // Changed to background colors
           };
         case "risk":
           return {
             title: "Risk Level",
-            items: [
-              { color: "bg-green-500", label: "Low" },
-              { color: "bg-yellow-500", label: "Medium" },
-              { color: "bg-red-500", label: "Critical" },
-            ],
+            gradient:
+              "bg-gradient-to-t from-green-500 via-yellow-400 to-red-600",
+            labels: ["0", "0.3", "0.6", "1.0"],
+            categories: ["Tinggi", "Sedang", "Rendah"], // Inverted order
+            colors: ["bg-red-600", "bg-yellow-600", "bg-green-600"], // Changed to background colors
           };
         default:
           return {
-            title: "Flood Depth",
-            items: [
-              { color: "bg-green-500", label: "Low" },
-              { color: "bg-yellow-500", label: "Medium" },
-              { color: "bg-red-500", label: "High" },
-            ],
+            title: "Flood Depth (m)",
+            gradient:
+              "bg-gradient-to-t from-green-500 via-yellow-400 to-red-600",
+            labels: ["0", "0.5", "1.0", "1.5+"],
+            categories: ["Tinggi", "Sedang", "Rendah"], // Inverted order
+            colors: ["bg-red-600", "bg-yellow-600", "bg-green-600"], // Changed to background colors
           };
       }
     };
 
-    const legendContent = getLegendContent();
+    const { title, gradient, labels, categories, colors } = getLegendConfig();
 
     return (
-      <div className="absolute bottom-6 right-50 bg-white/90 p-3 rounded-md shadow-md z-20 border border-gray-200">
-        <div className="text-sm font-medium text-gray-700 mb-2">
-          {legendContent.title}
-        </div>
-        <div className="space-y-2">
-          {legendContent.items.map((item, index) => (
-            <div key={index} className="flex items-center">
-              <div className={`w-4 h-4 rounded-sm ${item.color} mr-2`}></div>
-              <div className="text-xs text-gray-600">{item.label}</div>
+      <div
+        className={`absolute bottom-[80px] right-[2px] bg-white/90 p-3 rounded-md shadow-md z-20 border border-gray-200 ${className}`}
+      >
+        <div className="text-sm font-medium text-gray-700 mb-2">{title}</div>
+
+        <div className="flex gap-4">
+          {/* Left side - Categories with color indicators */}
+          <div className="flex flex-col justify-between h-40 py-1">
+            {categories.map((category, index) => {
+              // Use the provided background color classes directly
+              const colorClass = colors[index] || "bg-gray-400";
+              return (
+                <div key={index} className="flex items-center h-1/3">
+                  <div
+                    className={`w-4 h-4 rounded-sm mr-2 ${colorClass}`}
+                  ></div>
+                  <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                    {category}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Right side - Gradient bar with labels */}
+          <div className="flex items-center gap-2">
+            {/* Gradient Vertical Bar */}
+            <div className="relative w-6 h-40 rounded overflow-hidden">
+              <div className={`w-full h-full ${gradient}`}></div>
             </div>
-          ))}
+
+            {/* Scale Labels - Ensure we have the correct number of labels */}
+            <div className="flex flex-col justify-between h-40 text-xs text-gray-600 py-1">
+              {labels.slice(0, 4).map((label, index) => (
+                <span key={index} className="h-1/3 flex items-end">
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
   };
+
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [rainfallAmount, setRainfallAmount] = useState(25);
@@ -120,8 +150,45 @@ const FloatingFlood = ({ setShowWeather }) => {
     setIsDropdownOpen(false);
   };
 
+  const updateFloodImage = (rainfall, mode) => {
+    const imagePath = getImagePath(rainfall, mode);
+    window.dispatchEvent(
+      new CustomEvent("updateFloodImage", {
+        detail: { imagePath },
+      })
+    );
+  };
+
   const handleRainfallChange = (e) => {
-    setRainfallAmount(parseInt(e.target.value));
+    const newRainfall = parseInt(e.target.value);
+    setRainfallAmount(newRainfall);
+    if (simulationRunning) {
+      updateFloodImage(newRainfall, viewMode === "risk" ? "risk" : "hazard");
+    }
+  };
+
+  // Function to get the appropriate image path based on rainfall amount and view mode
+  const getImagePath = (rainfall, mode) => {
+    let rainfallLevel;
+    const prefix = mode === "risk" ? "Risk" : "Hazzard";
+
+    if (mode === "risk") {
+      // For Risk view
+      if (rainfall <= 25) rainfallLevel = "25";
+      else if (rainfall <= 75) rainfallLevel = "75";
+      else if (rainfall <= 100) rainfallLevel = "100";
+      else rainfallLevel = "125"; // 101-150 for risk view
+    } else {
+      // For Hazard view
+      if (rainfall <= 25) rainfallLevel = "25";
+      else if (rainfall <= 75) rainfallLevel = "75";
+      else if (rainfall <= 100) rainfallLevel = "100";
+      else rainfallLevel = "150"; // 101-150 for hazard view
+    }
+
+    const imagePath = `/assets/img/Flood_${prefix}_-_${rainfallLevel}_mm.png`;
+    console.log(`[getImagePath] Generated path: ${imagePath}`, { rainfall, mode, rainfallLevel });
+    return imagePath;
   };
 
   const runSimulation = async () => {
@@ -162,12 +229,45 @@ const FloatingFlood = ({ setShowWeather }) => {
 
       setCurrentData(processedData);
       setViewMode("simulation");
+      setSimulationRunning(true);
+      setShowWeather(false);
 
+      // Get the appropriate image path based on current view mode and rainfall
+      const imagePath = getImagePath(
+        rainfallAmount,
+        viewMode === "risk" ? "risk" : "hazard"
+      );
+
+      // Show vulnerability layer by default after running simulation
+      const shouldShowVulnerability =
+        viewMode === "vulnerability" || viewMode === "risk";
+
+      // Dispatch event with the image path
       window.dispatchEvent(
-        new CustomEvent("showVulnerabilityLayer", {
-          detail: { show: false, hideFloodLayer: false },
+        new CustomEvent("updateFloodImage", {
+          detail: { imagePath },
         })
       );
+      window.dispatchEvent(
+        new CustomEvent("simulationStateChange", {
+          detail: {
+            isActive: true,
+            rainfall: rainfallAmount,
+            showVulnerability:
+              shouldShowVulnerability || viewMode === "simulation",
+            hideFloodLayer: viewMode === "risk",
+          },
+        })
+      );
+
+      // If in simulation mode, ensure the flood layer is visible
+      if (viewMode === "simulation") {
+        window.dispatchEvent(
+          new CustomEvent("showVulnerabilityLayer", {
+            detail: { show: false, hideFloodLayer: false },
+          })
+        );
+      }
     } catch (error) {
       console.error("Error fetching flood data:", error);
     } finally {
@@ -178,47 +278,120 @@ const FloatingFlood = ({ setShowWeather }) => {
   };
 
   const goBack = () => {
+    // First hide the vulnerability layer
+    window.dispatchEvent(
+      new CustomEvent("showVulnerabilityLayer", {
+        detail: {
+          show: false,
+          hideFloodLayer: false,
+        },
+      })
+    );
+
+    // Then reset all states
     setSimulationRunning(false);
     setShowWeather(true);
     setCurrentData([]);
     setViewMode("simulation");
-    window.dispatchEvent(
-      new CustomEvent("simulationStateChange", {
-        detail: { isActive: false, rainfall: 0 },
-      })
-    );
-    window.dispatchEvent(
-      new CustomEvent("showVulnerabilityLayer", {
-        detail: { show: false },
-      })
-    );
+    setRainfallAmount(25);
+
+    // Finally, update simulation state
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("simulationStateChange", {
+          detail: {
+            isActive: false,
+            rainfall: 0,
+            showVulnerability: false,
+            hideFloodLayer: false,
+          },
+        })
+      );
+    }, 100);
   };
 
   const cycleViewMode = () => {
     setViewMode((prevMode) => {
+      let newMode = prevMode;
+
+      // Clean up layers when switching views
+      if (prevMode === "vulnerability") {
+        // Hide vulnerability layer when switching away from it
+        window.dispatchEvent(
+          new CustomEvent("showVulnerabilityLayer", {
+            detail: { show: false },
+          })
+        );
+      } else if (prevMode === "simulation") {
+        // Clear any flood/risk image when switching to vulnerability
+        window.dispatchEvent(
+          new CustomEvent("updateFloodImage", {
+            detail: { imagePath: null },
+          })
+        );
+      } else if (prevMode === "risk") {
+        // Ensure vulnerability layer is hidden when switching to risk
+        window.dispatchEvent(
+          new CustomEvent("showVulnerabilityLayer", {
+            detail: { show: false },
+          })
+        );
+      }
+
       if (prevMode === "simulation") {
         setCurrentData(dummyVulnerabilityData);
-        return "vulnerability";
-      }
-      if (prevMode === "vulnerability") {
+        newMode = "vulnerability";
+      } else if (prevMode === "vulnerability") {
         setCurrentData(dummyRiskData);
-        return "risk";
+        newMode = "risk";
+      } else if (prevMode === "risk") {
+        setCurrentData([]);
+        newMode = "simulation";
       }
-      return prevMode; // Don't cycle back, stay on risk
+
+      // Update the flood image when view mode changes
+      if (simulationRunning) {
+        updateFloodImage(
+          rainfallAmount,
+          newMode === "risk" ? "risk" : "hazard"
+        );
+      }
+
+      // Update simulation state to control layer visibility
+      window.dispatchEvent(
+        new CustomEvent("simulationStateChange", {
+          detail: {
+            isActive: simulationRunning,
+            rainfall: rainfallAmount,
+            showVulnerability:
+              newMode === "vulnerability" || newMode === "risk",
+            hideFloodLayer: newMode === "risk",
+          },
+        })
+      );
+
+      return newMode;
     });
   };
 
+  // Handle initial load and simulation state changes
   useEffect(() => {
-    // Dispatch appropriate events when viewMode changes
-    window.dispatchEvent(
-      new CustomEvent("showVulnerabilityLayer", {
-        detail: {
-          show: viewMode === "vulnerability" || viewMode === "risk",
-          hideFloodLayer: viewMode === "risk",
-        },
-      })
-    );
-  }, [viewMode]);
+    if (simulationRunning) {
+      const shouldShowVulnerability =
+        viewMode === "vulnerability" || viewMode === "risk";
+
+      window.dispatchEvent(
+        new CustomEvent("simulationStateChange", {
+          detail: {
+            isActive: true,
+            rainfall: rainfallAmount,
+            showVulnerability: shouldShowVulnerability,
+            hideFloodLayer: viewMode === "risk",
+          },
+        })
+      );
+    }
+  }, [viewMode, simulationRunning, rainfallAmount]);
 
   useEffect(() => {
     const handleFloodLayerStateChange = (event) => {
@@ -399,7 +572,9 @@ const FloatingFlood = ({ setShowWeather }) => {
           />
         ) : (
           <>
-            <Legend viewMode={viewMode} />
+            <div className="fixed bottom-4 right-4 z-50">
+              <Legend viewMode={viewMode} />
+            </div>
             <div className="hidden sm:flex flex-col z-10 absolute w-[20.75rem] bg-white rounded-md left-8 overflow-hidden transition-all ease-in-out duration-300 top-[8rem] h-[calc(100%-9.5rem)]">
               <header className="px-3 pt-2 pb-2">
                 <p className="text-grey-950 font-medium">
@@ -461,7 +636,7 @@ const FloatingFlood = ({ setShowWeather }) => {
   }
 
   return (
-    <div className="fixed left-8 top-65 w-80 bg-white/90 rounded-2xl shadow-lg z-30">
+    <div className="fixed left-8 top-[180px] w-80 bg-white/90 rounded-2xl shadow-lg z-30">
       <div className="flex flex-col p-4 space-y-3">
         <div className="flex items-center gap-2">
           <p className="text-[#161414] text-xl font-semibold">
@@ -527,20 +702,21 @@ const FloatingFlood = ({ setShowWeather }) => {
               <input
                 type="range"
                 min="0"
-                max="50"
-                step="10"
+                max="150"
+                step="25"
                 value={rainfallAmount}
                 onChange={handleRainfallChange}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 list="rainfall-ticks"
               />
-              <div className="flex justify-between text-xs text-gray-500 mt-1 px-1">
-                <span>0</span>
-                <span>10</span>
-                <span>20</span>
-                <span>30</span>
-                <span>40</span>
-                <span>50mm</span>
+              <div className="grid grid-cols-7 text-xs text-gray-500 mt-1 -mx-1">
+                <span className="text-center">0</span>
+                <span className="text-center">25</span>
+                <span className="text-center">50</span>
+                <span className="text-center">75</span>
+                <span className="text-center">100</span>
+                <span className="text-center">125</span>
+                <span className="text-right pr-1">150mm</span>
               </div>
             </div>
           </div>

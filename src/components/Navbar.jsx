@@ -1,15 +1,20 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
+import FloatingCrowdsourced from "./FloatingCrowdSourced";
 
 const Navbar = ({ onMenuSelect }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSimulationDropdownOpen, setIsSimulationDropdownOpen] =
     useState(false);
-  const [selectedSimulation, setSelectedSimulation] = useState("Flood Simulations");
+  const [selectedSimulation, setSelectedSimulation] = useState(
+    "Realtime Flood Simulation"
+  );
   const [selectedFloodType, setSelectedFloodType] = useState(
-    "Flood Simulations"
+    "Return Period Flood Simulation"
   );
   const [currentTime, setCurrentTime] = useState({ time: "", date: "" });
   const [showWeather, setShowWeather] = useState(false); // State for weather panel visibility
+  const [showCrowdSourced, setShowCrowdSourced] = useState(false); // State for crowdsourced panel visibility
 
   useEffect(() => {
     // Function to update Jakarta time (GMT+7)
@@ -127,11 +132,18 @@ const Navbar = ({ onMenuSelect }) => {
                           onMenuSelect("warnings");
                         }}
                       >
-                        Realtime Period Flood Simulation
+                        Return Period Flood Simulation
                       </a>
                       <a
                         href="#"
                         className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setSelectedSimulation("Crowdsourced Flood Incidents");
+                          setSelectedFloodType("Crowdsourced Flood Incidents");
+                          setIsSimulationDropdownOpen(false);
+                          onMenuSelect("crowdsourced");
+                        }}
                       >
                         Crowdsourced Flood Incidents
                       </a>
