@@ -102,7 +102,7 @@ const FloatingFlood = ({ setShowWeather }) => {
   const [showRasterMap, setShowRasterMap] = useState(false);
   const [viewMode, setViewMode] = useState("simulation"); // 'simulation', 'vulnerability', 'risk'
 
-  const locations = [{ id: 1, name: "DAS Jakarta" }];
+  const locations = [{ id: 1, name: "DAS Ciliwung Cisadane" }];
 
   // Dummy data for different view modes
   const dummyVulnerabilityData = [
@@ -168,26 +168,32 @@ const FloatingFlood = ({ setShowWeather }) => {
   };
 
   // Function to get the appropriate image path based on rainfall amount and view mode
-  const getImagePath = (rainfall, mode) => {
-    let rainfallLevel;
+  const getImagePath = (rainfall, mode = "hazard") => {
+    // Note: The actual files use 'Hazzard' with two 'z's for hazard images
     const prefix = mode === "risk" ? "Risk" : "Hazzard";
+    let rainfallLevel;
 
     if (mode === "risk") {
       // For Risk view
       if (rainfall <= 25) rainfallLevel = "25";
       else if (rainfall <= 75) rainfallLevel = "75";
-      else if (rainfall <= 100) rainfallLevel = "100";
+      else if (rainfall <= 100) rainfallLevel = "125";
       else rainfallLevel = "125"; // 101-150 for risk view
     } else {
       // For Hazard view
       if (rainfall <= 25) rainfallLevel = "25";
+      else if (rainfall <= 50) rainfallLevel = "50";
       else if (rainfall <= 75) rainfallLevel = "75";
-      else if (rainfall <= 100) rainfallLevel = "100";
-      else rainfallLevel = "150"; // 101-150 for hazard view
+      else rainfallLevel = "150"; // Use 150 for any rainfall over 75
     }
 
     const imagePath = `/assets/img/Flood_${prefix}_-_${rainfallLevel}_mm.png`;
-    console.log(`[getImagePath] Generated path: ${imagePath}`, { rainfall, mode, rainfallLevel });
+    console.log(`[getImagePath] Generated path: ${imagePath}`, {
+      rainfall,
+      mode,
+      rainfallLevel,
+      fullPath: `${window.location.origin}${imagePath}`,
+    });
     return imagePath;
   };
 
@@ -287,56 +293,27 @@ const FloatingFlood = ({ setShowWeather }) => {
         },
       })
     );
-
-    // Then reset all states
-    setSimulationRunning(false);
-    setShowWeather(true);
-    setCurrentData([]);
-    setViewMode("simulation");
-    setRainfallAmount(25);
-
-    // Finally, update simulation state
-    setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent("simulationStateChange", {
-          detail: {
-            isActive: false,
-            rainfall: 0,
-            showVulnerability: false,
-            hideFloodLayer: false,
-          },
-        })
-      );
-    }, 100);
   };
 
   const cycleViewMode = () => {
     setViewMode((prevMode) => {
       let newMode = prevMode;
 
-      // Clean up layers when switching views
-      if (prevMode === "vulnerability") {
-        // Hide vulnerability layer when switching away from it
-        window.dispatchEvent(
-          new CustomEvent("showVulnerabilityLayer", {
-            detail: { show: false },
-          })
-        );
-      } else if (prevMode === "simulation") {
-        // Clear any flood/risk image when switching to vulnerability
-        window.dispatchEvent(
-          new CustomEvent("updateFloodImage", {
-            detail: { imagePath: null },
-          })
-        );
-      } else if (prevMode === "risk") {
-        // Ensure vulnerability layer is hidden when switching to risk
-        window.dispatchEvent(
-          new CustomEvent("showVulnerabilityLayer", {
-            detail: { show: false },
-          })
-        );
-      }
+      // Clear all existing layers first
+      window.dispatchEvent(
+        new CustomEvent("updateFloodImage", {
+          detail: { imagePath: null },
+        })
+      );
+
+      // Always hide vulnerability layer when switching modes
+      window.dispatchEvent(
+        new CustomEvent("showVulnerabilityLayer", {
+          detail: { show: false },
+        })
+      );
+
+      // Handle mode transitions
 
       if (prevMode === "simulation") {
         setCurrentData(dummyVulnerabilityData);
@@ -349,12 +326,22 @@ const FloatingFlood = ({ setShowWeather }) => {
         newMode = "simulation";
       }
 
-      // Update the flood image when view mode changes
+      // Update flood image based on the new mode
       if (simulationRunning) {
-        updateFloodImage(
-          rainfallAmount,
-          newMode === "risk" ? "risk" : "hazard"
-        );
+        if (newMode === "vulnerability") {
+          // For vulnerability mode, ensure no flood layer is shown
+          window.dispatchEvent(
+            new CustomEvent("updateFloodImage", {
+              detail: { imagePath: null },
+            })
+          );
+        } else {
+          // For other modes, show the appropriate flood layer
+          updateFloodImage(
+            rainfallAmount,
+            newMode === "risk" ? "risk" : "hazard"
+          );
+        }
       }
 
       // Update simulation state to control layer visibility
@@ -362,7 +349,7 @@ const FloatingFlood = ({ setShowWeather }) => {
         new CustomEvent("simulationStateChange", {
           detail: {
             isActive: simulationRunning,
-            rainfall: rainfallAmount,
+            rainfall: newMode === "vulnerability" ? 0 : rainfallAmount, // Set rainfall to 0 for vulnerability mode
             showVulnerability:
               newMode === "vulnerability" || newMode === "risk",
             hideFloodLayer: newMode === "risk",
@@ -370,8 +357,52 @@ const FloatingFlood = ({ setShowWeather }) => {
         })
       );
 
+      // Update layer visibility based on the new mode
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("showVulnerabilityLayer", {
+            detail: { show: newMode === "vulnerability" },
+          })
+        );
+      }, 50);
+
       return newMode;
     });
+  };
+
+  const stopSimulation = () => {
+    setSimulationRunning(false);
+    setRainfallAmount(25);
+
+    // Clear any active flood/raster layers
+    window.dispatchEvent(
+      new CustomEvent("updateFloodImage", {
+        detail: { imagePath: null },
+      })
+    );
+
+    // Hide vulnerability layer if it's visible
+    window.dispatchEvent(
+      new CustomEvent("showVulnerabilityLayer", {
+        detail: { show: false },
+      })
+    );
+
+    // Reset view mode to simulation
+    setViewMode("simulation");
+    setCurrentData([]);
+
+    // Update simulation state
+    window.dispatchEvent(
+      new CustomEvent("simulationStateChange", {
+        detail: {
+          isActive: false,
+          rainfall: 0,
+          showVulnerability: false,
+          hideFloodLayer: false,
+        },
+      })
+    );
   };
 
   // Handle initial load and simulation state changes
@@ -620,7 +651,7 @@ const FloatingFlood = ({ setShowWeather }) => {
                     )}
                     <button
                       type="button"
-                      onClick={goBack}
+                      onClick={stopSimulation}
                       className="w-full focus:outline-none h-12 font-medium rounded-md text-sm shadow-sm text-white bg-[#636059] hover:bg-gray-700"
                     >
                       Stop Simulation

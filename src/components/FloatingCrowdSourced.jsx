@@ -116,7 +116,7 @@ const FloatingCrowdsourced = ({ setShowWeather }) => {
   };
 
   // Filter incidents based on selected date and time
-  const filterIncidents = () => {
+  const filterIncidents = React.useCallback(() => {
     if (!incidents.length) return;
 
     // For now, we'll filter by date only since the time isn't available in the data
@@ -144,7 +144,14 @@ const FloatingCrowdsourced = ({ setShowWeather }) => {
         },
       })
     );
-  };
+  }, [incidents, selectedDate, selectedTime]);
+
+  // Filter incidents whenever the selected date or time changes
+  useEffect(() => {
+    if (incidents.length > 0) {
+      filterIncidents();
+    }
+  }, [filterIncidents, incidents]);
 
   const handleDateChange = (e) => {
     setSelectedDate(e.target.value);
@@ -204,13 +211,6 @@ const FloatingCrowdsourced = ({ setShowWeather }) => {
                 <span>24:00</span>
               </div>
             </div>
-
-            <button
-              onClick={filterIncidents}
-              className="w-full bg-[#636059] text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-[#636059] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#636059]"
-            >
-              Check Flood Incidents
-            </button>
           </div>
         </header>
 
