@@ -1,5 +1,5 @@
 import React from "react";
-import { DateFilterProvider } from "../context/DateFilterContext";
+import { DateFilterProvider } from "../context/DateFilterContext.jsx";
 import Map from "../components/Map";
 import FloatingContainer from "../components/FloatingContainer";
 import FloatingFlood from "../components/FloatingFlood";
@@ -15,11 +15,13 @@ const MainPage = ({ selectedMenu = "simulations", setShowWeather }) => {
           <FloatingContainer />
         ) : selectedMenu === "simulations" ? (
           <FloatingFlood setShowWeather={setShowWeather} />
-        ) : selectedMenu === "crowdsourced" && (
-          <>
-            <FloatingCrowdsourced setShowWeather={setShowWeather} />
-            <FloatingTweets />
-          </>
+        ) : (
+          selectedMenu === "crowdsourced" && (
+            <>
+              <FloatingCrowdsourced setShowWeather={setShowWeather} />
+              <FloatingTweets />
+            </>
+          )
         )}
       </DateFilterProvider>
       {/* <PumpControls onTogglePumps={handleTogglePumps} /> */}
