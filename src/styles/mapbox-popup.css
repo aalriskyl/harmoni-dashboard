@@ -9,10 +9,12 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   border: 1px solid #e2e8f0;
-  width: 320px;
-  max-height: 80vh;
+  width: 10px;
+  max-height: 50vh;
+  font-size: 0.8125rem;
   overflow-y: auto;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   background: white;
 }
 
@@ -35,7 +37,8 @@
   border-radius: 3px;
 }
 
-.mapboxgl-popup.flood-popup .mapboxgl-popup-content::-webkit-scrollbar-thumb:hover {
+.mapboxgl-popup.flood-popup
+  .mapboxgl-popup-content::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
 

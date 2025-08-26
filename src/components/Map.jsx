@@ -43,7 +43,7 @@ const style = document.createElement("style");
 style.textContent = `
   .mapboxgl-popup-content {
     padding: 0 !important;
-    max-width: 400px !important;
+    max-width: 350px !important;
   }
   .mapboxgl-popup-content .popup-content {
     padding: 12px;
@@ -573,47 +573,28 @@ const Map = ({ showPumps = true }) => {
 
   // Marker and popup utilities
   const getStatusButtonClass = (point) => {
+    // For Waterpump, use the existing status
     if (point.type === "Waterpump") {
       return point.status === "Not Running"
         ? "bg-red-600 hover:bg-red-700"
-        : point.status === "Idle"
-        ? "bg-yellow-500 hover:bg-yellow-600"
-        : "bg-green-600 hover:bg-green-700";
-    } else if (point.type === "RainRecorder") {
-      return point.latestReading.rainfall > 50
+        : "bg-green-500 hover:bg-green-600";
+    }
+    // For RainRecorder and WaterLevel, use Poor/Good status
+    else if (point.type === "RainRecorder" || point.type === "WaterLevel") {
+      const condition = point.latestReading?.condition?.toLowerCase();
+      return condition === "poor"
         ? "bg-red-600 hover:bg-red-700"
-        : point.latestReading.rainfall > 20
-        ? "bg-yellow-500 hover:bg-yellow-600"
-        : "bg-green-600 hover:bg-green-700";
-    } else if (point.type === "WaterLevel") {
-      return point.latestReading.level > 3
-        ? "bg-red-600 hover:bg-red-700"
-        : point.latestReading.level > 1.5
-        ? "bg-yellow-500 hover:bg-yellow-600"
-        : "bg-green-600 hover:bg-green-700";
+        : "bg-green-500 hover:bg-green-600";
     }
     return "bg-blue-600 hover:bg-blue-700";
   };
 
   const getStatusText = (point) => {
     if (point.type === "Waterpump") {
-      return point.status === "Not Running"
-        ? "High Alert"
-        : point.status === "Idle"
-        ? "Caution Advised"
-        : "Normal Operation";
-    } else if (point.type === "RainRecorder") {
-      return point.latestReading.rainfall > 50
-        ? "High Alert"
-        : point.latestReading.rainfall > 20
-        ? "Caution Advised"
-        : "Normal Conditions";
-    } else if (point.type === "WaterLevel") {
-      return point.latestReading.level > 3
-        ? "High Alert"
-        : point.latestReading.level > 1.5
-        ? "Caution Advised"
-        : "Normal Conditions";
+      return point.status === "Not Running" ? "Stopped" : "Running";
+    } else if (point.type === "RainRecorder" || point.type === "WaterLevel") {
+      const condition = point.latestReading?.condition?.toLowerCase();
+      return condition === "poor" ? "Poor" : "Good";
     }
     return "View Status";
   };
@@ -673,12 +654,24 @@ const Map = ({ showPumps = true }) => {
         </div>
       `;
     } else if (point.type === "WaterLevel") {
+      const condition = point.latestReading?.condition?.toLowerCase() || "good";
+      const statusClass =
+        condition === "poor"
+          ? "bg-red-600 hover:bg-red-700"
+          : "bg-green-500 hover:bg-green-600";
+      const statusText = condition === "poor" ? "Poor" : "Good";
+
       return `
         <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
           <span class="text-gray-600">Status:</span>
-          <span class="font-medium ${
-            point.status === "Functioned" ? "text-green-600" : "text-red-600"
-          }">${point.status}</span>
+          <span class="inline-flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full ${
+              condition === "poor" ? "bg-red-600" : "bg-green-500"
+            }"></span>
+            <span class="font-medium ${
+              condition === "poor" ? "text-red-600" : "text-green-600"
+            }">${statusText}</span>
+          </span>
           <span class="text-gray-600">Device ID:</span>
           <span>${point.deviceId}</span>
           <span class="text-gray-600">Location:</span>
@@ -826,17 +819,17 @@ const Map = ({ showPumps = true }) => {
             label: isRainData ? "Rainfall (mm)" : "Water Level (m)",
             data: values,
             backgroundColor: isRainData
-              ? values.map(value => {
-                  if (value < 0.76) return 'rgba(34, 197, 94, 0.7)'; // Green for normal
-                  if (value <= 1.5) return 'rgba(234, 179, 8, 0.7)';  // Yellow for cautious
-                  return 'rgba(239, 68, 68, 0.7)';                     // Red for alert
+              ? values.map((value) => {
+                  if (value < 0.76) return "rgba(34, 197, 94, 0.7)"; // Green for normal
+                  if (value <= 1.5) return "rgba(234, 179, 8, 0.7)"; // Yellow for cautious
+                  return "rgba(239, 68, 68, 0.7)"; // Red for alert
                 })
               : gradient || "rgba(16, 185, 129, 0.7)",
             borderColor: isRainData
-              ? values.map(value => {
-                  if (value < 0.76) return 'rgb(34, 197, 94)'; // Green for normal
-                  if (value <= 1.5) return 'rgb(234, 179, 8)';  // Yellow for cautious
-                  return 'rgb(239, 68, 68)';                    // Red for alert
+              ? values.map((value) => {
+                  if (value < 0.76) return "rgb(34, 197, 94)"; // Green for normal
+                  if (value <= 1.5) return "rgb(234, 179, 8)"; // Yellow for cautious
+                  return "rgb(239, 68, 68)"; // Red for alert
                 })
               : "rgb(16, 185, 129)",
             borderWidth: 2,
@@ -1181,11 +1174,18 @@ const Map = ({ showPumps = true }) => {
           </div>
           <div class="flex items-start">
             <span class="font-medium w-36">Station Condition:</span>
-            <span>${
-              point.properties?.Station_Condition ||
-              point.stationCondition ||
-              "N/A"
-            }</span>
+            <span class="${
+              point.properties?.Station_Condition === "Poor" ||
+              point.stationCondition === "Poor"
+                ? "text-red-600"
+                : "text-green-600"
+            } font-medium">
+              ${
+                point.properties?.Station_Condition ||
+                point.stationCondition ||
+                "Good"
+              }
+            </span>
           </div>
           <div class="flex items-start">
             <span class="font-medium w-36">Last Maintenance:</span>
