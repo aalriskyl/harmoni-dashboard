@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import MapRaster from "./MapRaster";
 
@@ -667,7 +668,7 @@ const FloatingFlood = ({ setShowWeather }) => {
   }
 
   return (
-    <div className="fixed left-8 top-[180px] w-80 bg-white/90 rounded-2xl shadow-lg z-30">
+    <div className="w-80 bg-white/90 rounded-2xl shadow-lg">
       <div className="flex flex-col p-4 space-y-3">
         <div className="flex items-center gap-2">
           <p className="text-[#161414] text-xl font-semibold">

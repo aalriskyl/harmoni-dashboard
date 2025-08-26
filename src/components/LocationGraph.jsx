@@ -1,225 +1,294 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Chart from "chart.js/auto";
 
-const LocationGraph = ({ selectedPoint, onClose }) => {
+const LocationGraph = ({
+  selectedPoint,
+  onClose,
+  data = {},
+  dataType = "ARR",
+}) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+  const [chartData, setChartData] = useState([]);
+  const [hasData, setHasData] = useState(false);
+  const [chartTitle, setChartTitle] = useState("");
+  const [yAxisLabel, setYAxisLabel] = useState("");
 
+  // Determine data type and set up chart configuration
   useEffect(() => {
-    if (!selectedPoint) return;
-
-    // Use actual data if available, otherwise use sample data
-    let labels, data, yAxisLabel, thresholds;
-
-    if (selectedPoint.type === "RainRecorder" && selectedPoint.rainfallData) {
-      // For RainRecorder with rainfall data
-      labels = selectedPoint.rainfallData.map((entry) => entry.formattedTime);
-      data = selectedPoint.rainfallData.map((entry) => entry.rainfall);
-      yAxisLabel = "Rainfall (mm)";
-
-      // Adjust thresholds for rainfall (in mm)
-      thresholds = {
-        normal: 0.76,
-        cautious: 1.5,
-        alert: 1000, // Any value above 1.5 will be considered alert
-      };
-    } else {
-      // Fallback to sample data
-      labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
-      data = Array.from({ length: 24 }, () => (Math.random() * 2).toFixed(2));
-      yAxisLabel = "Rainfall (mm)";
-      thresholds = {
-        normal: 0.76,
-        cautious: 1.5,
-        alert: 1000,
-        severe: 369.26,
-      };
+    if (!data || Object.keys(data).length === 0) {
+      setChartData([]);
+      setHasData(false);
+      return;
     }
 
-    // Create background colors based on thresholds
-    const backgroundColors = data.map((value) => {
-      if (value > thresholds.cautious) return "#ff0000"; // Alert (red)
-      if (value > thresholds.normal) return "#ffff00"; // Cautious (yellow)
-      return "#00C853"; // Normal (green)
-    });
+    try {
+      console.log(`Processing ${dataType} data:`, data);
+
+      // Extract all valid dates and values based on data type
+      const validEntries = Object.entries(data)
+        .map(([date, value]) => {
+          // Parse the date string (format: YYYY-MM-DD)
+          const [year, month, day] = date.split("-").map(Number);
+          const dateObj = new Date(year, month - 1, day); // month is 0-indexed in JS
+          const isValidDate = !isNaN(dateObj.getTime());
+          const isValidValue =
+            value !== null && value !== undefined && value !== "";
+
+          return {
+            originalDate: date,
+            dateObj: isValidDate ? dateObj : null,
+            value: isValidValue ? Number(value) : null,
+            isValid: isValidDate && isValidValue,
+          };
+        })
+        .filter((entry) => entry.isValid);
+
+      console.log("Valid entries found:", validEntries);
+
+      // Filter data for 2020 only
+      const year2020Data = validEntries.filter(
+        (entry) => entry.dateObj.getFullYear() === 2020
+      );
+
+      console.log("2020 data:", year2020Data);
+
+      if (year2020Data.length === 0) {
+        setChartData([]);
+        setHasData(false);
+        return;
+      }
+
+      // Calculate monthly averages for 2020
+      const monthlyAverages = Array(12)
+        .fill(null)
+        .map(() => []);
+
+      year2020Data.forEach((entry) => {
+        const month = entry.dateObj.getMonth(); // 0-11
+        monthlyAverages[month].push(entry.value);
+      });
+
+      const monthlyValues = monthlyAverages.map((monthData) => {
+        if (monthData.length === 0) return null;
+        return monthData.reduce((sum, val) => sum + val, 0) / monthData.length;
+      });
+
+      console.log("Monthly averages for 2020:", monthlyValues);
+      setChartData(monthlyValues);
+      setHasData(monthlyValues.some((val) => val !== null && val > 0));
+
+      // Set chart labels based on data type
+      if (dataType === "ARR") {
+        setChartTitle("Precipitation");
+        setYAxisLabel("Precipitation (mm)");
+      } else if (dataType === "AWLR") {
+        setChartTitle("Water Level");
+        setYAxisLabel("Water Level (m)");
+      }
+    } catch (error) {
+      console.error(`Error processing ${dataType} data:`, error);
+      setChartData([]);
+      setHasData(false);
+    }
+  }, [data, dataType]);
+
+  // Create chart when data changes
+  useEffect(() => {
+    if (chartInstance.current) {
+      chartInstance.current.destroy();
+      chartInstance.current = null;
+    }
+
+    if (!chartRef.current || !selectedPoint || chartData.length === 0) {
+      return;
+    }
 
     const ctx = chartRef.current.getContext("2d");
 
-    // Destroy previous chart if it exists
-    if (chartInstance.current) {
-      chartInstance.current.destroy();
+    // Check if we have data
+    if (!hasData) {
+      ctx.font = "16px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        `No ${dataType.toLowerCase()} data available for 2020`,
+        chartRef.current.width / 2,
+        chartRef.current.height / 2
+      );
+      return;
     }
 
+    // Create chart with monthly data
     chartInstance.current = new Chart(ctx, {
       type: "line",
       data: {
-        labels: labels,
+        labels: [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ],
         datasets: [
           {
-            data: data,
-            borderColor: "#4B5563",
-            borderWidth: 1,
-            pointBackgroundColor: backgroundColors,
-            pointBorderColor: "#000",
-            pointBorderWidth: 0.5,
+            label: `Monthly ${chartTitle}`,
+            data: chartData,
+            borderColor:
+              dataType === "ARR" ? "rgb(59, 130, 246)" : "rgb(16, 185, 129)",
+            backgroundColor:
+              dataType === "ARR"
+                ? "rgba(59, 130, 246, 0.1)"
+                : "rgba(16, 185, 129, 0.1)",
+            tension: 0.2,
+            fill: true,
+            pointBackgroundColor:
+              dataType === "ARR" ? "rgb(59, 130, 246)" : "rgb(16, 185, 129)",
+            pointBorderColor: "#fff",
+            pointHoverBackgroundColor: "#fff",
+            pointHoverBorderColor:
+              dataType === "ARR" ? "rgb(59, 130, 246)" : "rgb(16, 185, 129)",
             pointRadius: 4,
             pointHoverRadius: 6,
-            fill: false,
-            tension: 0.1,
-            borderDash: [5, 5],
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        resizeDelay: 200,
-        animation: {
-          duration: 0,
-        },
         plugins: {
+          title: {
+            display: true,
+            text: `2020 Monthly ${chartTitle} for ${
+              selectedPoint.properties?.Nama_Pos ||
+              selectedPoint.title ||
+              "Selected Location"
+            }`,
+            font: {
+              size: 16,
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                const value = context.raw;
+                const unit = dataType === "ARR" ? "mm" : "m";
+                return `${chartTitle}: ${
+                  value !== null ? value.toFixed(1) + unit : "No data"
+                }`;
+              },
+              title: function (context) {
+                const monthNames = [
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December",
+                ];
+                return `${monthNames[context[0].dataIndex]} 2020`;
+              },
+            },
+          },
           legend: {
             display: false,
           },
-          tooltip: {
-            backgroundColor: "rgba(0, 0, 0, 0.8)",
-            titleFont: {
-              size: 12,
-              weight: "bold",
-            },
-            bodyFont: {
-              size: 12,
-            },
-            padding: 10,
-            cornerRadius: 4,
-            displayColors: false,
-            callbacks: {
-              title: function (tooltipItems) {
-                const dataIndex = tooltipItems[0].dataIndex;
-                const date = new Date(
-                  selectedPoint.rainfallData[dataIndex].time
-                );
-                const formattedDate = date.toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                });
-                const formattedTime = date.toLocaleTimeString("en-GB", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
-                return `${formattedDate} ${formattedTime}`;
-              },
-              label: function (context) {
-                return `Rainfall: ${context.raw.toFixed(2)} mm`;
-              },
-            },
-          },
         },
         scales: {
-          x: {
-            grid: {
-              display: false,
-            },
-            ticks: {
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: 12,
-              font: {
-                size: 8,
-              },
-            },
-          },
           y: {
             beginAtZero: true,
-            grid: {
-              color: "#E0E0E0",
-            },
-            ticks: {
-              font: {
-                size: 8,
-              },
-            },
             title: {
               display: true,
               text: yAxisLabel,
-              font: {
-                size: 10,
-              },
+            },
+            grid: {
+              color: "rgba(0, 0, 0, 0.05)",
             },
           },
+          x: {
+            grid: {
+              color: "rgba(0, 0, 0, 0.05)",
+            },
+          },
+        },
+        interaction: {
+          intersect: false,
+          mode: "index",
         },
       },
     });
 
+    // Cleanup function
     return () => {
       if (chartInstance.current) {
         chartInstance.current.destroy();
-        chartInstance.current = null;
       }
     };
-  }, [selectedPoint]);
+  }, [chartData, selectedPoint, hasData, dataType, chartTitle, yAxisLabel]);
 
   if (!selectedPoint) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] mx-4 mb-4">
-      <div className="w-full h-[300px] rounded-t-xl border border-gray-200 shadow-lg bg-white overflow-hidden">
-        <div className="p-4 flex flex-col h-full">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-gray-900">
-              {selectedPoint.type === "RainRecorder"
-                ? "Rainfall Data"
-                : "Discharge Curve"}{" "}
-              - {selectedPoint.title}
-            </h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-500 focus:outline-none"
-              aria-label="Close chart"
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
+    <div className="h-[250px] z-10 absolute bottom-0 sm:bottom-2 left-3 sm:left-6 w-[calc(100%-24px)] sm:w-[calc(100%-48px)] rounded-[12px] border border-black/10 overflow-hidden bg-[#F4F3F1]">
+      <div className="p-3 flex flex-col h-full">
+        <div className="flex justify-between items-center">
+          <p className="text-[#161414] text-xs font-medium">
+            {selectedPoint.properties?.Nama_Pos ||
+              selectedPoint.title ||
+              "Location Data"}
+          </p>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-lg font-bold"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
 
-          <div className="flex-1 min-h-0">
-            <div className="h-full w-full relative">
-              <canvas
-                ref={chartRef}
-                role="img"
-                className="w-full h-full"
-              ></canvas>
-            </div>
+        <div className="flex items-center flex-grow">
+          <div className="h-[184px] w-full relative mt-2">
+            <canvas ref={chartRef} role="img" className="w-full h-full" />
           </div>
+        </div>
 
-          <div className="flex justify-center gap-3 items-center mt-1 flex-wrap">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-[#ff0000] rounded-[2px]"></div>
-              <p className="text-[10px] text-[#777674]">Alert | </p>
-              <p className="text-[10px] text-[#777674]">&gt; 1.5 mm</p>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-[#ffff00] rounded-[2px]"></div>
-              <p className="text-[10px] text-[#777674]">Cautious | </p>
-              <p className="text-[10px] text-[#777674]">0.76 - 1.5 mm</p>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-[#00C853] rounded-[2px]"></div>
-              <p className="text-[10px] text-[#777674]">Normal | </p>
-              <p className="text-[10px] text-[#777674]">&lt; 0.76 mm</p>
-            </div>
+        <div className="flex justify-center gap-3 items-center mt-1">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-[#B518FA] rounded-[2px]"></div>
+            <p className="text-[10px] text-[#777674]">Flood | </p>
+            <p className="text-[10px] text-[#777674]"> &gt; 239.13</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-[#ff0000] rounded-[2px]"></div>
+            <p className="text-[10px] text-[#777674]">Severe | </p>
+            <p className="text-[10px] text-[#777674]">213.75 - 239.13</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-[#ffa500] rounded-[2px]"></div>
+            <p className="text-[10px] text-[#777674]">Alert | </p>
+            <p className="text-[10px] text-[#777674]">184.36 - 213.75</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-[#ffff00] rounded-[2px]"></div>
+            <p className="text-[10px] text-[#777674]">Caution | </p>
+            <p className="text-[10px] text-[#777674]">100.55 - 184.36</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-[#C8FAF9] rounded-[2px]"></div>
+            <p className="text-[10px] text-[#777674]">Normal | </p>
+            <p className="text-[10px] text-[#777674]"> &lt;100.55</p>
           </div>
         </div>
       </div>

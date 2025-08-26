@@ -23,13 +23,17 @@ function App() {
     setSelectedMenu(menu);
   };
 
+  const handleWeatherToggle = (isOpen) => {
+    setShowWeather(isOpen);
+  };
+
   return (
     <>
-      <Navbar onMenuSelect={handleMenuSelect} showWeather={showWeather} />
-      <MainPage 
-        selectedMenu={selectedMenu} 
-        setShowWeather={setShowWeather} 
+      <Navbar 
+        onMenuSelect={handleMenuSelect} 
+        onWeatherToggle={handleWeatherToggle}
       />
+      <MainPage selectedMenu={selectedMenu} showWeather={showWeather} />
     </>
   );
 }

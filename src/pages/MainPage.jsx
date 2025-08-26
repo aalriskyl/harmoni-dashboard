@@ -6,27 +6,33 @@ import FloatingFlood from "../components/FloatingFlood";
 import FloatingCrowdsourced from "../components/FloatingCrowdSourced";
 import FloatingTweets from "../components/FloatingTweets";
 
-const MainPage = ({ selectedMenu = "simulations", setShowWeather }) => {
+const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
   return (
-    <div className="w-full h-screen relative bg-blue-900">
+    <div className="w-full h-screen flex flex-col bg-blue-900">
       <DateFilterProvider>
-        <Map />
-        {selectedMenu === "warnings" ? (
-          <FloatingContainer />
-        ) : selectedMenu === "simulations" ? (
-          <FloatingFlood setShowWeather={setShowWeather} />
-        ) : (
-          selectedMenu === "crowdsourced" && (
-            <>
-              <FloatingCrowdsourced setShowWeather={setShowWeather} />
-              <FloatingTweets />
-            </>
-          )
-        )}
+        <div className="flex-1 relative">
+          <Map />
+          {/* Floating container positioned relative to the map */}
+          <div
+            className={`absolute left-8 ${
+              showWeather ? "top-72" : "top-32"
+            } z-30 transition-all duration-300`}
+          >
+            <div className="flex flex-col gap-4">
+              {selectedMenu === "warnings" ? (
+                <FloatingContainer />
+              ) : selectedMenu === "simulations" ? (
+                <FloatingFlood />
+              ) : selectedMenu === "crowdsourced" ? (
+                <>
+                  <FloatingCrowdsourced />
+                  <FloatingTweets />
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
       </DateFilterProvider>
-      {/* <PumpControls onTogglePumps={handleTogglePumps} /> */}
-      {/* <MapToolbox /> */}
-      {/* <Weather /> */}
     </div>
   );
 };

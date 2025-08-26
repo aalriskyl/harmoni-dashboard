@@ -1,8 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
-import FloatingCrowdsourced from "./FloatingCrowdSourced";
 
-const Navbar = ({ onMenuSelect }) => {
+const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSimulationDropdownOpen, setIsSimulationDropdownOpen] =
     useState(false);
@@ -13,8 +12,7 @@ const Navbar = ({ onMenuSelect }) => {
     "Return Period Flood Simulation"
   );
   const [currentTime, setCurrentTime] = useState({ time: "", date: "" });
-  const [showWeather, setShowWeather] = useState(false); // State for weather panel visibility
-  const [showCrowdSourced, setShowCrowdSourced] = useState(false); // State for crowdsourced panel visibility
+  const [showWeather, setShowWeather] = useState(true); // State for weather panel visibility
 
   useEffect(() => {
     // Function to update Jakarta time (GMT+7)
@@ -54,114 +52,39 @@ const Navbar = ({ onMenuSelect }) => {
   }, []);
 
   const toggleWeatherPanel = () => {
-    setShowWeather(!showWeather);
+    const newState = !showWeather;
+    setShowWeather(newState);
+    if (onWeatherToggle) onWeatherToggle(newState);
   };
 
   return (
-    <>
-      <nav className="fixed top-6 left-0 w-full z-50 px-8">
-        <div className="flex">
-          <div className="w-full border border-[#cfcfcd]/30 bg-white/30 backdrop-blur-md rounded-2xl px-6 py-3 flex justify-between items-center">
-            {/* Left side - Title/Dropdown */}
-            <div className="flex text-[#cfcfcd] items-center gap-2">
-              <div className="px-4 py-2 rounded-xl">
-                <img
-                  src="/assets/img/Logo.png"
-                  alt="logo"
-                  className="w-20 h-auto"
-                />
-              </div>
-
-              {/* Dropdown container */}
-
-              {/* Second Dropdown container */}
-              <div className="relative">
-                <button
-                  className="bg-[#cfcfcd] text-[#636059] border-[#636059] border px-4 py-2 rounded-xl flex items-center ml-2"
-                  onClick={() =>
-                    setIsSimulationDropdownOpen(!isSimulationDropdownOpen)
-                  }
-                >
-                  {selectedSimulation}
-                  <svg
-                    className={`ml-2 w-4 h-4 transition-transform ${
-                      isSimulationDropdownOpen ? "rotate-180" : ""
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-
-                {isSimulationDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-72 bg-[#636059] rounded-xl shadow-lg z-50">
-                    <div className="py-1">
-                      <a
-                        href="#"
-                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd] text-sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedSimulation("Realtime Flood Simulation");
-                          setSelectedFloodType("Realtime Flood Simulation");
-                          setIsSimulationDropdownOpen(false);
-                          onMenuSelect("simulations");
-                        }}
-                      >
-                        Realtime Flood Simulation
-                      </a>
-                      <a
-                        href="#"
-                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedSimulation(
-                            "Return Period Flood Simulation"
-                          );
-                          setSelectedFloodType(
-                            "Return Period Flood Simulation"
-                          );
-                          setIsSimulationDropdownOpen(false);
-                          onMenuSelect("warnings");
-                        }}
-                      >
-                        Return Period Flood Simulation
-                      </a>
-                      <a
-                        href="#"
-                        className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedSimulation("Crowdsourced Flood Incidents");
-                          setSelectedFloodType("Crowdsourced Flood Incidents");
-                          setIsSimulationDropdownOpen(false);
-                          onMenuSelect("crowdsourced");
-                        }}
-                      >
-                        Crowdsourced Flood Incidents
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
+    <div className="fixed top-6 left-0 w-full z-20 px-8 flex flex-col">
+      {/* Main Navbar */}
+      <div className="flex">
+        <div className="w-full border border-[#cfcfcd]/30 bg-white/30 backdrop-blur-md rounded-2xl px-6 py-3 flex justify-between items-center gap-[34rem]">
+          {/* Left side - Title/Dropdown */}
+          <div className="flex text-[#cfcfcd] items-center gap-2">
+            <div className="px-4 py-2 rounded-xl">
+              <img
+                src="/assets/img/Logo.png"
+                alt="logo"
+                className="w-20 h-auto"
+              />
             </div>
 
-            {/* Right side - Icons */}
-            <div className="flex items-center space-x-2 bg-[#636059] border border-[#cfcfcd]/30 rounded-xl px-2 py-2">
-              {/* Weather Icon - Now with toggle functionality */}
+            {/* Second Dropdown container */}
+            <div className="relative">
               <button
-                className="flex items-center cursor-pointer px-2 py-2 rounded-xl transition-colors text-white bg-[#a49e92]"
-                onClick={toggleWeatherPanel}
+                className="bg-[#cfcfcd] text-[#636059] border-[#636059] border px-4 py-2 rounded-xl flex items-center ml-2"
+                onClick={() =>
+                  setIsSimulationDropdownOpen(!isSimulationDropdownOpen)
+                }
               >
+                {selectedSimulation}
                 <svg
-                  className="w-5 h-5 text-white"
+                  className={`ml-2 w-4 h-4 transition-transform ${
+                    isSimulationDropdownOpen ? "rotate-180" : ""
+                  }`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -171,81 +94,153 @@ const Navbar = ({ onMenuSelect }) => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                    d="M19 9l-7 7-7-7"
                   />
                 </svg>
-                <span className="ml-1 text-white">28°C</span>
               </button>
 
-              {/* Timezone - Now with live updating clock */}
-              <div className="flex items-center px-3 py-2 rounded-xl">
-                <svg
-                  className="w-5 h-5 text-white me-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <div className="flex items-center">
-                  <span className="text-white text-md mr-2 hidden sm:inline">
-                    {currentTime.date}
-                  </span>
-                  <span className="ml-1 text-white">{currentTime.time}</span>
+              {isSimulationDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-72 bg-[#636059] rounded-xl shadow-lg z-9999">
+                  <div className="py-1">
+                    <a
+                      href="#"
+                      className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd] text-sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSelectedSimulation("Realtime Flood Simulation");
+                        setSelectedFloodType("Realtime Flood Simulation");
+                        setIsSimulationDropdownOpen(false);
+                        onMenuSelect("simulations");
+                      }}
+                    >
+                      Realtime Flood Simulation
+                    </a>
+                    <a
+                      href="#"
+                      className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSelectedSimulation("Return Period Flood Simulation");
+                        setSelectedFloodType("Return Period Flood Simulation");
+                        setIsSimulationDropdownOpen(false);
+                        onMenuSelect("warnings");
+                      }}
+                    >
+                      Return Period Flood Simulation
+                    </a>
+                    <a
+                      href="#"
+                      className="block px-4 py- 2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSelectedSimulation("Crowdsourced Flood Incidents");
+                        setSelectedFloodType("Crowdsourced Flood Incidents");
+                        setIsSimulationDropdownOpen(false);
+                        onMenuSelect("crowdsourced");
+                      }}
+                    >
+                      Crowdsourced Flood Incidents
+                    </a>
+                  </div>
                 </div>
-              </div>
-
-              {/* Notification Bell */}
-              <button className="relative bg-[#636059]/50 p-2 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                  />
-                </svg>
-                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-
-              {/* User Avatar */}
-              <button className="flex items-center bg-[#636059]/50 p-2 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
-                <svg
-                  className="w-5 h-5 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-              </button>
+              )}
             </div>
           </div>
-        </div>
-      </nav>
 
-      {/* Weather Panel - Conditionally rendered based on showWeather prop */}
+          {/* Right side - Icons */}
+          <div className="flex items-center space-x-2 bg-[#636059] border border-[#cfcfcd]/30 rounded-xl px-2 py-2">
+            {/* Weather Icon - Now with toggle functionality */}
+            <button
+              className={`flex items-center cursor-pointer px-2 py-2 rounded-xl transition-colors text-white ${
+                showWeather ? "bg-[#636059]" : "bg-[#a49e92]"
+              }`}
+              onClick={toggleWeatherPanel}
+            >
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+              <span className="ml-1 text-white">28°C</span>
+            </button>
+
+            {/* Timezone - Now with live updating clock */}
+            <div className="flex items-center px-3 py-2 rounded-xl">
+              <svg
+                className="w-5 h-5 text-white me-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div className="flex items-center">
+                <span className="text-white text-md mr-2 hidden sm:inline">
+                  {currentTime.date}
+                </span>
+                <span className="ml-1 text-white">{currentTime.time}</span>
+              </div>
+            </div>
+
+            {/* Notification Bell */}
+            <button className="relative bg-[#636059]/50 p-2 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                />
+              </svg>
+              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+
+            {/* User Avatar */}
+            <button className="flex items-center bg-[#636059]/50 p-2 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Weather Panel - Conditionally rendered based on showWeather */}
       {showWeather && (
-        <div className="fixed top-[7rem] left-0 w-full z-40 px-8">
-          <div className="border border-white/30 bg-[#636059]/30 backdrop-blur-md rounded-2xl px-6 py-2 mx-auto">
+        <div className="mt-2 z-40">
+          <div className="w-full border border-white/30 bg-[#636059]/30 backdrop-blur-md rounded-2xl px-6 py-2">
             <div className="w-full h-full p-2 flex items-center gap-2">
               <div className="flex flex-col justify-around gap-1 pr-2 border-r border-white h-full">
                 <div className="relative" data-headlessui-state="">
@@ -382,7 +377,7 @@ const Navbar = ({ onMenuSelect }) => {
                         <g clipPath="url(#i-568641931__a)">
                           <path
                             fill="#636059"
-                            d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.16 4.968 4.968 0 0 1-1.914.38ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"
+                            d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.160 4.968 4.968 0 0 1-1.914.380ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"
                           ></path>
                         </g>
                         <defs>
@@ -489,7 +484,7 @@ const Navbar = ({ onMenuSelect }) => {
                         <g clipPath="url(#i-568641931__a)">
                           <path
                             fill="#636059"
-                            d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.16 4.968 4.968 0 0 1-1.914.38ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"
+                            d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.160 4.968 4.968 0 0 1-1.914.380ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"
                           ></path>
                         </g>
                         <defs>
@@ -557,7 +552,7 @@ const Navbar = ({ onMenuSelect }) => {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
