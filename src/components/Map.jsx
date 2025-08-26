@@ -826,9 +826,19 @@ const Map = ({ showPumps = true }) => {
             label: isRainData ? "Rainfall (mm)" : "Water Level (m)",
             data: values,
             backgroundColor: isRainData
-              ? "rgba(59, 130, 246, 0.7)"
+              ? values.map(value => {
+                  if (value < 0.76) return 'rgba(34, 197, 94, 0.7)'; // Green for normal
+                  if (value <= 1.5) return 'rgba(234, 179, 8, 0.7)';  // Yellow for cautious
+                  return 'rgba(239, 68, 68, 0.7)';                     // Red for alert
+                })
               : gradient || "rgba(16, 185, 129, 0.7)",
-            borderColor: isRainData ? "rgb(59, 130, 246)" : "rgb(16, 185, 129)",
+            borderColor: isRainData
+              ? values.map(value => {
+                  if (value < 0.76) return 'rgb(34, 197, 94)'; // Green for normal
+                  if (value <= 1.5) return 'rgb(234, 179, 8)';  // Yellow for cautious
+                  return 'rgb(239, 68, 68)';                    // Red for alert
+                })
+              : "rgb(16, 185, 129)",
             borderWidth: 2,
             fill: isLineChart ? true : "origin",
             pointBackgroundColor: "#fff",
@@ -919,7 +929,7 @@ const Map = ({ showPumps = true }) => {
                     else if (value >= maxValue * 0.33) status = " (Caution)";
                     else status = " (Normal)";
                   }
-                  label += value + (isRainData ? " mm" : " m") + status;
+                  label += value + (isRainData ? " m" : " m") + status;
                 }
                 return label;
               },
@@ -1067,7 +1077,7 @@ const Map = ({ showPumps = true }) => {
         ${
           isDataPoint
             ? `
-        <div class="chart-container h-40 bg-gray-50 rounded-lg p-2 relative">
+        <div class="chart-container h-40 rounded-lg relative">
           <canvas class="w-full h-full" id="chart-${point.id}"></canvas>
         </div>
         <button class="w-full py-2 px-4 text-sm font-medium text-white bg-[#636059] rounded-lg transition-colors">
