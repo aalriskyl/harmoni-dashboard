@@ -61,7 +61,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
     <div className="fixed top-6 left-0 w-full z-20 px-8 flex flex-col">
       {/* Main Navbar */}
       <div className="flex">
-        <div className="w-full border border-[#cfcfcd]/30 bg-white/30 backdrop-blur-md rounded-2xl px-6 py-3 flex justify-between items-center gap-[34rem]">
+        <div className="w-full border bg-white/90 rounded-2xl shadow-lg px-6 py-3 flex justify-between items-center gap-[34rem]">
           {/* Left side - Title/Dropdown */}
           <div className="flex text-[#cfcfcd] items-center gap-2">
             <div className="px-4 py-2 rounded-xl">

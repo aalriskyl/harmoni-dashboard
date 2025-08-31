@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>River Cross Section</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    body { background:#f8f9fa; display:flex; justify-content:center; align-items:center; height:100vh; }
+    canvas { background:white; border:1px solid #ccc; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <canvas id="xsChart" width="800" height="500"></canvas>
+
+  <script>
+    const ctx = document.getElementById('xsChart').getContext('2d');
+
+    // Example cross-section data (station, depth)
+    const stations = [0, 5, 15, 25, 35, 45, 60];  
+    const depths   = [0, 6, 12, 8, 15, 7, 0];  // depth values (m)
+
+    // Build dataset
+    const dataPoints = stations.map((s, i) => ({ x: s, y: depths[i] }));
+
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: 'River Cross Section',
+          data: dataPoints,
+          fill: true,
+          borderColor: '#339af0',
+          backgroundColor: 'rgba(80,150,255,0.5)',
+          pointRadius: 3,
+          tension: 0.3
+        }]
+      },
+      options: {
+        parsing: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `Station: ${ctx.parsed.x} m, Depth: ${ctx.parsed.y} m`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Station (m)' },
+            grid: { display: false }
+          },
+          y: {
+            type: 'linear',
+            reverse: true,
+            title: { display: true, text: 'Depth (m)' },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

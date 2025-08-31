@@ -4,7 +4,7 @@ import Navbar from "./components/Navbar";
 import MainPage from "./pages/MainPage";
 
 function App() {
-  const [selectedMenu, setSelectedMenu] = useState("warnings"); // 'warnings' or 'simulations'
+  const [selectedMenu, setSelectedMenu] = useState("simulations"); // 'warnings' or 'simulations'
   const [showWeather, setShowWeather] = useState(true);
 
   useEffect(() => {
@@ -12,10 +12,10 @@ function App() {
       setShowWeather(true);
     };
 
-    window.addEventListener('show-weather', handleShowWeather);
-    
+    window.addEventListener("show-weather", handleShowWeather);
+
     return () => {
-      window.removeEventListener('show-weather', handleShowWeather);
+      window.removeEventListener("show-weather", handleShowWeather);
     };
   }, []);
 
@@ -29,8 +29,8 @@ function App() {
 
   return (
     <>
-      <Navbar 
-        onMenuSelect={handleMenuSelect} 
+      <Navbar
+        onMenuSelect={handleMenuSelect}
         onWeatherToggle={handleWeatherToggle}
       />
       <MainPage selectedMenu={selectedMenu} showWeather={showWeather} />

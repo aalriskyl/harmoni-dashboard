@@ -1,6 +1,6 @@
 import React from "react";
 
-const MapToolbox = () => {
+const MapToolbox = ({ showRivers = false, onToggleRivers }) => {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       {/* Main Toolbox */}
@@ -78,6 +78,48 @@ const MapToolbox = () => {
                 </svg>
               </button>
             </div>
+          </div>
+
+          {/* River Toggle Button */}
+          <div className="relative inline-flex">
+            <button
+              onClick={onToggleRivers}
+              className={`bg-transparent enabled:hover:bg-white dark:enabled:hover:bg-white text-${
+                showRivers ? "blue-500" : "grey-700"
+              } dark:text-${
+                showRivers ? "blue-400" : "grey-200"
+              } disabled:hover:bg-transparent inline-flex w-full items-center h-9 gap-3 rounded-xxs px-2 py-2 text-sm font-normal focus:outline-none transition-all duration-500 ease-in-out`}
+              title={showRivers ? "Hide Rivers" : "Show Rivers"}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                className="w-5 h-5"
+              >
+                <path
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.47-1.27-3.81-.29-.56-.6-1.15-.92-1.73-.32.58-.63 1.17-.92 1.73-.7 1.34-1.27 2.65-1.27 3.81 0 2.22 1.8 4.05 4 4.05z"
+                />
+                <path
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12.56 6.36A9.984 9.984 0 0 0 14 2.5c.19 2.5-1.28 6.5-3.85 9.64"
+                />
+                <path
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M3.5 16.5c0-2.3 1.21-4.6 2.5-6.5 1.3 1.9 2.5 4.2 2.5 6.5"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       </div>

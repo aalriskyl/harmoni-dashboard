@@ -52,62 +52,6 @@ style.textContent = `
     width: 100%;
     height: 100%;
   }
-  
-  /* Cross-section specific styles */
-  .cross-section-popup .popup-page {
-    display: none;
-    flex-direction: column;
-    transition: opacity 0.3s ease-in-out;
-    width: 100%;
-  }
-  .cross-section-popup .popup-page.active {
-    display: flex;
-  }
-  .cross-section-popup .pagination-dot {
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    padding: 0;
-    margin: 0 2px;
-  }
-  .cross-section-popup .pagination-dot.active {
-    transform: scale(1.2);
-  }
-  .cross-section-popup .mapboxgl-popup-content {
-    width: 420px;
-    max-width: 90vw;
-    padding: 1.25rem !important;
-    border-radius: 12px !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
-  }
-  
-  /* Standard popup styles */
-  .standard-popup .popup-page {
-    display: none;
-    flex-direction: column;
-    transition: opacity 0.3s ease-in-out;
-    width: 100%;
-  }
-  .standard-popup .popup-page.active {
-    display: flex;
-  }
-  .standard-popup .pagination-dot {
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    padding: 0;
-    margin: 0 2px;
-  }
-  .standard-popup .pagination-dot.active {
-    transform: scale(1.2);
-  }
-  .standard-popup .mapboxgl-popup-content {
-    width: 400px;
-    max-width: 90vw;
-    padding: 1.25rem !important;
-    border-radius: 12px !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
-  }
 `;
 document.head.appendChild(style);
 
@@ -136,7 +80,6 @@ const Map = ({
   const popups = useRef([]);
 
   // State
-
   const [localShowPumps, setLocalShowPumps] = useState(showPumps);
   const [localShowWaterLevels, setLocalShowWaterLevels] =
     useState(showWaterLevels);
@@ -151,7 +94,6 @@ const Map = ({
   const [showFloodHeatmap, setShowFloodHeatmap] = useState(false);
   const [waterLevelData, setWaterLevelData] = useState([]);
   const [rainRecorderData, setRainRecorderData] = useState([]);
-  const [crossSectionData, setCrossSectionData] = useState([]);
   const [selectedPoint, setSelectedPoint] = useState(null);
   const [lightPreset, setLightPreset] = useState("day");
   const [labelVisibility, setLabelVisibility] = useState({
@@ -170,7 +112,259 @@ const Map = ({
   // Add this inside the Map component (near other state declarations)
   const [showVulnerabilityLayer, setShowVulnerabilityLayer] = useState(false);
   const [floodIncidents, setFloodIncidents] = useState([]);
-  const [riverHoverInfo, setRiverHoverInfo] = useState(null);
+  const [crossSections, setCrossSections] = useState([]);
+
+  // Load cross-section data
+  useEffect(() => {
+    fetch("/data/Cross_Section_Sungai Ciliwung_001_DKI Jakarta.geojson")
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.features && data.features.length > 0) {
+          const processedSections = data.features.map((feature, index) => ({
+            id: `cross-section-${index}`,
+            type: "CrossSection",
+            coordinates: feature.geometry.coordinates,
+            properties: feature.properties,
+            location: feature.properties.River_Name || "Ciliwung River",
+            latestReading: {
+              depth: feature.properties.Water_Depth_m,
+              date: feature.properties.Simulated_Date,
+              time: feature.properties.Simulated_Time,
+              condition: feature.properties.Water_Depth_m > 1 ? "High" : "Normal"
+            }
+          }));
+          setCrossSections(processedSections);
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading cross-section data:", error);
+      });
+  }, []);
+
+  // Add cross-section markers to the map
+  useEffect(() => {
+    if (!map.current || crossSections.length === 0) return;
+
+    const newMarkers = crossSections.map((section) => {
+      if (!section.coordinates || section.coordinates.length !== 2) return null;
+
+      const el = document.createElement("div");
+      el.className = "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
+      el.style.backgroundColor = "#4a6fa5";
+      el.style.border = "2px solid #3a5a80";
+      el.style.boxShadow = "0 0 0 2px rgba(0,0,0,0.1)";
+
+      const icon = document.createElement("img");
+      icon.src = getIconSrc("CrossSection");
+      icon.className = "w-6 h-6 p-1";
+      icon.style.filter = "brightness(0) invert(1)";
+      el.appendChild(icon);
+
+      // Create popup content with pagination
+      const popupContent = document.createElement("div");
+      popupContent.className = "popup-content";
+      popupContent.innerHTML = `
+        <div class="popup-container">
+          <!-- Page 1: Summary -->
+          <div class="popup-page active" data-page="1">
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="text-lg font-bold text-gray-800">${section.properties?.River_Name || 'Cross Section'}</h3>
+              <button class="close-popup text-gray-500 hover:text-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-start">
+                <span class="font-medium w-36">River Name:</span>
+                <span>${section.properties?.River_Name || 'N/A'}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Water Depth:</span>
+                <span class="font-medium ${
+                  section.properties?.Water_Depth_m > 1 ? 'text-red-600' : 'text-green-600'
+                }">
+                  ${section.properties?.Water_Depth_m ? `${section.properties.Water_Depth_m} m` : 'N/A'}
+                </span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Simulated Date:</span>
+                <span>${section.properties?.Simulated_Date || 'N/A'}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Time:</span>
+                <span>${section.properties?.Simulated_Time || 'N/A'}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Rainfall:</span>
+                <span>${section.properties?.Simulated_Rain_mm ? `${section.properties.Simulated_Rain_mm} mm` : 'N/A'}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Status:</span>
+                <span class="font-medium ${
+                  section.properties?.Water_Depth_m > 1 ? 'text-red-600' : 'text-green-600'
+                }">
+                  ${section.properties?.Water_Depth_m > 1 ? 'High Water Level' : 'Normal'}
+                </span>
+              </div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-200">
+              <button class="w-full px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md text-sm font-medium hover:bg-blue-200 transition-colors see-more-btn">
+                See More Data
+              </button>
+            </div>
+          </div>
+
+          <!-- Page 2: Detailed Data -->
+          <div class="popup-page hidden" data-page="2">
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="text-lg font-bold text-gray-800">Detailed Information</h3>
+              <button class="close-popup text-gray-500 hover:text-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-start">
+                <span class="font-medium w-36">Model:</span>
+                <span>${section.properties?.Methodology || 'N/A'}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Software:</span>
+                <span>${section.properties?.Software || 'N/A'}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Accuracy:</span>
+                <span>${section.properties?.Accuracy ? `${(section.properties.Accuracy * 100).toFixed(1)}%` : 'N/A'}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Cross Section ID:</span>
+                <span>${section.properties?.Cross_Section_ID || 'N/A'}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Catchment:</span>
+                <span>${section.properties?.Catchment_Name || 'N/A'}</span>
+              </div>
+              <div class="flex items-start">
+                <span class="font-medium w-36">Manager:</span>
+                <span>${section.properties?.Manager || 'N/A'}</span>
+              </div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-200">
+              <button class="w-full px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors back-to-summary">
+                Back to Summary
+              </button>
+            </div>
+          </div>
+          
+          <!-- Pagination Dots -->
+          <div class="flex justify-center mt-3 space-x-2">
+            <button class="pagination-dot w-2 h-2 rounded-full bg-blue-600" data-page="1"></button>
+            <button class="pagination-dot w-2 h-2 rounded-full bg-gray-300" data-page="2"></button>
+          </div>
+        </div>
+      `;
+
+      const popup = new mapboxgl.Popup({
+        offset: 25,
+        closeButton: false,
+        closeOnClick: false,
+        className: 'custom-popup',
+      }).setDOMContent(popupContent);
+
+      const marker = new mapboxgl.Marker({
+        element: el,
+        anchor: 'bottom',
+      })
+        .setLngLat(section.coordinates)
+        .setPopup(popup)
+        .addTo(map.current);
+
+      // Add event listeners for popup interactions
+      const container = popupContent.querySelector(".popup-container");
+      
+      // Close button
+      popupContent.querySelectorAll('.close-popup').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          popup.remove();
+        });
+      });
+
+      // See more button
+      popupContent.querySelector('.see-more-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showPage(container, '2');
+      });
+
+      // Back to summary button
+      popupContent.querySelector('.back-to-summary')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showPage(container, '1');
+      });
+
+      // Pagination dots
+      popupContent.querySelectorAll('.pagination-dot').forEach(dot => {
+        dot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const targetPage = e.target.dataset.page;
+          showPage(container, targetPage);
+        });
+      });
+
+      // Helper function to show specific page
+      const showPage = (container, pageNumber) => {
+        // Update active page
+        container.querySelectorAll('.popup-page').forEach(page => {
+          if (page.dataset.page === pageNumber) {
+            page.classList.add('active');
+            page.classList.remove('hidden');
+          } else {
+            page.classList.remove('active');
+            page.classList.add('hidden');
+          }
+        });
+
+        // Update active dot
+        container.querySelectorAll('.pagination-dot').forEach(dot => {
+          if (dot.dataset.page === pageNumber) {
+            dot.classList.remove('bg-gray-300');
+            dot.classList.add('bg-blue-600');
+          } else {
+            dot.classList.remove('bg-blue-600');
+            dot.classList.add('bg-gray-300');
+          }
+        });
+      };
+
+      return {
+        ...section,
+        marker,
+        popup,
+        element: el,
+        type: 'CrossSection'
+      };
+    }).filter(Boolean);
+
+    // Add new markers to the markers array
+    markers.current = [...markers.current, ...newMarkers];
+
+    // Cleanup function
+    return () => {
+      newMarkers.forEach(marker => {
+        if (marker.marker && typeof marker.marker.remove === 'function') {
+          marker.marker.remove();
+        }
+        if (marker.popup && typeof marker.popup.remove === 'function') {
+          marker.popup.remove();
+        }
+      });
+      markers.current = markers.current.filter(m => !newMarkers.includes(m));
+    };
+  }, [crossSections]);
+
   // Update local states when props change
   useEffect(() => {
     setLocalShowPumps(showPumps);
@@ -203,6 +397,7 @@ const Map = ({
       showPumps,
       showWaterLevels,
       showRainRecorders,
+      showCrossSections: true, // Cross-sections are always visible
     });
 
     markers.current.forEach((marker, index) => {
@@ -227,10 +422,12 @@ const Map = ({
         visible = showWaterLevels;
       } else if (type === "rainrecorder") {
         visible = showRainRecorders;
-      } else if (type === "crosssection") {
-        visible = true; // Always show cross section markers or add a toggle if needed
       } else if (type === "floodincident") {
-        visible = true;
+        visible = true; // Always show flood incidents
+      } else if (type === "crosssection") {
+        visible = true; // Always show cross sections
+      } else {
+        console.warn("Unknown marker type in visibility check:", type);
       }
 
       element.style.display = visible ? "block" : "none";
@@ -388,26 +585,24 @@ const Map = ({
 
       // For MultiLineString features, process each line
       if (feature.geometry.type === "MultiLineString") {
-        const processedLines = feature.geometry.coordinates.map(
-          (line, lineIndex) => {
-            const sortedLine = [...line].sort((a, b) => b[1] - a[1]);
+        const processedLines = feature.geometry.coordinates.map((line, lineIndex) => {
+          const sortedLine = [...line].sort((a, b) => b[1] - a[1]);
 
-            // Add marker at midpoint of each line segment
-            const midpoint = calculateMidpoint(sortedLine);
-            if (midpoint) {
-              riverMarkers.push({
-                id: `river-marker-${index}-${lineIndex}`,
-                type: "river",
-                lng: midpoint[0],
-                lat: midpoint[1],
-                name: feature.properties?.name || "Unnamed River",
-                properties: feature.properties,
-              });
-            }
-
-            return sortedLine;
+          // Add marker at midpoint of each line segment
+          const midpoint = calculateMidpoint(sortedLine);
+          if (midpoint) {
+            riverMarkers.push({
+              id: `river-marker-${index}-${lineIndex}`,
+              type: "river",
+              lng: midpoint[0],
+              lat: midpoint[1],
+              name: feature.properties?.name || "Unnamed River",
+              properties: feature.properties,
+            });
           }
-        );
+
+          return sortedLine;
+        });
 
         return {
           ...feature,
@@ -460,17 +655,13 @@ const Map = ({
         addRiverLayers(processedData);
 
         // Add a single river marker with consistent styling
-        if (
-          processedData.riverMarkers &&
-          processedData.riverMarkers.length > 0
-        ) {
+        if (processedData.riverMarkers && processedData.riverMarkers.length > 0) {
           // Use the first river marker (already calculated at a midpoint)
           const markerData = processedData.riverMarkers[0];
 
           // Create marker element with consistent styling from line 1700
           const el = document.createElement("div");
-          el.className =
-            "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
+          el.className = "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
 
           // Use the same color scheme as other water-related markers
           el.style.backgroundColor = "#3b82f6";
@@ -712,23 +903,21 @@ const Map = ({
 
   // Derived state
   const pinPoints = useMemo(
-    () => [
-      ...pumpStations,
-      ...waterLevelData,
-      ...rainRecorderData,
-      ...crossSectionData,
-    ],
-    [pumpStations, waterLevelData, rainRecorderData, crossSectionData]
+    () => [...pumpStations, ...waterLevelData, ...rainRecorderData],
+    [pumpStations, waterLevelData, rainRecorderData]
   );
 
-  const pointsToShow = useMemo(() => {
-    return pinPoints.filter((point) => {
-      if (point.type === "Waterpump") return localShowPumps;
-      if (point.type === "WaterLevel") return localShowWaterLevels;
-      if (point.type === "RainRecorder") return localShowRainRecorders;
-      return true; // Show other point types by default
-    });
-  }, [pinPoints, localShowPumps, localShowWaterLevels, localShowRainRecorders]);
+  const pointsToShow = useMemo(
+    () => {
+      return pinPoints.filter(point => {
+        if (point.type === 'Waterpump') return localShowPumps;
+        if (point.type === 'WaterLevel') return localShowWaterLevels;
+        if (point.type === 'RainRecorder') return localShowRainRecorders;
+        return true; // Show other point types by default
+      });
+    },
+    [pinPoints, localShowPumps, localShowWaterLevels, localShowRainRecorders]
+  );
 
   // Helper functions
   const getTimeBasedPreset = (hour) => {
@@ -737,32 +926,6 @@ const Map = ({
     if (hour >= 17 && hour < 19) return "dusk";
     return "night";
   };
-
-  const setupRiverHover = useCallback(() => {
-    if (!map.current) return;
-
-    // Add hover effect for rivers
-    map.current.on("mousemove", riverLayerId, (e) => {
-      if (!e.features || e.features.length === 0) return;
-
-      const feature = e.features[0];
-      const name = feature.properties?.name || "Unnamed River";
-
-      // Show cursor as pointer
-      map.current.getCanvas().style.cursor = "pointer";
-
-      // Set hover info
-      setRiverHoverInfo({
-        lngLat: e.point,
-        name: name,
-      });
-    });
-
-    map.current.on("mouseleave", riverLayerId, () => {
-      map.current.getCanvas().style.cursor = "";
-      setRiverHoverInfo(null);
-    });
-  }, [riverLayerId]);
 
   const updateTimeBasedPreset = useCallback(() => {
     const now = new Date();
@@ -936,53 +1099,6 @@ const Map = ({
     }
   }, []);
 
-  const fetchCrossSectionData = useCallback(async () => {
-    try {
-      const response = await axios.get(
-        "/data/Cross_Section_Sungai_Ciliwung_001_DKI_Jakarta.geojson"
-      );
-      const data = response.data;
-
-      if (data?.features) {
-        const processedData = data.features
-          .map((feature, index) => {
-            const props = feature.properties || {};
-            const lng = parseFloat(feature.geometry.coordinates[0]);
-            const lat = parseFloat(feature.geometry.coordinates[1]);
-
-            if (isNaN(lng) || isNaN(lat)) return null;
-
-            return {
-              id: 4000 + index,
-              lng,
-              lat,
-              title: props.Cross_Section_ID || `Cross Section ${index + 1}`,
-              type: "CrossSection", // Make sure this is set correctly
-              color: "#8b5cf6",
-              status: "Active",
-              deviceId:
-                props.Cross_Section_ID ||
-                `CS-${String(index + 1).padStart(3, "0")}`,
-              location: props.River_Name || "Unknown location",
-              properties: props, // Make sure all properties are included
-              latestReading: {
-                waterDepth: props.Water_Depth_m
-                  ? `${props.Water_Depth_m} m`
-                  : "N/A",
-                date: props.Simulated_Date || "N/A",
-                condition: "Normal",
-              },
-            };
-          })
-          .filter(Boolean);
-
-        setCrossSectionData(processedData);
-      }
-    } catch (error) {
-      console.error("Error fetching cross section data:", error);
-    }
-  }, []);
-
   const fetchWaterLevelData = useCallback(async () => {
     try {
       const response = await axios.get(
@@ -1129,19 +1245,21 @@ const Map = ({
       map.current.setConfigProperty("basemap", id, checked);
     }
   };
+
   // Marker and popup utilities
   const getStatusButtonClass = (point) => {
+    // For Waterpump, use the existing status
     if (point.type === "Waterpump") {
       return point.status === "Not Running"
         ? "bg-red-600 hover:bg-red-700"
         : "bg-green-500 hover:bg-green-600";
-    } else if (point.type === "RainRecorder" || point.type === "WaterLevel") {
+    }
+    // For RainRecorder and WaterLevel, use Poor/Good status
+    else if (point.type === "RainRecorder" || point.type === "WaterLevel") {
       const condition = point.latestReading?.condition?.toLowerCase();
       return condition === "poor"
         ? "bg-red-600 hover:bg-red-700"
         : "bg-green-500 hover:bg-green-600";
-    } else if (point.type === "CrossSection") {
-      return "bg-purple-600 hover:bg-purple-700"; // Different color for cross sections
     }
     return "bg-blue-600 hover:bg-blue-700";
   };
@@ -1152,8 +1270,6 @@ const Map = ({
     } else if (point.type === "RainRecorder" || point.type === "WaterLevel") {
       const condition = point.latestReading?.condition?.toLowerCase();
       return condition === "poor" ? "Poor" : "Good";
-    } else if (point.type === "CrossSection") {
-      return point.latestReading?.condition || "Normal";
     }
     return "View Status";
   };
@@ -1166,9 +1282,8 @@ const Map = ({
         return "/assets/img/rain-gauge-icon.svg";
       case "WaterLevel":
         return "/assets/img/water-level-icon.svg";
-      case "CrossSection":
-        return "/assets/img/River_Cross_Section_Icon.svg";
       case "River":
+      case "CrossSection":
         return "/assets/img/River_Cross_Section_Icon.svg";
       default:
         return "/assets/img/marker-icon.svg";
@@ -1176,7 +1291,32 @@ const Map = ({
   };
 
   const renderInfoRows = (point) => {
-    if (point.type === "Waterpump") {
+    if (point.type === "CrossSection") {
+      return `
+        <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+          <span class="text-gray-600">River Name:</span>
+          <span class="font-medium">${point.properties?.River_Name || 'N/A'}</span>
+          
+          <span class="text-gray-600">Water Depth:</span>
+          <span class="font-medium">${point.properties?.Water_Depth_m ? `${point.properties.Water_Depth_m} m` : 'N/A'}</span>
+          
+          <span class="text-gray-600">Simulated Date:</span>
+          <span>${point.properties?.Simulated_Date || 'N/A'}</span>
+          
+          <span class="text-gray-600">Time:</span>
+          <span>${point.properties?.Simulated_Time || 'N/A'}</span>
+          
+          <span class="text-gray-600">Rainfall:</span>
+          <span>${point.properties?.Simulated_Rain_mm ? `${point.properties.Simulated_Rain_mm} mm` : 'N/A'}</span>
+          
+          <span class="text-gray-600">Model:</span>
+          <span>${point.properties?.Methodology || 'N/A'} (${point.properties?.Software || 'N/A'})</span>
+          
+          <span class="text-gray-600">Accuracy:</span>
+          <span>${point.properties?.Accuracy ? `${(point.properties.Accuracy * 100).toFixed(1)}%` : 'N/A'}</span>
+        </div>
+      `;
+    } else if (point.type === "Waterpump") {
       return `
         <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
           <span class="text-gray-600">Status:</span>
@@ -1191,114 +1331,6 @@ const Map = ({
           <span>${point.deviceId}</span>
           <span class="text-gray-600">Location:</span>
           <span class="break-words">${point.location}</span>
-        </div>
-      `;
-    } else if (point.type === "CrossSection") {
-      const props = point.properties || {};
-      const profile = Array.isArray(props.Cross_Section_Profile)
-        ? props.Cross_Section_Profile
-        : [];
-
-      // Calculate max depth and width for the profile
-      const maxDepth = Math.max(...profile.map((p) => p.depth), 0);
-      const maxWidth = Math.max(...profile.map((p) => p.station), 0);
-
-      return `
-        <div class="space-y-2">
-          <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
-            <span class="text-gray-600">Cross Section ID:</span>
-            <span class="font-medium">${props.Cross_Section_ID || "N/A"}</span>
-            
-            <span class="text-gray-600">River Name:</span>
-            <span>${props.River_Name || "N/A"}</span>
-            
-            <span class="text-gray-600">Water Depth:</span>
-            <span>${
-              props.Water_Depth_m ? `${props.Water_Depth_m} m` : "N/A"
-            }</span>
-            
-            <span class="text-gray-600">Simulation Date:</span>
-            <span>${props.Simulated_Date || "N/A"}</span>
-            
-            <span class="text-gray-600">Simulation Time:</span>
-            <span>${props.Simulated_Time || "N/A"}</span>
-            
-            <span class="text-gray-600">Rainfall:</span>
-            <span>${
-              props.Simulated_Rain_mm ? `${props.Simulated_Rain_mm} mm` : "N/A"
-            }</span>
-            
-            <span class="text-gray-600">Catchment:</span>
-            <span>${props.Catchment_Name || "N/A"}</span>
-            
-            <span class="text-gray-600">Model Accuracy:</span>
-            <span>${
-              props.Accuracy ? `${(props.Accuracy * 100).toFixed(1)}%` : "N/A"
-            }</span>
-            
-            <span class="text-gray-600">Return Period:</span>
-            <span>${props.Return_Period || "N/A"}</span>
-          </div>
-          
-          ${
-            profile.length > 0
-              ? `
-          <div class="mt-4">
-            <div class="flex justify-between text-sm text-gray-600 mb-1">
-              <span>River Cross-Section Profile</span>
-              <span>Max Depth: ${maxDepth.toFixed(1)}m</span>
-            </div>
-            <div class="h-32 bg-gray-100 rounded relative overflow-hidden">
-              <svg class="w-full h-full" viewBox="0 0 ${Math.max(
-                100,
-                maxWidth
-              )} ${Math.max(50, maxDepth * 2)}" preserveAspectRatio="none">
-                <path 
-                  d="M${profile
-                    .map(
-                      (p, i) => `${i === 0 ? "" : "L"}${p.station},${p.depth}`
-                    )
-                    .join(" ")}" 
-                  fill="#3b82f6" 
-                  fill-opacity="0.2" 
-                  stroke="#1d4ed8" 
-                  stroke-width="1.5" 
-                  stroke-linejoin="round"
-                />
-                <line 
-                  x1="0" 
-                  y1="${maxDepth}" 
-                  x2="${maxWidth}" 
-                  y2="${maxDepth}" 
-                  stroke="#ef4444" 
-                  stroke-width="1" 
-                  stroke-dasharray="4 2"
-                />
-                <text x="5" y="${
-                  maxDepth - 2
-                }" font-size="4" fill="#ef4444">Water Level</text>
-              </svg>
-            </div>
-          </div>`
-              : ""
-          }
-          
-          <div class="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-500">
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <div class="font-medium text-gray-600">Model Information</div>
-                <div>Method: ${props.Methodology || "N/A"}</div>
-                <div>Software: ${props.Software || "N/A"}</div>
-                <div>Calibrated: ${props.Model_CalibrationDate || "N/A"}</div>
-              </div>
-              <div>
-                <div class="font-medium text-gray-600">Data Source</div>
-                <div>Topography: ${props.Topography_Date || "N/A"}</div>
-                <div>Method: ${props.Measurement_Type || "N/A"}</div>
-                <div>Manager: ${props.Manager || "N/A"}</div>
-              </div>
-            </div>
-          </div>
         </div>
       `;
     } else if (point.type === "RainRecorder") {
@@ -1380,15 +1412,6 @@ const Map = ({
         <span>${point.latestReading.date}</span>
         <span class="text-gray-600">Time:</span>
         <span>${point.latestReading.time}</span>
-      `;
-    } else if (point.type === "CrossSection") {
-      return `
-        <span class="text-gray-600">Water Depth:</span>
-        <span class="font-medium">${point.latestReading.waterDepth}</span>
-        <span class="text-gray-600">Date:</span>
-        <span>${point.latestReading.date}</span>
-        <span class="text-gray-600">Condition:</span>
-        <span>${point.latestReading.condition}</span>
       `;
     } else if (point.type === "RainRecorder") {
       return `
@@ -1657,17 +1680,6 @@ const Map = ({
     // Add reset zoom button
     addResetZoomButton(container, canvas.chart, point.id);
   };
-  // Add this to re-setup hover when river visibility changes
-  useEffect(() => {
-    if (!map.current || !localShowRivers) return;
-
-    // Wait a bit for layers to load, then setup hover
-    const timer = setTimeout(() => {
-      setupRiverHover();
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [localShowRivers, setupRiverHover]);
 
   // Helper function to get status color based on status text
   // Function to close popup
@@ -1679,12 +1691,7 @@ const Map = ({
 
   const getStatusColor = (status) => {
     if (!status) return "#6b7280"; // Default gray
-
-    // Handle case where status is an object with a status property
-    const statusString =
-      typeof status === "object" ? status.status || "" : String(status);
-    const statusLower = statusString.toLowerCase();
-
+    const statusLower = status.toLowerCase();
     if (
       statusLower.includes("normal") ||
       statusLower.includes("good") ||
@@ -1707,321 +1714,14 @@ const Map = ({
       return "#ef4444"; // Red
     return "#6b7280"; // Default gray
   };
-  // Add this useEffect to debug cross-section data
-  useEffect(() => {
-    console.log("Cross-section data loaded:", crossSectionData);
-    if (crossSectionData.length > 0) {
-      console.log("First cross-section item:", crossSectionData[0]);
-      console.log(
-        "Cross-section profile data:",
-        crossSectionData[0].properties?.Cross_Section_Profile
-      );
-    }
-  }, [crossSectionData]);
-
-  // Separate initialization functions for different popup types
-  const initializeCrossSectionPopup = (container, point) => {
-    // Cross-section specific initialization
-    const dots = container.querySelectorAll(".pagination-dot");
-    const pages = container.querySelectorAll(".popup-page");
-
-    // Function to switch pages
-    const switchPage = (targetPage) => {
-      // Update active page
-      pages.forEach((page) => {
-        if (page.dataset.page === targetPage) {
-          page.classList.add("active");
-          page.style.display = "flex";
-        } else {
-          page.classList.remove("active");
-          page.style.display = "none";
-        }
-      });
-
-      // Update indicators
-      dots.forEach((ind) => {
-        if (ind.dataset.page === targetPage) {
-          ind.classList.remove("bg-gray-300");
-          ind.classList.add("bg-blue-600");
-        } else {
-          ind.classList.remove("bg-blue-600");
-          ind.classList.add("bg-gray-300");
-        }
-      });
-    };
-
-    // Add click handlers to dots
-    dots.forEach((dot) => {
-      dot.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        switchPage(dot.dataset.page);
-      });
-    });
-
-    // Initialize first page
-    if (pages.length > 0) {
-      switchPage("1");
-    }
-  };
-
-  const initializeStandardPopup = (container, point) => {
-    // Standard popup initialization
-    const dots = container.querySelectorAll(".pagination-dot");
-    dots.forEach((dot) => {
-      dot.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const targetPage = dot.dataset.page;
-
-        // Update active page
-        container.querySelectorAll(".popup-page").forEach((page) => {
-          if (page.dataset.page === targetPage) {
-            page.classList.add("active");
-            page.style.display = "flex";
-          } else {
-            page.classList.remove("active");
-            page.style.display = "none";
-          }
-        });
-
-        // Update indicators
-        dots.forEach((ind) => {
-          if (ind.dataset.page === targetPage) {
-            ind.classList.add("bg-[#636059]");
-            ind.classList.remove("bg-gray-300");
-          } else {
-            ind.classList.remove("bg-[#636059]");
-            ind.classList.add("bg-gray-300");
-          }
-        });
-
-        // Initialize chart if we're on the first page and it's a data point
-        if (
-          targetPage === "1" &&
-          (point.type === "RainRecorder" || point.type === "WaterLevel")
-        ) {
-          initializeChart(point, container);
-        }
-      });
-    });
-
-    // Initialize chart if this is a data point
-    if (point.type === "RainRecorder" || point.type === "WaterLevel") {
-      initializeChart(point, container);
-    }
-  };
 
   const renderPopupContent = (point) => {
-    if (point.type === "CrossSection") {
-      console.log("Cross-section popup opened with data:", {
-        point: point,
-        properties: point.properties,
-        timestamp: new Date().toISOString(),
-      });
-
-      const props = point.properties || {};
-      const profile = Array.isArray(props.Cross_Section_Profile)
-        ? props.Cross_Section_Profile
-        : [];
-
-      if (profile.length > 0) {
-        console.log("Cross-section profile data points:", profile);
-        console.log("Cross-section metrics:", {
-          maxDepth: Math.max(...profile.map((p) => p.depth || 0)),
-          maxWidth: Math.max(...profile.map((p) => p.station || 0)),
-          pointCount: profile.length,
-        });
-      }
-
-      // Calculate max depth and width for the info display
-      let maxDepth = 0;
-      let maxWidth = 0;
-
-      if (profile.length > 0) {
-        maxDepth = Math.max(...profile.map((p) => p.depth || 0));
-        maxWidth = Math.max(...profile.map((p) => p.station || 0));
-      }
-
-      // Create a simple SVG visualization
-      const svgPath =
-        profile.length > 0
-          ? `M${profile[0].station},${profile[0].depth} ` +
-            profile
-              .slice(1)
-              .map((p) => `L${p.station},${p.depth}`)
-              .join(" ")
-          : "";
-
-      return `
-        <div class="cross-section-popup popup-container w-full max-w-sm font-sans relative">
-          <!-- Close button positioned at top right -->
-          <button class="close-popup absolute top-2 right-2 text-gray-500 hover:text-gray-700 focus:outline-none z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </button>
-
-          <!-- Page 1 content -->
-          <div class="popup-page active" data-page="1">
-            <div class="flex items-center mb-4">
-              <div class="w-12 h-12 mr-3 flex items-center justify-center">
-                <img src="/assets/img/River_Cross_Section_Icon.svg" class="w-6 h-6" alt="Cross Section" />
-              </div>
-              <h3 class="font-bold text-xl text-black">${
-                point.title || "Cross Section"
-              }</h3>
-            </div>
-            
-            <div class="mb-4">
-              <h4 class="font-bold text-lg mb-3 text-black">Simulated Water Depth</h4>
-              <div class="grid grid-cols-[max-content_max-content_1fr] gap-x-2 gap-y-3 text-sm text-gray-600">
-                <span class="font-medium">Cross Section</span>
-                <span>:</span>
-                <span>${point.title || "N/A"}</span>
-                
-                <span class="font-medium">Simulated Date</span>
-                <span>:</span>
-                <span>${props.Simulated_Date || "N/A"}</span>
-                
-                <span class="font-medium">Simulated Time</span>
-                <span>:</span>
-                <span>${props.Simulated_Time || "N/A"}</span>
-                
-                <span class="font-medium">Simulated Rain</span>
-                <span>:</span>
-                <span>${
-                  props.Simulated_Rain_mm
-                    ? `${props.Simulated_Rain_mm} mm`
-                    : "N/A"
-                }</span>
-                
-                <span class="font-medium">Water Depth</span>
-                <span>:</span>
-                <span class="${props.Water_Depth_m ? "font-medium" : ""}">${
-        props.Water_Depth_m ? `${props.Water_Depth_m} m` : "N/A"
-      }</span>
-              </div>
-            </div>
-            
-            ${
-              profile.length > 0
-                ? `
-            <div class="mb-4">
-              <div class="h-48 w-full  rounded-lg overflow-hidden border border-gray-200">
-                <svg viewBox="0 0 ${maxWidth + 10} ${
-                    maxDepth + 10
-                  }" class="w-full h-full">
-                  <path 
-                    d="M0,${maxDepth + 5} ${svgPath} L${maxWidth},${
-                    maxDepth + 5
-                  } Z" 
-                    fill="#93c5fd" 
-                    stroke="#3b82f6" 
-                    stroke-width="1.5"
-                    stroke-linejoin="round"
-                  />
-                  <line 
-                    x1="0" 
-                    y1="${maxDepth}" 
-                    x2="${maxWidth}" 
-                    y2="${maxDepth}" 
-                    stroke="#ef4444" 
-                    stroke-width="1" 
-                    stroke-dasharray="4 2"
-                  />
-                </svg>
-              </div>
-              
-            </div>`
-                : ""
-            }
-            
-            <div class="flex justify-center mt-4 mb-2">
-              <button class="w-full py-2 px-4 text-sm font-medium text-white bg-[#636059] rounded-lg transition-colors">
-          See More Data
-        </button>
-            </div>
-            <div class="flex justify-center mt-3 space-x-2">
-        <button class="pagination-dot w-2 h-2 rounded-full bg-[#636059]" data-page="1"></button>
-        <button class="pagination-dot w-2 h-2 rounded-full bg-gray-300" data-page="2"></button>
-      </div>
-            
-          </div>
-
-          <!-- Page 2 content - Station Information -->
-          <!-- Pagination dots -->
-          
-          <div class="popup-page hidden" data-page="2">
-            <div class="flex items-center mb-4">
-              <div class="w-12 h-12 mr-3 rounded-full flex items-center justify-center">
-                <img src="/assets/img/River_Cross_Section_Icon.svg" class="w-6 h-6" alt="Cross Section" />
-              </div>
-              <h3 class="font-bold text-xl text-black">${
-                point.title || "Cross Section"
-              }</h3>
-            </div>
-
-            <div class="space-y-4">
-              <div>
-                <h4 class="font-bold text-lg mb-2 text-black">Cross Section Information</h4>
-                <div class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-2 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                  <span class="font-medium">Latitude:</span>
-                  <span>${point.lat ? point.lat.toFixed(6) : "N/A"}</span>
-                  
-                  <span class="font-medium">Longitude:</span>
-                  <span>${point.lng ? point.lng.toFixed(6) : "N/A"}</span>
-                  
-                  <span class="font-medium">Catchment Name:</span>
-                  <span>${props.Catchment_Name || "N/A"}</span>
-                  
-                  <span class="font-medium">Manager:</span>
-                  <span>${props.Manager || "N/A"}</span>
-                  
-                  <span class="font-medium">Topography Date:</span>
-                  <span>${props.Topography_Date || "N/A"}</span>
-                  
-                  <span class="font-medium">Measurement Type:</span>
-                  <span>${props.Measurement_Type || "N/A"}</span>
-                  
-                  <span class="font-medium">Methodology:</span>
-                  <span>${props.Methodology || "N/A"}</span>
-                  
-                  <span class="font-medium">Software:</span>
-                  <span>${props.Software || "N/A"}</span>
-                  <span class="font-medium">Model Calibration:</span>
-                  <span>${props.Model_Calibration || "N/A"}</span>
-                  
-                  <span class="font-medium">Calibration Date:</span>
-                  <span>${props.Calibration_Date || "N/A"}</span>
-                  
-                  <span class="font-medium">Accuracy:</span>
-                  <span>${
-                    props.Accuracy ? `${props.Accuracy * 100}%` : "N/A"
-                  }</span>
-                  
-                  <span class="font-medium">Computation Time:</span>
-                  <span>${props.Computation_Time || "N/A"}</span>
-                  
-                  <span class="font-medium">Return Period:</span>
-                  <span>${props.Return_Period || "N/A"}</span>
-                  
-                  <span class="font-medium">Real Time:</span>
-                  <span>${props.Real_Time || "N/A"}</span>
-                </div>
-<div class="flex justify-center mt-3 space-x-2">
-            <button class="pagination-dot w-2 h-2 rounded-full bg-[#636059]" data-page="1"></button>
-            <button class="pagination-dot w-2 h-2 rounded-full bg-gray-300" data-page="2"></button>
-          </div>
-        </div>
-      `;
-    }
     const isDataPoint =
       point.type === "RainRecorder" || point.type === "WaterLevel";
 
     // Main container with close button at the top right
     return `
-    <div class="standard-popup popup-container w-full max-w-sm font-sans relative">
+    <div class="popup-container w-full max-w-sm font-sans relative">
       <!-- Close button positioned at top right -->
       <button class="close-popup absolute top-2 right-2 text-gray-500 hover:text-gray-700 focus:outline-none z-10">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -2236,32 +1936,56 @@ const Map = ({
       `
           : ""
       }
+      
+      <style>
+        .popup-page {
+          display: none;
+          flex-direction: column;
+          transition: opacity 0.3s ease-in-out;
+          width: 100%;
+        }
+        .popup-page.active {
+          display: flex;
+        }
+        .pagination-dot {
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .pagination-dot.active {
+          transform: scale(1.2);
+        }
+        .mapboxgl-popup-content {
+          width: 420px;
+          max-width: 90vw;
+          padding: 1.25rem !important;
+          border-radius: 12px !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+        }
+        .popup-content {
+          max-height: 600px;
+          overflow-y: auto;
+        }
+        .close-popup {
+          padding: 0.25rem;
+          border-radius: 0.25rem;
+          transition: background-color 0.2s;
+        }
+        .close-popup:hover {
+          background-color: rgba(0, 0, 0, 0.05);
+        }
+      </style>
     </div>`;
   };
-  {
-    riverHoverInfo && (
-      <div
-        className="absolute bg-white px-2 py-1 rounded shadow-md text-xs font-medium pointer-events-none z-20 border border-gray-200"
-        style={{
-          left: riverHoverInfo.lngLat.x,
-          top: riverHoverInfo.lngLat.y - 30,
-          transform: "translate(-50%, -100%)",
-        }}
-      >
-        {riverHoverInfo.name}
-      </div>
-    );
-  }
 
   const updateMarkers = useCallback(() => {
     if (!map.current) return;
 
     // Clear existing markers
     markers.current.forEach((marker) => {
-      if (marker.marker && typeof marker.marker.remove === "function") {
+      if (marker.marker && typeof marker.marker.remove === 'function') {
         marker.marker.remove();
       }
-      if (marker.popup && typeof marker.popup.remove === "function") {
+      if (marker.popup && typeof marker.popup.remove === 'function') {
         marker.popup.remove();
       }
       if (marker.element && marker.element.parentNode) {
@@ -2282,6 +2006,7 @@ const Map = ({
         Waterpump: { bgColor: "#4e583b", borderColor: "#677056" },
         RainRecorder: { bgColor: "#6A7F53", borderColor: "#6A7F53" },
         WaterLevel: { bgColor: "#677056", borderColor: "#677056" },
+        CrossSection: { bgColor: "#4a6fa5", borderColor: "#3a5a80" },
         default: { bgColor: "#6b7280", borderColor: "#9ca3af" },
       };
 
@@ -2290,578 +2015,95 @@ const Map = ({
       el.style.border = `2px solid ${style.borderColor}`;
       el.style.boxShadow = "0 0 0 2px rgba(0,0,0,0.1)";
 
-      const icon = document.createElement("img");
-      icon.src = getIconSrc(point.type);
-      icon.className = "w-6 h-6 p-1";
-      icon.style.filter = "brightness(0) invert(1)";
-      el.appendChild(icon);
+// Assemble popup content
+popupContent.appendChild(closeButton);
+popupContent.appendChild(page1);
+popupContent.appendChild(page2);
+popupContent.appendChild(pagination);
 
-      const popupContent = document.createElement("div");
+// Create popup
+const popup = new mapboxgl.Popup({
+  closeButton: false,
+  closeOnClick: false,
+  offset: 25,
+  className: 'cross-section-popup',
+  maxWidth: '400px'
+}).setDOMContent(popupContent);
 
-      // Add specific class for cross-section popups
-      if (point.type === "CrossSection") {
-        popupContent.className = "cross-section-popup-content popup-content";
-      } else {
-        popupContent.className = "standard-popup-content popup-content";
-      }
+// Add close button functionality
+const closeButton = popupContent.querySelector(".close-popup");
+if (closeButton) {
+  closeButton.addEventListener("click", (e) => {
+    e.stopPropagation();
+    popup.remove();
+  });
+}
 
-      popupContent.innerHTML = renderPopupContent(point);
-
-      const popup = new mapboxgl.Popup({
-        offset: 30,
-        className:
-          point.type === "CrossSection"
-            ? "cross-section-popup"
-            : "standard-popup",
-        maxWidth: "400px",
-        closeOnClick: false,
-        closeButton: false,
-      }).setDOMContent(popupContent);
-
-      // Add close button functionality
-      const closeButton = popupContent.querySelector(".close-popup");
-      if (closeButton) {
-        closeButton.addEventListener("click", (e) => {
-          e.stopPropagation();
-          closePopup(popup);
-        });
-      }
-
-      // In the updateMarkers function, add this condition to the marker creation
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([point.lng, point.lat])
-        .setPopup(popup)
-        .addTo(map.current);
-
-      // Store the marker type for filtering
-      if (point.type === "CrossSection") {
-        marker._type = "crossSection";
-      } else if (point.type === "Waterpump") {
-        marker._type = "pump";
-      } else if (point.type === "WaterLevel") {
-        marker._type = "waterLevel";
-      } else if (point.type === "RainRecorder") {
-        marker._type = "rainRecorder";
-      } else {
-        marker._type = point.type.toLowerCase();
-      }
-
-      console.log("Created marker:", {
-        originalType: point.type,
-        normalizedType: marker._type,
-        point,
-      });
-
-      // Add click handler for chart button
-      const chartButton = popupContent.querySelector(".chart-btn");
-      if (chartButton) {
-        chartButton.onclick = (e) => {
-          e.stopPropagation();
-          toggleChart(point);
-        };
-      }
-
-      // Initialize popup after a slight delay to ensure DOM is ready
-      setTimeout(() => {
-        if (point.type === "CrossSection") {
-          initializeCrossSectionPopup(popupContent, point);
-        } else {
-          initializeStandardPopup(popupContent, point);
-        }
-      }, 50);
-
-      markers.current.push(marker);
-      popups.current.push(popup);
-    });
-  }, [pointsToShow]);
-
-  // Handle flood incidents layer updates
-  useEffect(() => {
-    if (!map.current) return;
-
-    // Remove existing flood incident markers
-    markers.current.forEach((marker) => marker.remove());
-    markers.current = [];
-    popups.current.forEach((popup) => popup.remove());
-    popups.current = [];
-
-    // Add new markers for each flood incident
-    floodIncidents.forEach((incident) => {
-      const el = document.createElement("div");
-      el.className = "flood-incident-marker";
-
-      // Set the marker style based on severity
-      const iconColor =
-        incident.severity === "High"
-          ? "#ef4444"
-          : incident.severity === "Medium"
-          ? "#f59e0b"
-          : "#10b981";
-
-      // Create a simple house icon with color based on severity
-      el.innerHTML = `
-        <div style="
-          width: 24px;
-          height: 24px;
-          background: ${iconColor};
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: 14px;
-          font-weight: bold;
-          box-shadow: 0 0 0 2px white, 0 0 0 4px ${iconColor};
-        ">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 3L4 9v12h5v-7h6v7h5V9l-8-6z"/>
-          </svg>
-        </div>
-      `;
-
-      // Create popup with custom styling
-      const popup = new mapboxgl.Popup({
-        offset: 25,
-        className: "flood-popup",
-        closeButton: false,
-        closeOnClick: false,
-      }).setHTML(`
-        <div class="p-4">
-          <div class="flex justify-between items-start mb-3">
-            <h3 class="text-lg font-semibold text-gray-900">
-              ${incident.type} - ${incident.severity}
-            </h3>
-            ${
-              incident.verified
-                ? '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Verified</span>'
-                : ""
-            }
-          </div>
-          
-          <div class="space-y-2 text-sm text-gray-700">
-            <div class="flex justify-between">
-              <span class="font-medium">Date:</span>
-              <span>${incident.timestamp || "N/A"}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="font-medium">Kecamatan:</span>
-              <span>${incident.properties?.Kecamatan || "N/A"}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="font-medium">Kelurahan:</span>
-              <span>${incident.properties?.Kelurahan || "N/A"}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="font-medium">Location:</span>
-              <span class="text-right">${incident.location || "N/A"}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="font-medium">Water Depth:</span>
-              <span>${incident.description || "N/A"}</span>
-            </div>
-          </div>
-          
-          <div class="mt-4 flex justify-end">
-            <button 
-              class="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              onclick="this.closest('.mapboxgl-popup').remove();"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      `);
-
-      // Create the marker
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([incident.coordinates.lng, incident.coordinates.lat])
-        .setPopup(popup)
-        .addTo(map.current);
-
-      // Set marker type for filtering
-      marker._type = "floodIncident";
-
-      markers.current.push(marker);
-      popups.current.push(popup);
-    });
-
-    // Fit bounds to show all markers if there are any
-    if (floodIncidents.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      floodIncidents.forEach((incident) => {
-        bounds.extend([incident.coordinates.lng, incident.coordinates.lat]);
-      });
-      map.current.fitBounds(bounds, { padding: 50 });
+// Add click event to marker to show popup
+marker.getElement().addEventListener('click', (e) => {
+  e.stopPropagation();
+  
+  // Close any other open popups
+  popups.current.forEach(p => {
+    if (p && p.isOpen && p !== popup) {
+      p.remove();
     }
-  }, [floodIncidents]);
-
-  // Listen for flood incidents updates
-  useEffect(() => {
-    const handleUpdateIncidentsLayer = (e) => {
-      setFloodIncidents(e.detail.incidents);
-    };
-
-    const handleHideIncidentsLayer = () => {
-      setFloodIncidents([]);
-    };
-
-    window.addEventListener("updateIncidentsLayer", handleUpdateIncidentsLayer);
-    window.addEventListener("hideIncidentsLayer", handleHideIncidentsLayer);
-
-    return () => {
-      window.removeEventListener(
-        "updateIncidentsLayer",
-        handleUpdateIncidentsLayer
-      );
-      window.removeEventListener(
-        "hideIncidentsLayer",
-        handleHideIncidentsLayer
-      );
-    };
-  }, []);
-
-  // Event listeners
-  useEffect(() => {
-    // Inside the useEffect for event listeners in Map.jsx
-    const handleSimulationStateChange = (event) => {
-      console.log("Simulation state changed:", event.detail);
-      setShowFloodLayer(event.detail.isActive);
-      setRainfallAmount(event.detail.rainfall);
-
-      // Only show vulnerability layer if explicitly requested
-      if (event.detail.isActive && event.detail.showVulnerability) {
-        console.log("Showing vulnerability layer from simulation");
-        setShowVulnerabilityLayer(true);
-
-        if (map.current) {
-          const layerId = "flood-vulnerability-layer";
-          const sourceId = "flood-vulnerability";
-
-          // Add source if it doesn't exist
-          if (!map.current.getSource(sourceId)) {
-            console.log("Adding vulnerability source");
-            map.current.addSource(sourceId, {
-              type: "image",
-              url: "/assets/img/Social_Vulnerability_8000px.png",
-              coordinates: [
-                [106.6849284, -6.0790941], // Upper Left
-                [106.9742925, -6.0790941], // Upper Right
-                [106.9742925, -6.3729514], // Lower Right
-                [106.6849284, -6.3729514], // Lower Left
-              ],
-            });
-          }
-
-          // Add layer if it doesn't exist
-          if (!map.current.getLayer(layerId)) {
-            console.log("Adding vulnerability layer");
-            map.current.addLayer({
-              id: layerId,
-              type: "raster",
-              source: sourceId,
-              paint: {
-                "raster-opacity": 0.4,
-              },
-              layout: {
-                visibility: "visible",
-              },
-            });
-          } else {
-            // Make sure it's visible
-            console.log("Setting layer visibility to visible");
-            map.current.setLayoutProperty(layerId, "visibility", "visible");
-          }
-
-          // Double-check after a short delay
-          setTimeout(() => {
-            if (map.current && map.current.getLayer(layerId)) {
-              console.log("Double-checking layer visibility");
-              map.current.setLayoutProperty(layerId, "visibility", "visible");
-            }
-          }, 100);
-        }
-      }
-    };
-
-    const handleShowVulnerabilityLayer = (event) => {
-      console.log("Show vulnerability layer event:", event.detail);
-      // Only update if the show property is explicitly provided
-      if (event.detail && typeof event.detail.show !== "undefined") {
-        setShowVulnerabilityLayer(event.detail.show);
-      }
-
-      if (map.current) {
-        const layerId = "flood-vulnerability-layer";
-        const sourceId = "flood-vulnerability";
-
-        // Add source if it doesn't exist
-        if (!map.current.getSource(sourceId)) {
-          console.log("Adding vulnerability source from button");
-          map.current.addSource(sourceId, {
-            type: "image",
-            url: "/assets/img/Social_Vulnerability_8000px.png",
-            coordinates: [
-              [106.6849284, -6.0790941], // Upper Left
-              [106.9742925, -6.0790941], // Upper Right
-              [106.9742925, -6.3729514], // Lower Right
-              [106.6849284, -6.3729514], // Lower Left
-            ],
-          });
-        }
-
-        // Add layer if it doesn't exist
-        if (!map.current.getLayer(layerId)) {
-          console.log("Adding vulnerability layer from button");
-          map.current.addLayer({
-            id: layerId,
-            type: "raster",
-            source: sourceId,
-            paint: {
-              "raster-opacity": 0.4,
-            },
-          });
-        }
-
-        // Make sure it's visible
-        map.current.setLayoutProperty(layerId, "visibility", "visible");
-      }
-    };
-
-    const handleFloodLayerClick = (event) => {
-      setFloodPopupInfo(event.detail);
-    };
-
-    const handleShowFloodPopup = (event) => {
-      const { floodData, lng, lat } = event.detail;
-      setFloodPopupInfo(floodData);
-
-      if (map.current && ((lng && lat) || (floodData?.lng && floodData?.lat))) {
-        const targetLng = lng || floodData.lng;
-        const targetLat = lat || floodData.lat;
-
-        map.current.flyTo({
-          center: [targetLng, targetLat],
-          zoom: 14,
-          essential: true,
-        });
-      }
-    };
-
-    const handleCenterMap = (event) => {
-      if (map.current && event.detail) {
-        const { lng, lat, zoom = 14 } = event.detail;
-        map.current.flyTo({
-          center: [lng, lat],
-          zoom: zoom,
-          essential: true,
-        });
-      }
-    };
-
-    window.addEventListener(
-      "simulationStateChange",
-      handleSimulationStateChange
-    );
-    window.addEventListener("floodLayerClick", handleFloodLayerClick);
-    window.addEventListener("showFloodPopup", handleShowFloodPopup);
-    window.addEventListener("centerMapOnCoordinates", handleCenterMap);
-    window.addEventListener(
-      "showVulnerabilityLayer",
-      handleShowVulnerabilityLayer
-    );
-
-    return () => {
-      window.removeEventListener(
-        "simulationStateChange",
-        handleSimulationStateChange
-      );
-      window.removeEventListener("floodLayerClick", handleFloodLayerClick);
-      window.removeEventListener("showFloodPopup", handleShowFloodPopup);
-      window.removeEventListener("centerMapOnCoordinates", handleCenterMap);
-      window.removeEventListener(
-        "showVulnerabilityLayer",
-        handleShowVulnerabilityLayer
-      );
-    };
-  }, []);
-
-  // Initial data fetching
-  useEffect(() => {
-    fetchWaterpumps();
-    fetchRainRecorderData();
-    fetchWaterLevelData();
-    fetchCrossSectionData();
-  }, [
-    fetchWaterpumps,
-    fetchRainRecorderData,
-    fetchWaterLevelData,
-    fetchCrossSectionData,
-  ]);
-
-  // Map initialization
-  useEffect(() => {
-    if (map.current) return;
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/standard",
-      center: [INITIAL_VIEW_STATE.lng, INITIAL_VIEW_STATE.lat],
-      zoom: INITIAL_VIEW_STATE.zoom,
-      pitch: INITIAL_VIEW_STATE.pitch,
-      bearing: INITIAL_VIEW_STATE.bearing,
-      attributionControl: false, // Disable default attribution
-    });
-
-    map.current.on("load", () => {
-      setupRainEffect();
-      updateMarkers();
-      map.current.setConfigProperty("basemap", "lightPreset", lightPreset);
-      Object.entries(labelVisibility).forEach(([key, value]) => {
-        map.current.setConfigProperty("basemap", key, value);
-      });
-    });
-
-    // Add navigation control with custom styles
-    const navControl = new mapboxgl.NavigationControl({
-      showCompass: true,
-      showZoom: true,
-      visualizePitch: true,
-    });
-
-    // Add controls with custom class names for styling
-    map.current.addControl(navControl, "top-right");
-
-    // Add geolocation control
-    const geolocate = new mapboxgl.GeolocateControl({
-      positionOptions: {
-        enableHighAccuracy: true,
-      },
-      trackUserLocation: true,
-      showUserHeading: true,
-    });
-    map.current.addControl(geolocate, "top-right");
-
-    // Scale control removed as per user request
-
-    // Apply inline styles after controls are added
+  });
+  
+  // Toggle popup
+  if (popup.isOpen()) {
+    popup.remove();
+  } else {
+    popup.addTo(map.current);
+    popup.isOpen = true;
+    popups.current.push(popup);
+    
+    // Add event listeners for the popup buttons
     setTimeout(() => {
-      // Navigation controls container
-      const navEl = document.querySelector(".mapboxgl-ctrl-top-right");
-      if (navEl) {
-        Object.assign(navEl.style, {
-          top: "20px",
-          right: "20px",
-          left: "auto",
-          bottom: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px",
-          backgroundColor: "transparent",
-          border: "none",
-          boxShadow: "none",
+      const container = popup.getElement().querySelector('.popup-container');
+      if (container) {
+        // See More button
+        const seeMoreBtn = container.querySelector('.see-more-btn');
+        if (seeMoreBtn) {
+          seeMoreBtn.onclick = (e) => {
+            e.stopPropagation();
+            showPage(container, '2');
+          };
+        }
+        
+        // Back to Summary button
+        const backToSummaryBtn = container.querySelector('.back-to-summary-btn');
+        if (backToSummaryBtn) {
+          backToSummaryBtn.onclick = (e) => {
+            e.stopPropagation();
+            showPage(container, '1');
+          };
+        }
+        
+        // Pagination dots
+        const paginationDots = container.querySelectorAll('.pagination-dot');
+        paginationDots.forEach(dot => {
+          dot.onclick = (e) => {
+            e.stopPropagation();
+            const page = dot.getAttribute('data-page');
+            showPage(container, page);
+          };
         });
+        
+        // Close button
+        const closeBtn = container.querySelector('.close-popup');
+        if (closeBtn) {
+          closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            popup.remove();
+          };
+        }
       }
+    }, 0);
+  }
+});
 
-      // Scale control container
-      const scaleEl = document.querySelector(".mapboxgl-ctrl-bottom-right");
-      if (scaleEl) {
-        Object.assign(scaleEl.style, {
-          bottom: "20px",
-          right: "20px",
-          left: "auto",
-          top: "auto",
-          backgroundColor: "transparent",
-          padding: "0",
-          border: "none",
-          boxShadow: "none",
-        });
-      }
-
-      // Style all control buttons and containers
-      document.querySelectorAll(".mapboxgl-ctrl").forEach((ctrl) => {
-        Object.assign(ctrl.style, {
-          backgroundColor: "transparent",
-          boxShadow: "none",
-          border: "none",
-        });
-      });
-
-      // Style all control buttons
-      document.querySelectorAll(".mapboxgl-ctrl button").forEach((btn) => {
-        Object.assign(btn.style, {
-          backgroundColor: "transparent",
-          border: "1px solid rgba(0, 0, 0, 0.1)",
-          borderRadius: "8px",
-          width: "36px",
-          height: "36px",
-          padding: "0",
-          margin: "0",
-          cursor: "pointer",
-          transition: "all 0.2s",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "none",
-          backdropFilter: "none",
-        });
-
-        btn.addEventListener("mouseenter", () => {
-          btn.style.background = "rgba(0, 0, 0, 0.05)";
-          btn.style.transform = "translateY(-1px)";
-        });
-
-        btn.addEventListener("mouseleave", () => {
-          // btn.style.background = "rgba(255, 255, 255, 0.95)";
-          btn.style.transform = "none";
-        });
-
-        btn.addEventListener("mousedown", () => {
-          btn.style.background = "rgba(0, 0, 0, 0.1)";
-          btn.style.transform = "translateY(1px)";
-        });
-
-        btn.addEventListener("mouseup", () => {
-          btn.style.background = "rgba(0, 0, 0, 0.05)";
-          btn.style.transform = "translateY(-1px)";
-        });
-      });
-    }, 100);
-
-    return () => {
-      // Clean up markers
-      markers.current.forEach((marker) => {
-        if (marker.marker && typeof marker.marker.remove === "function") {
-          marker.marker.remove();
-        }
-        if (marker.popup && typeof marker.popup.remove === "function") {
-          marker.popup.remove();
-        }
-        if (marker.element && marker.element.parentNode) {
-          marker.element.parentNode.removeChild(marker.element);
-        }
-      });
-
-      // Clean up popups
-      popups.current.forEach((popup) => {
-        if (popup && typeof popup.remove === "function") {
-          popup.remove();
-        }
-      });
-
-      markers.current = [];
-      popups.current = [];
-
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
-    };
-  }, [setupRainEffect, lightPreset, labelVisibility, updateMarkers]);
-
-  // Time-based updates
-  useEffect(() => {
-    updateTimeBasedPreset();
-    const intervalId = setInterval(updateTimeBasedPreset, 60 * 60 * 1000);
+// ...
     return () => clearInterval(intervalId);
   }, [updateTimeBasedPreset]);
 
