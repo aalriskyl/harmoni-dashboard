@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
+/* eslint-disable no-console */
 import React, {
   useRef,
   useEffect,
@@ -26,11 +27,12 @@ Chart.register(zoomPlugin);
 // Constants
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 const INITIAL_VIEW_STATE = {
-  lng: 106.8272,
-  lat: -6.1751,
-  zoom: 12,
-  pitch: 45,
-  bearing: -20,
+  // Default start coordinates requested by user (lng, lat)
+  lng: 106.82726262118713,
+  lat: -6.1749547950820505,
+  zoom: 17.2, // increase for close-in view
+  pitch: 60, // tilt for oblique 3D view
+  bearing: -30,
 };
 const PUMP_STATUSES = [
   { status: "Running", color: "#22c55e" },
@@ -124,16 +126,22 @@ const Map = ({
   showWaterLevels = true,
   showRainRecorders = true,
   showRivers = true,
+  showCrossSections = true,
   onTogglePumps,
   onToggleWaterLevels,
   onToggleRainRecorders,
   onToggleRivers,
+  onToggleCrossSections,
 }) => {
   // Refs
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef([]);
   const popups = useRef([]);
+  // Rain canvas fallback for environments without map.setRain
+  const rainCanvasRef = useRef(null);
+  const rainAnimationRef = useRef(null);
+  const rainParticlesRef = useRef([]);
 
   // State
 
@@ -142,7 +150,11 @@ const Map = ({
     useState(showWaterLevels);
   const [localShowRainRecorders, setLocalShowRainRecorders] =
     useState(showRainRecorders);
-  const [localShowRivers, setLocalShowRivers] = useState(showRivers);
+  // Ensure ant-path (rivers) is visible by default
+  const [localShowRivers, setLocalShowRivers] = useState(true);
+  // Cross-section markers visibility (separate from river ant-path)
+  const [localShowCrossSections, setLocalShowCrossSections] =
+    useState(showCrossSections);
   const [riverSourceId] = useState("rivers-source");
   const [riverLayerId] = useState("rivers-layer");
   const [waterPumps, setWaterPumps] = useState([]);
@@ -171,6 +183,7 @@ const Map = ({
   const [showVulnerabilityLayer, setShowVulnerabilityLayer] = useState(false);
   const [floodIncidents, setFloodIncidents] = useState([]);
   const [riverHoverInfo, setRiverHoverInfo] = useState(null);
+  const [isRaining, setIsRaining] = useState(false);
   // Update local states when props change
   useEffect(() => {
     setLocalShowPumps(showPumps);
@@ -187,6 +200,11 @@ const Map = ({
   useEffect(() => {
     setLocalShowRivers(showRivers);
   }, [showRivers]);
+
+  // Sync cross-section prop
+  useEffect(() => {
+    setLocalShowCrossSections(showCrossSections);
+  }, [showCrossSections]);
 
   // Define image bounds for overlays
   const imageBounds = [
@@ -228,7 +246,8 @@ const Map = ({
       } else if (type === "rainrecorder") {
         visible = showRainRecorders;
       } else if (type === "crosssection") {
-        visible = true; // Always show cross section markers or add a toggle if needed
+        // Show cross-section markers based on the dedicated cross-section toggle
+        visible = localShowCrossSections;
       } else if (type === "floodincident") {
         visible = true;
       }
@@ -321,6 +340,18 @@ const Map = ({
     // Start the animation
     animationFrame = requestAnimationFrame(animateDashArray);
 
+    // Ensure river layers are above boundary layers if boundary exists
+    try {
+      if (map.current.getLayer(riverLayerId)) {
+        map.current.moveLayer(riverLayerId);
+      }
+      if (map.current.getLayer(`${riverLayerId}-base`)) {
+        map.current.moveLayer(`${riverLayerId}-base`);
+      }
+    } catch (err) {
+      // ignore when layers not present yet
+    }
+
     // Cleanup function
     return () => {
       if (animationFrame) {
@@ -359,9 +390,10 @@ const Map = ({
     const processedFeatures = data.features.map((feature, index) => {
       // For LineString features
       if (feature.geometry.type === "LineString") {
-        // Sort coordinates by latitude (second element) in descending order (north to south)
+        // Sort coordinates by latitude (second element) in ascending order
+        // so the ant-path animation flows bottom-to-top (south -> north)
         const sortedCoords = [...feature.geometry.coordinates].sort(
-          (a, b) => b[1] - a[1]
+          (a, b) => a[1] - b[1]
         );
 
         // Add marker at midpoint
@@ -390,7 +422,7 @@ const Map = ({
       if (feature.geometry.type === "MultiLineString") {
         const processedLines = feature.geometry.coordinates.map(
           (line, lineIndex) => {
-            const sortedLine = [...line].sort((a, b) => b[1] - a[1]);
+            const sortedLine = [...line].sort((a, b) => a[1] - b[1]);
 
             // Add marker at midpoint of each line segment
             const midpoint = calculateMidpoint(sortedLine);
@@ -459,69 +491,8 @@ const Map = ({
         // Add the river layers
         addRiverLayers(processedData);
 
-        // Add a single river marker with consistent styling
-        if (
-          processedData.riverMarkers &&
-          processedData.riverMarkers.length > 0
-        ) {
-          // Use the first river marker (already calculated at a midpoint)
-          const markerData = processedData.riverMarkers[0];
-
-          // Create marker element with consistent styling from line 1700
-          const el = document.createElement("div");
-          el.className =
-            "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
-
-          // Use the same color scheme as other water-related markers
-          el.style.backgroundColor = "#3b82f6";
-          el.style.border = "2px solid #3b82f6";
-          el.style.boxShadow = "0 0 0 2px rgba(0,0,0,0.1)";
-
-          // Create and append icon
-          const icon = document.createElement("img");
-          icon.src = getIconSrc("River");
-          icon.className = "w-4 h-4";
-          icon.style.filter = "brightness(0) invert(1)";
-          el.appendChild(icon);
-
-          // Create popup
-          const popup = new mapboxgl.Popup({
-            offset: 25,
-            closeButton: false,
-            closeOnClick: false,
-            className: "river-popup",
-          }).setHTML(
-            renderPopupContent({
-              ...markerData,
-              title: markerData.name,
-              type: "River",
-              properties: {
-                ...markerData.properties,
-                Name: markerData.name,
-                Type: "River Cross Section",
-                "Data Source": "DKI Jakarta Geospatial Data",
-              },
-            })
-          );
-
-          // Add marker to map
-          const marker = new mapboxgl.Marker({
-            element: el,
-            anchor: "bottom",
-          })
-            .setLngLat([markerData.lng, markerData.lat])
-            .setPopup(popup)
-            .addTo(map.current);
-
-          // Store marker reference
-          markers.current.push({
-            ...markerData,
-            marker,
-            popup,
-            type: "river",
-            element: el,
-          });
-        }
+        // We do not create individual river markers here; the map shows the
+        // animated ant-path only. Any river markers were removed per UX request.
       })
       .catch((error) => {
         console.error("Error loading river data:", error);
@@ -558,6 +529,132 @@ const Map = ({
       }
     };
   }, [localShowRivers, map.current]);
+
+  // Load and display Jakarta province administrative boundary (perimeter only)
+  useEffect(() => {
+    if (!map.current) return;
+
+    const sourceId = "jakarta-boundary-source";
+    const glowLayerId = "jakarta-boundary-glow";
+    const lineLayerId = "jakarta-boundary-line";
+
+    // Fetch GeoJSON (served from public/data) and convert polygons to outlines
+    fetch("/data/Batas_Administrasi_Provinsi_DKI_Jakarta.geojson")
+      .then((res) => res.json())
+      .then((data) => {
+        try {
+          const features = data?.features || [];
+
+          // Convert Polygon/MultiPolygon to LineString outlines
+          const outlineFeatures = features.flatMap((feature) => {
+            const geom = feature.geometry || {};
+            const props = feature.properties || {};
+
+            if (geom.type === "Polygon") {
+              const outer = (geom.coordinates && geom.coordinates[0]) || [];
+              return [
+                {
+                  type: "Feature",
+                  properties: props,
+                  geometry: { type: "LineString", coordinates: outer },
+                },
+              ];
+            }
+
+            if (geom.type === "MultiPolygon") {
+              return (geom.coordinates || []).map((poly) => ({
+                type: "Feature",
+                properties: props,
+                geometry: { type: "LineString", coordinates: poly[0] || [] },
+              }));
+            }
+
+            if (geom.type === "LineString") return [feature];
+            if (geom.type === "MultiLineString") {
+              return (geom.coordinates || []).map((coords) => ({
+                type: "Feature",
+                properties: props,
+                geometry: { type: "LineString", coordinates: coords },
+              }));
+            }
+
+            return [];
+          });
+
+          const outlineGeo = {
+            type: "FeatureCollection",
+            features: outlineFeatures,
+          };
+
+          // Add or update source with outline-only data
+          if (map.current.getSource(sourceId)) {
+            map.current.getSource(sourceId).setData(outlineGeo);
+          } else {
+            map.current.addSource(sourceId, {
+              type: "geojson",
+              data: outlineGeo,
+            });
+
+            const glowLayer = {
+              id: glowLayerId,
+              type: "line",
+              source: sourceId,
+              layout: { "line-join": "round", "line-cap": "round" },
+              paint: {
+                "line-color": "#ffffff",
+                "line-width": 15,
+                "line-opacity": 0.85,
+                "line-blur": 10,
+              },
+            };
+
+            const lineLayer = {
+              id: lineLayerId,
+              type: "line",
+              source: sourceId,
+              layout: { "line-join": "round", "line-cap": "round" },
+              paint: {
+                "line-color": "#ffffff",
+                "line-width": 4,
+                "line-opacity": 1,
+              },
+            };
+
+            try {
+              map.current.addLayer(glowLayer);
+              map.current.addLayer(lineLayer);
+              // Ensure river ant-path layers sit above the Jakarta boundary
+              try {
+                if (map.current.getLayer(riverLayerId)) {
+                  map.current.moveLayer(riverLayerId);
+                }
+                if (map.current.getLayer(`${riverLayerId}-base`)) {
+                  map.current.moveLayer(`${riverLayerId}-base`);
+                }
+              } catch (err) {
+                // ignore if river layers not yet present
+              }
+            } catch (err) {
+              console.warn("Failed to add Jakarta boundary layers:", err);
+            }
+          }
+        } catch (err) {
+          console.error("Error processing Jakarta boundary geojson:", err);
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading Jakarta boundary geojson:", err);
+      });
+
+    return () => {
+      if (!map.current) return;
+      if (map.current.getLayer(lineLayerId))
+        map.current.removeLayer(lineLayerId);
+      if (map.current.getLayer(glowLayerId))
+        map.current.removeLayer(glowLayerId);
+      if (map.current.getSource(sourceId)) map.current.removeSource(sourceId);
+    };
+  }, [map.current, riverLayerId]);
 
   // Add or update flood image overlay
   const updateFloodImage = useCallback((imagePath) => {
@@ -601,6 +698,51 @@ const Map = ({
         },
       });
     }
+  }, []);
+
+  // Hide markers and controls while welcome overlay is visible
+  useEffect(() => {
+    function onShow() {
+      // hide markers
+      markers.current.forEach((m) => {
+        try {
+          const el = m.getElement();
+          if (el) {
+            el.style.opacity = "0";
+            el.style.pointerEvents = "none";
+            el.style.transition = "opacity 200ms ease";
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+    }
+
+    function onHide() {
+      markers.current.forEach((m) => {
+        try {
+          const el = m.getElement();
+          if (el) {
+            el.style.opacity = "";
+            el.style.pointerEvents = "";
+            el.style.transition = "opacity 200ms ease";
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+    }
+
+    window.addEventListener("welcomeShown", onShow);
+    window.addEventListener("welcomeHidden", onHide);
+
+    // initialize if welcome is already visible
+    if (typeof window !== "undefined" && window.__welcomeVisible) onShow();
+
+    return () => {
+      window.removeEventListener("welcomeShown", onShow);
+      window.removeEventListener("welcomeHidden", onHide);
+    };
   }, []);
 
   // Add event listener for flood image updates
@@ -710,6 +852,13 @@ const Map = ({
     }
   };
 
+  const toggleCrossSections = (show) => {
+    setLocalShowCrossSections(show);
+    if (onToggleCrossSections) {
+      onToggleCrossSections(show);
+    }
+  };
+
   // Derived state
   const pinPoints = useMemo(
     () => [
@@ -726,9 +875,16 @@ const Map = ({
       if (point.type === "Waterpump") return localShowPumps;
       if (point.type === "WaterLevel") return localShowWaterLevels;
       if (point.type === "RainRecorder") return localShowRainRecorders;
+      if (point.type === "CrossSection") return localShowCrossSections;
       return true; // Show other point types by default
     });
-  }, [pinPoints, localShowPumps, localShowWaterLevels, localShowRainRecorders]);
+  }, [
+    pinPoints,
+    localShowPumps,
+    localShowWaterLevels,
+    localShowRainRecorders,
+    localShowCrossSections,
+  ]);
 
   // Helper functions
   const getTimeBasedPreset = (hour) => {
@@ -764,6 +920,26 @@ const Map = ({
     });
   }, [riverLayerId]);
 
+  // Register hover handlers when map and river layer are available
+  useEffect(() => {
+    if (!map.current) return;
+    try {
+      setupRiverHover();
+    } catch (err) {
+      console.warn("setupRiverHover failed:", err);
+    }
+
+    return () => {
+      if (!map.current) return;
+      try {
+        map.current.off("mousemove", riverLayerId);
+        map.current.off("mouseleave", riverLayerId);
+      } catch (err) {
+        // ignore
+      }
+    };
+  }, [map.current, setupRiverHover, riverLayerId]);
+
   const updateTimeBasedPreset = useCallback(() => {
     const now = new Date();
     const hour = now.getHours();
@@ -776,24 +952,204 @@ const Map = ({
 
   const setupRainEffect = useCallback(() => {
     if (!map.current) return;
-
+    // Default rain setup (initially off/minimal). Detailed settings are
+    // applied by `applyRainSettings` when simulation triggers rain.
     const zoomBasedReveal = (scale = 1.0) => {
       return ["interpolate", ["linear"], ["zoom"], 0, 0, 24, scale];
     };
 
-    map.current.setRain({
-      density: zoomBasedReveal(0.5),
-      intensity: 1.0,
-      color: "#a8adbc",
-      opacity: 0.7,
-      vignette: zoomBasedReveal(1.0),
-      "vignette-color": "#464646",
-      direction: [0, 80],
-      "droplet-size": [2.6, 18.2],
-      "distortion-strength": 0.7,
-      "center-thinning": 0,
-    });
+    // set a minimal rain configuration (no visible rain)
+    try {
+      map.current.setRain({
+        density: zoomBasedReveal(0),
+        intensity: 0,
+        color: "#a8adbc",
+        opacity: 0,
+        vignette: zoomBasedReveal(0),
+        "vignette-color": "#464646",
+        direction: [0, 80],
+        "droplet-size": [2.6, 18.2],
+        "distortion-strength": 0.7,
+        "center-thinning": 0,
+      });
+    } catch (err) {
+      // Some Mapbox builds may not have setRain — ignore silently
+    }
   }, []);
+
+  const computeRainParams = (rainfall) => {
+    // rainfall expected 0..150 (mm/day). Map to intensity and density.
+    const clamped = Math.max(0, Math.min(150, Number(rainfall || 0)));
+    // intensity range 0.0 - 1.5
+    const intensity = clamped === 0 ? 0 : Math.min(1.5, (clamped / 150) * 1.5);
+    // density scale: small when light rain, larger when heavy
+    const densityScale = clamped === 0 ? 0 : Math.min(1.0, clamped / 150);
+    // droplet size range roughly scaled with rainfall
+    const dropletMin = 2.6;
+    const dropletMax = 18.2;
+    const dropletLow = dropletMin + (dropletMax - dropletMin) * densityScale;
+
+    return { intensity, densityScale, dropletLow };
+  };
+
+  // Apply rain settings when simulation changes
+  useEffect(() => {
+    if (!map.current) return;
+
+    const applyRainSettings = () => {
+      const { intensity, densityScale, dropletLow } =
+        computeRainParams(rainfallAmount);
+      const zoomBasedReveal = (scale = 1.0) => {
+        return ["interpolate", ["linear"], ["zoom"], 0, 0, 24, scale];
+      };
+
+      try {
+        const dropletMax = 18.2;
+        if (!isRaining || intensity === 0) {
+          // Turn off rain visually
+          map.current.setRain({
+            density: zoomBasedReveal(0),
+            intensity: 0,
+            opacity: 0,
+            vignette: zoomBasedReveal(0),
+          });
+        } else {
+          map.current.setRain({
+            density: zoomBasedReveal(densityScale),
+            intensity: intensity,
+            color: "#a8adbc",
+            opacity: Math.min(0.9, 0.4 + densityScale * 0.6),
+            vignette: zoomBasedReveal(1.0),
+            "vignette-color": "#464646",
+            direction: [0, 80],
+            "droplet-size": [dropletLow, dropletMax],
+            "distortion-strength": 0.7,
+            "center-thinning": 0,
+          });
+        }
+      } catch (err) {
+        console.warn("setRain not available on this map instance:", err);
+      }
+    };
+
+    applyRainSettings();
+  }, [isRaining, rainfallAmount]);
+
+  // Canvas-based rain fallback animation (independent of map.setRain)
+  useEffect(() => {
+    const canvas = rainCanvasRef.current;
+    const container = mapContainer.current;
+    if (!canvas || !container) return;
+
+    const ctx = canvas.getContext("2d");
+    let rafId = null;
+
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = container.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      ctx.scale(dpr, dpr);
+    };
+
+    const { intensity, densityScale, dropletLow } =
+      computeRainParams(rainfallAmount);
+
+    const maxParticles = Math.round(30 + densityScale * 370); // 30..400
+
+    // Initialize or shrink/expand particles
+    const initParticles = () => {
+      const w = canvas.clientWidth || container.clientWidth;
+      const h = canvas.clientHeight || container.clientHeight;
+      const particles = rainParticlesRef.current || [];
+      while (particles.length < maxParticles) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * -h,
+          len: 6 + Math.random() * (dropletLow / 2 + 6),
+          speed: 2 + intensity * 18 + Math.random() * 4,
+          alpha: 0.2 + Math.random() * 0.6,
+        });
+      }
+      if (particles.length > maxParticles) particles.length = maxParticles;
+      rainParticlesRef.current = particles;
+    };
+
+    const draw = () => {
+      const w = canvas.clientWidth || container.clientWidth;
+      const h = canvas.clientHeight || container.clientHeight;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      // draw with light bluish streaks
+      ctx.strokeStyle = "rgba(168,173,188,0.9)";
+      ctx.lineWidth = 1;
+      ctx.lineCap = "round";
+
+      const particles = rainParticlesRef.current || [];
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        ctx.globalAlpha = Math.min(1, p.alpha * (0.2 + intensity * 0.8));
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + p.len * 0.15, p.y + p.len);
+        ctx.stroke();
+
+        p.y += p.speed;
+        p.x += p.speed * 0.03; // slight drift
+
+        if (p.y > h + 20) {
+          p.y = Math.random() * -h * 0.5;
+          p.x = Math.random() * w;
+          p.speed = 2 + intensity * 18 + Math.random() * 4;
+          p.len = 6 + Math.random() * (dropletLow / 2 + 6);
+          p.alpha = 0.2 + Math.random() * 0.6;
+        }
+      }
+
+      ctx.restore();
+      rafId = requestAnimationFrame(draw);
+      rainAnimationRef.current = rafId;
+    };
+
+    const start = () => {
+      resize();
+      initParticles();
+      if (!rafId) draw();
+    };
+
+    const stop = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+      rainAnimationRef.current = null;
+      // clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      rainParticlesRef.current = [];
+    };
+
+    const onResize = () => {
+      // Reset transform and resize correctly
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      resize();
+    };
+
+    window.addEventListener("resize", onResize);
+
+    if (isRaining && intensity > 0) {
+      start();
+    } else {
+      stop();
+    }
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      if (rafId) cancelAnimationFrame(rafId);
+      rainAnimationRef.current = null;
+    };
+    // We intentionally include computeRainParams to recalc derived values
+  }, [isRaining, rainfallAmount, mapContainer.current, rainCanvasRef.current]);
 
   // Data fetching
   const fetchWaterpumps = useCallback(async () => {
@@ -1724,6 +2080,7 @@ const Map = ({
     // Cross-section specific initialization
     const dots = container.querySelectorAll(".pagination-dot");
     const pages = container.querySelectorAll(".popup-page");
+    let csChart = null;
 
     // Function to switch pages
     const switchPage = (targetPage) => {
@@ -1763,6 +2120,89 @@ const Map = ({
     if (pages.length > 0) {
       switchPage("1");
     }
+
+    // Initialize Chart.js for cross-section if canvas exists
+    const canvas = container.querySelector(".cross-section-canvas");
+    if (canvas) {
+      try {
+        const props = point.properties || {};
+        const profile = Array.isArray(props.Cross_Section_Profile)
+          ? props.Cross_Section_Profile
+          : [];
+
+        const stations = profile.map((p) => p.station || 0);
+        const depths = profile.map((p) => p.depth || 0);
+
+        // If no profile, show a placeholder message inside the canvas container
+        if (stations.length === 0) {
+          const ctx = canvas.getContext("2d");
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.font = "12px Inter, sans-serif";
+          ctx.fillStyle = "#6b7280";
+          ctx.textAlign = "center";
+          ctx.fillText(
+            "No cross-section profile available",
+            canvas.width / 2,
+            canvas.height / 2
+          );
+        } else {
+          // Build dataset like the tutorial
+          const dataPoints = stations.map((s, i) => ({ x: s, y: depths[i] }));
+
+          const ctx = canvas.getContext("2d");
+          csChart = new Chart(ctx, {
+            type: "line",
+            data: {
+              datasets: [
+                {
+                  label: "Cross Section",
+                  data: dataPoints,
+                  fill: true,
+                  borderColor: "#339af0",
+                  backgroundColor: "rgba(80,150,255,0.5)",
+                  pointRadius: 2,
+                  tension: 0.3,
+                },
+              ],
+            },
+            options: {
+              parsing: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: {
+                  type: "linear",
+                  title: { display: true, text: "Station (m)" },
+                  grid: { display: false },
+                },
+                y: {
+                  type: "linear",
+                  reverse: true,
+                  title: { display: true, text: "Depth (m)" },
+                  grid: { display: false },
+                },
+              },
+            },
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to initialize cross-section chart:", err);
+      }
+    }
+
+    // Ensure chart is destroyed when popup closes or content removed
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((m) => {
+        if (m.removedNodes && m.removedNodes.length > 0) {
+          if (csChart && typeof csChart.destroy === "function") {
+            csChart.destroy();
+            csChart = null;
+          }
+          observer.disconnect();
+        }
+      });
+    });
+
+    observer.observe(container, { childList: true, subtree: true });
   };
 
   const initializeStandardPopup = (container, point) => {
@@ -1908,36 +2348,14 @@ const Map = ({
               profile.length > 0
                 ? `
             <div class="mb-4">
-              <div class="h-48 w-full  rounded-lg overflow-hidden border border-gray-200">
-                <svg viewBox="0 0 ${maxWidth + 10} ${
-                    maxDepth + 10
-                  }" class="w-full h-full">
-                  <path 
-                    d="M0,${maxDepth + 5} ${svgPath} L${maxWidth},${
-                    maxDepth + 5
-                  } Z" 
-                    fill="#93c5fd" 
-                    stroke="#3b82f6" 
-                    stroke-width="1.5"
-                    stroke-linejoin="round"
-                  />
-                  <line 
-                    x1="0" 
-                    y1="${maxDepth}" 
-                    x2="${maxWidth}" 
-                    y2="${maxDepth}" 
-                    stroke="#ef4444" 
-                    stroke-width="1" 
-                    stroke-dasharray="4 2"
-                  />
-                </svg>
+              <div class="h-40 w-full overflow-hidden flex items-center justify-center">
+                <canvas class="w-full h-full cross-section-canvas" aria-label="Cross section chart"></canvas>
               </div>
-              
             </div>`
                 : ""
             }
             
-            <div class="flex justify-center mt-4 mb-2">
+            <div class="flex justify-center">
               <button class="w-full py-2 px-4 text-sm font-medium text-white bg-[#636059] rounded-lg transition-colors">
           See More Data
         </button>
@@ -1965,7 +2383,7 @@ const Map = ({
             <div class="space-y-4">
               <div>
                 <h4 class="font-bold text-lg mb-2 text-black">Cross Section Information</h4>
-                <div class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-2 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                <div class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-2 text-sm text-gray-600 p-3 rounded-lg">
                   <span class="font-medium">Latitude:</span>
                   <span>${point.lat ? point.lat.toFixed(6) : "N/A"}</span>
                   
@@ -1990,7 +2408,7 @@ const Map = ({
                   <span class="font-medium">Software:</span>
                   <span>${props.Software || "N/A"}</span>
                   <span class="font-medium">Model Calibration:</span>
-                  <span>${props.Model_Calibration || "N/A"}</span>
+                  <span>${props.Model_Calibration || "No Data"}</span>
                   
                   <span class="font-medium">Calibration Date:</span>
                   <span>${props.Calibration_Date || "N/A"}</span>
@@ -2001,13 +2419,13 @@ const Map = ({
                   }</span>
                   
                   <span class="font-medium">Computation Time:</span>
-                  <span>${props.Computation_Time || "N/A"}</span>
+                  <span>${props.Computation_Time_hr || "N/A"}</span>
                   
                   <span class="font-medium">Return Period:</span>
                   <span>${props.Return_Period || "N/A"}</span>
                   
                   <span class="font-medium">Real Time:</span>
-                  <span>${props.Real_Time || "N/A"}</span>
+                  <span>${props.Real_Time_Rain_mm || "N/A"}</span>
                 </div>
 <div class="flex justify-center mt-3 space-x-2">
             <button class="pagination-dot w-2 h-2 rounded-full bg-[#636059]" data-page="1"></button>
@@ -2238,20 +2656,7 @@ const Map = ({
       }
     </div>`;
   };
-  {
-    riverHoverInfo && (
-      <div
-        className="absolute bg-white px-2 py-1 rounded shadow-md text-xs font-medium pointer-events-none z-20 border border-gray-200"
-        style={{
-          left: riverHoverInfo.lngLat.x,
-          top: riverHoverInfo.lngLat.y - 30,
-          transform: "translate(-50%, -100%)",
-        }}
-      >
-        {riverHoverInfo.name}
-      </div>
-    );
-  }
+  // riverHoverInfo popup is rendered inside the main return JSX below
 
   const updateMarkers = useCallback(() => {
     if (!map.current) return;
@@ -2528,6 +2933,10 @@ const Map = ({
       setShowFloodLayer(event.detail.isActive);
       setRainfallAmount(event.detail.rainfall);
 
+      // Enable rain only if simulation is active and rainfall > 0
+      const raining = !!(event.detail.isActive && event.detail.rainfall > 0);
+      setIsRaining(raining);
+
       // Only show vulnerability layer if explicitly requested
       if (event.detail.isActive && event.detail.showVulnerability) {
         console.log("Showing vulnerability layer from simulation");
@@ -2728,8 +3137,8 @@ const Map = ({
       visualizePitch: true,
     });
 
-    // Add controls with custom class names for styling
-    map.current.addControl(navControl, "top-right");
+    // Add controls with custom class names for styling (place at bottom-right)
+    map.current.addControl(navControl, "bottom-right");
 
     // Add geolocation control
     const geolocate = new mapboxgl.GeolocateControl({
@@ -2739,26 +3148,27 @@ const Map = ({
       trackUserLocation: true,
       showUserHeading: true,
     });
-    map.current.addControl(geolocate, "top-right");
+    map.current.addControl(geolocate, "bottom-right");
 
     // Scale control removed as per user request
 
     // Apply inline styles after controls are added
     setTimeout(() => {
-      // Navigation controls container
-      const navEl = document.querySelector(".mapboxgl-ctrl-top-right");
+      // Navigation controls container (bottom-right)
+      const navEl = document.querySelector(".mapboxgl-ctrl-bottom-right");
       if (navEl) {
         Object.assign(navEl.style, {
-          top: "20px",
+          bottom: "40px",
           right: "20px",
           left: "auto",
-          bottom: "auto",
+          top: "auto",
           display: "flex",
           flexDirection: "column",
           gap: "8px",
           backgroundColor: "transparent",
           border: "none",
           boxShadow: "none",
+          zIndex: "10",
         });
       }
 
@@ -2789,11 +3199,12 @@ const Map = ({
       // Style all control buttons
       document.querySelectorAll(".mapboxgl-ctrl button").forEach((btn) => {
         Object.assign(btn.style, {
-          backgroundColor: "transparent",
+          backgroundColor: "#1F2937",
+          color: "#FFFFFF",
           border: "1px solid rgba(0, 0, 0, 0.1)",
           borderRadius: "8px",
-          width: "36px",
-          height: "36px",
+          width: "40px",
+          height: "40px",
           padding: "0",
           margin: "0",
           cursor: "pointer",
@@ -2921,6 +3332,13 @@ const Map = ({
     <div className="w-full h-screen relative">
       <div ref={mapContainer} className="w-full h-full" />
 
+      {/* Rain overlay canvas (pointer-events none so map interactions still work) */}
+      <canvas
+        ref={rainCanvasRef}
+        className="absolute top-0 left-0 w-full h-full pointer-events-none z-40"
+        aria-hidden="true"
+      />
+
       {/* Render the chart */}
       {showChart && chartPoint && (
         <LocationGraph
@@ -2931,9 +3349,22 @@ const Map = ({
         />
       )}
 
+      {riverHoverInfo && (
+        <div
+          className="absolute bg-white px-2 py-1 rounded shadow-md text-xs font-medium pointer-events-none z-40 border border-gray-200"
+          style={{
+            left: riverHoverInfo.lngLat.x,
+            top: riverHoverInfo.lngLat.y - 30,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          {riverHoverInfo.name}
+        </div>
+      )}
+
       <button
         onClick={() => setControlsVisible(!controlsVisible)}
-        className="absolute bottom-5 right-32 bg-white p-2 rounded-full shadow-md z-10 hover:bg-gray-100 transition-colors"
+        className="absolute bottom-5 right-9 bg-white p-2 rounded-lg shadow-md z-10 hover:bg-gray-100 transition-colors"
         aria-label="Toggle controls"
       >
         <svg
@@ -2953,7 +3384,7 @@ const Map = ({
       </button>
 
       {controlsVisible && (
-        <div className="absolute bottom-16 right-32 bg-white p-4 rounded shadow-md z-10 w-64">
+        <div className="absolute bottom-16 right-9 bg-white p-4 rounded-lg shadow-md z-10 w-64">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Light Preset
@@ -3016,31 +3447,131 @@ const Map = ({
       )}
 
       <style>{`
-        .mapboxgl-popup.custom-popup {
-          max-width: 300px !important;
-          font-family: 'Inter', sans-serif;
-        }
-        .mapboxgl-popup-content {
-          padding: 1rem !important;
-          border-radius: 0.5rem !important;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        .mapboxgl-popup-close-button {
-          font-size: 1.5rem;
-          padding: 0.5rem;
-        }
-        .mapboxgl-popup-close-button:hover {
-          background-color: transparent;
-          color: #6b7280;
-        }
-        .aware-btn, .chart-btn, .read-more-btn {
-          transition: all 0.2s;
-        }
-        .aware-btn:hover, .chart-btn:hover, .read-more-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-      `}</style>
+  .mapboxgl-popup.custom-popup {
+    max-width: 300px !important;
+    font-family: 'Inter', sans-serif;
+  }
+  .mapboxgl-popup-content {
+    padding: 1rem !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  .mapboxgl-popup-close-button {
+    font-size: 1.5rem;
+    padding: 0.5rem;
+  }
+  .mapboxgl-popup-close-button:hover {
+    background-color: transparent;
+    color: #6b7280;
+  }
+  .aware-btn, .chart-btn, .read-more-btn {
+    transition: all 0.2s;
+  }
+  .aware-btn:hover, .chart-btn:hover, .read-more-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Mapbox control overrides to match pump controls */
+  .mapboxgl-ctrl-bottom-right {
+    z-index: 10 !important;
+    right: 35px !important;
+    bottom: 75px !important;
+  }
+  
+  /* Style all Mapbox control buttons */
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group button,
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-geolocate {
+    width: 43px !important;
+    height: 40px !important;
+    border-radius: 8px !important;
+    padding: 0 !important;
+    background-color: #1F2937 !important;
+    color: #FFFFFF !important;
+    border: 1px solid rgba(0,0,0,0.06) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Hover states for all buttons */
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group button:hover,
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-geolocate:hover {
+    background-color: #374151 !important;
+    transform: translateY(-1px) !important;
+  }
+  
+  /* Active states for all buttons */
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group button:active,
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-geolocate:active {
+    background-color: #111827 !important;
+    transform: translateY(1px) !important;
+  }
+  
+  /* Make ALL Mapbox control icons white */
+  .mapboxgl-ctrl-icon {
+    filter: invert(1) brightness(2) !important;
+  }
+  
+  /* Specifically target SVG elements in controls */
+  .mapboxgl-ctrl button .mapboxgl-ctrl-icon,
+  .mapboxgl-ctrl button .mapboxgl-ctrl-icon svg,
+  .mapboxgl-ctrl button .mapboxgl-ctrl-icon svg path,
+  .mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon,
+  .mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon svg,
+  .mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon svg path {
+    fill: #ffffff !important;
+    stroke: #ffffff !important;
+    color: #ffffff !important;
+  }
+  
+  /* Layout for control groups */
+  .mapboxgl-ctrl-bottom-right {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+  }
+  
+  .mapboxgl-ctrl-bottom-right > .mapboxgl-ctrl {
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 10px !important;
+  }
+  
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group,
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-geolocate {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    margin: 0 !important;
+  }
+  
+  /* Ensure geolocation control is properly styled */
+  .mapboxgl-ctrl-geolocate {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  /* Fix for geolocation active state (blue dot) */
+  .mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon {
+    filter: invert(1) brightness(2) hue-rotate(180deg) !important;
+  }
+  
+  /* Fix for geolocation waiting state (spinning) */
+  .mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-waiting .mapboxgl-ctrl-icon,
+  .mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-seeking .mapboxgl-ctrl-icon {
+    animation: mapboxgl-spin 2s infinite linear;
+    filter: invert(1) brightness(2) !important;
+  }
+  
+  @keyframes mapboxgl-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`}</style>
     </div>
   );
 };

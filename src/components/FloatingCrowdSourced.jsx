@@ -172,7 +172,9 @@ const FloatingCrowdsourced = ({ setShowWeather }) => {
 
   return (
     <div className="floating-crowdsourced">
-      <div className="hidden sm:flex flex-col z-10 absolute w-[350px] bg-white/90 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden transition-all duration-300 top-[180px] left-8 h-[100vh] max-h-[400px] border border-gray-200">
+      <div
+        className={`hidden sm:flex flex-col z-10 absolute w-[350px] bg-white/90 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden transition-all duration-300 left-1 h-[100vh] max-h-[400px] border border-gray-200`}
+      >
         <header className="px-3 pt-2 pb-2">
           <p className="text-grey-950 font-medium">
             Crowdsourced Flood Incidents

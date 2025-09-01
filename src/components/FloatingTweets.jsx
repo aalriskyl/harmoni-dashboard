@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useDateFilter } from "../hooks/useDateFilter";
 
-const FloatingTweets = () => {
+const FloatingTweets = ({ showWeather = false }) => {
   const { selectedDate, setSelectedDate } = useDateFilter();
   const [tweets, setTweets] = useState([]);
   const [filteredTweets, setFilteredTweets] = useState([]);
@@ -74,7 +74,7 @@ const FloatingTweets = () => {
 
   if (isLoading) {
     return (
-      <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 w-80 max-h-[80vh] overflow-y-auto z-10">
+      <div className="absolute bg-white rounded-lg shadow-lg p-4 w-80 max-h-[80vh] overflow-y-auto z-10">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold">Loading Tweets...</h2>
         </div>
@@ -84,7 +84,7 @@ const FloatingTweets = () => {
 
   if (error) {
     return (
-      <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 w-80 max-h-[80vh] overflow-y-auto z-10">
+      <div className="absolute bg-white rounded-lg shadow-lg p-4 w-80 max-h-[80vh] overflow-y-auto z-10">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold">Error Loading Tweets</h2>
         </div>
@@ -95,14 +95,13 @@ const FloatingTweets = () => {
 
   return (
     <div
-      className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden z-10 transition-all duration-300"
+      className="fixed bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden z-9999 transition-all duration-300 right-8"
       style={{
         width: isExpanded ? "350px" : "48px",
         height: isExpanded ? "60vh" : "48px",
         maxHeight: "400px",
         overflow: "hidden",
-        top: "180px",
-        right: "10px",
+        // display: showWeather ? "hidden" : "fixed",
         border: "1px solid rgba(0, 0, 0, 0.1)",
       }}
     >

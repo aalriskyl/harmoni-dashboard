@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -12,7 +13,9 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
     "Return Period Flood Simulation"
   );
   const [currentTime, setCurrentTime] = useState({ time: "", date: "" });
-  const [showWeather, setShowWeather] = useState(true); // State for weather panel visibility
+  const [showWeather, setShowWeather] = useState(false); // State for weather panel visibility
+  const dropdownButtonRef = useRef(null);
+  const [portalPos, setPortalPos] = useState({ left: 0, top: 0, width: 288 });
 
   useEffect(() => {
     // Function to update Jakarta time (GMT+7)
@@ -57,6 +60,30 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
     if (onWeatherToggle) onWeatherToggle(newState);
   };
 
+  // compute portal position based on button rect when dropdown opens
+  useEffect(() => {
+    if (!isSimulationDropdownOpen || !dropdownButtonRef.current) return;
+
+    function updatePos() {
+      const rect = dropdownButtonRef.current.getBoundingClientRect();
+      // place dropdown below the button
+      setPortalPos({
+        left: rect.left,
+        top: rect.bottom + 8,
+        width: rect.width,
+      });
+    }
+
+    updatePos();
+    window.addEventListener("resize", updatePos);
+    window.addEventListener("scroll", updatePos, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePos);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+  }, [isSimulationDropdownOpen, dropdownButtonRef]);
+
   return (
     <div className="fixed top-6 left-0 w-full z-20 px-8 flex flex-col">
       {/* Main Navbar */}
@@ -75,10 +102,9 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
             {/* Second Dropdown container */}
             <div className="relative">
               <button
+                ref={dropdownButtonRef}
                 className="bg-[#cfcfcd] text-[#636059] border-[#636059] border px-4 py-2 rounded-xl flex items-center ml-2"
-                onClick={() =>
-                  setIsSimulationDropdownOpen(!isSimulationDropdownOpen)
-                }
+                onClick={() => setIsSimulationDropdownOpen((s) => !s)}
               >
                 {selectedSimulation}
                 <svg
@@ -100,49 +126,83 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
               </button>
 
               {isSimulationDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-72 bg-[#636059] rounded-xl shadow-lg z-9999">
-                  <div className="py-1">
-                    <a
-                      href="#"
-                      className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd] text-sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setSelectedSimulation("Realtime Flood Simulation");
-                        setSelectedFloodType("Realtime Flood Simulation");
-                        setIsSimulationDropdownOpen(false);
-                        onMenuSelect("simulations");
-                      }}
+                <>
+                  {/* compute portal position when opened */}
+                  {createPortal(
+                    <DropdownPortal
+                      left={portalPos.left}
+                      top={portalPos.top}
+                      width={portalPos.width}
+                      onClose={() => setIsSimulationDropdownOpen(false)}
                     >
-                      Realtime Flood Simulation
-                    </a>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setSelectedSimulation("Return Period Flood Simulation");
-                        setSelectedFloodType("Return Period Flood Simulation");
-                        setIsSimulationDropdownOpen(false);
-                        onMenuSelect("warnings");
-                      }}
-                    >
-                      Return Period Flood Simulation
-                    </a>
-                    <a
-                      href="#"
-                      className="block px-4 py- 2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setSelectedSimulation("Crowdsourced Flood Incidents");
-                        setSelectedFloodType("Crowdsourced Flood Incidents");
-                        setIsSimulationDropdownOpen(false);
-                        onMenuSelect("crowdsourced");
-                      }}
-                    >
-                      Crowdsourced Flood Incidents
-                    </a>
-                  </div>
-                </div>
+                      <div className="py-1">
+                        <a
+                          href="#"
+                          className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd] text-sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setSelectedSimulation("Realtime Flood Simulation");
+                            setSelectedFloodType("Realtime Flood Simulation");
+                            setIsSimulationDropdownOpen(false);
+                            onMenuSelect("simulations");
+                            window.dispatchEvent(
+                              new CustomEvent("menuSelect", {
+                                detail: { menu: "simulations" },
+                              })
+                            );
+                          }}
+                        >
+                          Realtime Flood Simulation
+                        </a>
+                        <a
+                          href="#"
+                          className="block px-4 py-2 hover:bg-[#a49e92] text-[#cfcfcd] text-sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setSelectedSimulation(
+                              "Return Period Flood Simulation"
+                            );
+                            setSelectedFloodType(
+                              "Return Period Flood Simulation"
+                            );
+                            setIsSimulationDropdownOpen(false);
+                            onMenuSelect("warnings");
+                            window.dispatchEvent(
+                              new CustomEvent("menuSelect", {
+                                detail: { menu: "warnings" },
+                              })
+                            );
+                          }}
+                        >
+                          Return Period Flood Simulation
+                        </a>
+                        <a
+                          href="#"
+                          className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setSelectedSimulation(
+                              "Crowdsourced Flood Incidents"
+                            );
+                            setSelectedFloodType(
+                              "Crowdsourced Flood Incidents"
+                            );
+                            setIsSimulationDropdownOpen(false);
+                            onMenuSelect("crowdsourced");
+                            window.dispatchEvent(
+                              new CustomEvent("menuSelect", {
+                                detail: { menu: "crowdsourced" },
+                              })
+                            );
+                          }}
+                        >
+                          Crowdsourced Flood Incidents
+                        </a>
+                      </div>
+                    </DropdownPortal>,
+                    document.body
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -557,3 +617,41 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
 };
 
 export default Navbar;
+
+// DropdownPortal - small helper component to render dropdown at fixed position
+function DropdownPortal({ left, top, width = 288, children, onClose }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function onDocClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        if (onClose) onClose();
+      }
+    }
+
+    function onEscape(e) {
+      if (e.key === "Escape" && onClose) onClose();
+    }
+
+    window.addEventListener("mousedown", onDocClick);
+    window.addEventListener("touchstart", onDocClick);
+    window.addEventListener("keydown", onEscape);
+
+    return () => {
+      window.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener("touchstart", onDocClick);
+      window.removeEventListener("keydown", onEscape);
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      ref={ref}
+      style={{ position: "fixed", left, top, width, zIndex: 99999 }}
+      className="bg-[#636059] rounded-xl shadow-lg"
+    >
+      {children}
+    </div>,
+    document.body
+  );
+}

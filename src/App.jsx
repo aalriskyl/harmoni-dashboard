@@ -5,7 +5,7 @@ import MainPage from "./pages/MainPage";
 
 function App() {
   const [selectedMenu, setSelectedMenu] = useState("simulations"); // 'warnings' or 'simulations'
-  const [showWeather, setShowWeather] = useState(true);
+  const [showWeather, setShowWeather] = useState(false);
 
   useEffect(() => {
     const handleShowWeather = () => {

@@ -12,12 +12,23 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
   const [showWaterLevels, setShowWaterLevels] = useState(true);
   const [showRainRecorders, setShowRainRecorders] = useState(true);
   const [showRivers, setShowRivers] = useState(true);
+  const [showCrossSections, setShowCrossSections] = useState(true);
 
   // Memoize toggle handlers
-  const togglePumps = useCallback(() => setShowPumps(prev => !prev), []);
-  const toggleWaterLevels = useCallback(() => setShowWaterLevels(prev => !prev), []);
-  const toggleRainRecorders = useCallback(() => setShowRainRecorders(prev => !prev), []);
-  const toggleRivers = useCallback(() => setShowRivers(prev => !prev), []);
+  const togglePumps = useCallback(() => setShowPumps((prev) => !prev), []);
+  const toggleWaterLevels = useCallback(
+    () => setShowWaterLevels((prev) => !prev),
+    []
+  );
+  const toggleRainRecorders = useCallback(
+    () => setShowRainRecorders((prev) => !prev),
+    []
+  );
+  const toggleRivers = useCallback(() => setShowRivers((prev) => !prev), []);
+  const toggleCrossSections = useCallback(
+    () => setShowCrossSections((prev) => !prev),
+    []
+  );
 
   return (
     <div className="w-full h-screen flex flex-col bg-blue-900">
@@ -28,7 +39,9 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
             showWaterLevels={showWaterLevels}
             showRainRecorders={showRainRecorders}
             showRivers={showRivers}
+            showCrossSections={showCrossSections}
             onToggleRivers={toggleRivers}
+            onToggleCrossSections={toggleCrossSections}
           />
 
           <PumpControls
@@ -36,10 +49,12 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
             showWaterLevels={showWaterLevels}
             showRainRecorders={showRainRecorders}
             showRivers={showRivers}
+            showCrossSections={showCrossSections}
             onTogglePumps={togglePumps}
             onToggleWaterLevels={toggleWaterLevels}
             onToggleRainRecorders={toggleRainRecorders}
             onToggleRivers={toggleRivers}
+            onToggleCrossSections={toggleCrossSections}
           />
           {/* Floating container positioned relative to the map */}
           <div
@@ -54,8 +69,8 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
                 <FloatingFlood />
               ) : selectedMenu === "crowdsourced" ? (
                 <>
-                  <FloatingCrowdsourced />
-                  <FloatingTweets />
+                  <FloatingCrowdsourced showWeather={showWeather} />
+                  <FloatingTweets showWeather={showWeather} />
                 </>
               ) : null}
             </div>

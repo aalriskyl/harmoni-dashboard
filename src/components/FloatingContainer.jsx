@@ -1,252 +1,167 @@
-import React from "react";
+import React, { useState } from "react";
 
-const FloatingContainer = () => {
+const FloatingContainer = ({ onRun }) => {
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedReturnPeriod, setSelectedReturnPeriod] = useState(
+    "5-Year Return Period"
+  );
+  const [isReturnDropdownOpen, setIsReturnDropdownOpen] = useState(false);
+  const [rainfallAmount, setRainfallAmount] = useState(25);
+
+  const locations = [
+    { id: 1, name: "DAS Ciliwung Cisadane" },
+    { id: 2, name: "DAS Other Region" },
+  ];
+
+  const returnPeriods = [
+    { id: "5", label: "5-Year Return Period" },
+    { id: "10", label: "10-Year Return Period" },
+    { id: "20", label: "20-Year Return Period" },
+    { id: "50", label: "50-Year Return Period" },
+    { id: "100", label: "100-Year Return Period" },
+  ];
+
+  const handleLocationSelect = (loc) => {
+    setSelectedLocation(loc);
+    setIsDropdownOpen(false);
+  };
+
+  const handleRun = () => {
+    if (onRun) onRun({ location: selectedLocation, rainfall: rainfallAmount });
+  };
+
   return (
     <div className="w-80 bg-white/90 rounded-2xl shadow-lg">
-      <div className="flex flex-col p-3 space-y-3">
-        <div className="flex flex-col gap-2 overflow-hidden p-2 h-fit sm:h-full relative">
-          <div className="w-full gap-1">
-            <div className="flex items-center gap-2">
-              <p className="text-[#161414] text-xl font-semibold">
-                Flood Warning
-              </p>
-              <div className="relative" data-headlessui-state="">
-                <div
-                  className="inline-flex w-full"
-                  role="button"
-                  id="headlessui-popover-button-v-0-0-53"
-                  aria-expanded="false"
-                  data-headlessui-state=""
-                >
-                  <button
-                    type="button"
-                    className="focus:outline-none focus-visible:outline-0 disabled:cursor-not-allowed disabled:opacity-75 aria-disabled:cursor-not-allowed aria-disabled:opacity-75 flex-shrink-0 font-medium rounded-md gap-x-1.5 p-1.5 dark:text-primary-400 hover:bg-primary-50 disabled:bg-transparent aria-disabled:bg-transparent dark:hover:bg-primary-950 dark:disabled:bg-transparent dark:aria-disabled:bg-transparent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400 inline-flex items-center text-grey-700 text-[13px]"
-                  >
-                    <span
-                      className="iconify i-material-symbols-light:help-outline flex-shrink-0 h-3.5 w-3.5 text-gray-500"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <p className="text-[#665e5e] text-[11px]">
-              A Series of Early Flood Warnings Disseminated Through Multi-Mode
-              Information.
+      <div className="flex flex-col p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[#161414] text-xl font-semibold">
+              Return Period Flood Simulation
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-2 mt-1 mb-1">
-            {/* Normal Status */}
-            <div className="p-1 rounded-xxs bg-white/70 cursor-pointer transition-colors duration-200 ease-in-out hover:bg-brand-100 hover:bg-opacity-90">
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <div className="rounded-xxs py-1 px-2 flex gap-2 items-center bg-grey-200 text-grey-950">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 20 20"
-                      className="w-3 h-3 flex-shrink-0"
-                    >
-                      <path
-                        fill="#353332"
-                        d="M10 16.667A6.674 6.674 0 0 1 3.333 10c.313-8.823 13.022-8.82 13.333 0A6.674 6.674 0 0 1 10 16.667ZM10 5c-6.608.21-6.607 9.79 0 10 6.607-.21 6.606-9.79 0-10Zm.833 1.667H9.166v4.166h1.667V6.667Zm0 5H9.166v1.666h1.667v-1.666ZM20 10a10.022 10.022 0 0 0-2.286-6.364l-1.286 1.061a8.377 8.377 0 0 1 0 10.605l1.286 1.062A10.022 10.022 0 0 0 20 10ZM3.57 15.303a8.377 8.377 0 0 1 0-10.606L2.286 3.636a10.054 10.054 0 0 0 0 12.728l1.285-1.062Z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">7</p>
-                    <p className="text-[10px] font-medium">Normal</p>
-                  </div>
-                </div>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 10 10"
-                  className="w-3 h-3 text-gray-500 transition-all ease-in-out duration-200"
-                >
-                  <g fill="#000" clipPath="url(#i-1248217607__a)">
-                    <path d="M3 .75v8.5h.75V.75H3Z" />
-                    <path d="M1.25.75v8.5H2V.75h-.75Z" />
-                    <path d="m4.75 1.092 3.616 3.616a.425.425 0 0 1 0 .59L4.752 8.91l.59.589 3.613-3.614a1.281 1.281 0 0 0 0-1.768L5.34.502l-.589.59Z" />
-                  </g>
-                  <defs>
-                    <clipPath id="i-1248217607__a">
-                      <path fill="#fff" d="M0 10V0h10v10z" />
-                    </clipPath>
-                  </defs>
-                </svg>
-              </div>
-            </div>
+        </div>
 
-            {/* Siaga Status */}
-            <div className="p-1 rounded-xxs bg-white/70 cursor-pointer transition-colors duration-200 ease-in-out hover:bg-brand-100 hover:bg-opacity-90">
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <div className="rounded-xxs py-1 px-2 flex gap-2 items-center bg-[#EC8819] text-grey-900">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 20 20"
-                      className="w-3 h-3 flex-shrink-0"
-                    >
-                      <path
-                        fill="#353332"
-                        d="M10 16.667A6.674 6.674 0 0 1 3.333 10c.313-8.823 13.022-8.82 13.333 0A6.674 6.674 0 0 1 10 16.667ZM10 5c-6.608.21-6.607 9.79 0 10 6.607-.21 6.606-9.79 0-10Zm.833 1.667H9.166v4.166h1.667V6.667Zm0 5H9.166v1.666h1.667v-1.666ZM20 10a10.022 10.022 0 0 0-2.286-6.364l-1.286 1.061a8.377 8.377 0 0 1 0 10.605l1.286 1.062A10.022 10.022 0 0 0 20 10ZM3.57 15.303a8.377 8.377 0 0 1 0-10.606L2.286 3.636a10.054 10.054 0 0 0 0 12.728l1.285-1.062Z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">0</p>
-                    <p className="text-[10px] font-medium">Siaga</p>
-                  </div>
-                </div>
+        {/* Select Location */}
+        <div>
+          <p className="text-sm text-grey-950 font-medium">
+            Simulate Flood in real time using Artificial Intelligence (AI) or
+            Hydrodynamic Models.
+          </p>
+          <div className="relative mt-4">
+            <p className="text-sm text-grey-950 font-medium">
+              Select your catchment area
+            </p>
+            <button
+              className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            >
+              <span className="block truncate">
+                {selectedLocation
+                  ? selectedLocation.name
+                  : "Select Return Period Flood Simulation"}
+              </span>
+              <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
                 <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 10 10"
-                  className="w-3 h-3 text-gray-500 transition-all ease-in-out duration-200"
+                  className="h-5 w-5 text-gray-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
                 >
-                  <g fill="#000" clipPath="url(#i-1248217607__a)">
-                    <path d="M3 .75v8.5h.75V.75H3Z" />
-                    <path d="M1.25.75v8.5H2V.75h-.75Z" />
-                    <path d="m4.75 1.092 3.616 3.616a.425.425 0 0 1 0 .59L4.752 8.91l.59.589 3.613-3.614a1.281 1.281 0 0 0 0-1.768L5.34.502l-.589.59Z" />
-                  </g>
-                  <defs>
-                    <clipPath id="i-1248217607__a">
-                      <path fill="#fff" d="M0 10V0h10v10z" />
-                    </clipPath>
-                  </defs>
+                  <path
+                    fillRule="evenodd"
+                    d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                    clipRule="evenodd"
+                  />
                 </svg>
-              </div>
-            </div>
+              </span>
+            </button>
 
-            {/* Waspada Status */}
-            <div className="p-1 rounded-xxs bg-white/70 cursor-pointer transition-colors duration-200 ease-in-out hover:bg-brand-100 hover:bg-opacity-90">
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <div className="rounded-xxs py-1 px-2 flex gap-2 items-center bg-[#E7EE46] text-grey-900">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 20 20"
-                      className="w-3 h-3 flex-shrink-0"
-                    >
-                      <path
-                        fill="#353332"
-                        d="M10 16.667A6.674 6.674 0 0 1 3.333 10c.313-8.823 13.022-8.82 13.333 0A6.674 6.674 0 0 1 10 16.667ZM10 5c-6.608.21-6.607 9.79 0 10 6.607-.21 6.606-9.79 0-10Zm.833 1.667H9.166v4.166h1.667V6.667Zm0 5H9.166v1.666h1.667v-1.666ZM20 10a10.022 10.022 0 0 0-2.286-6.364l-1.286 1.061a8.377 8.377 0 0 1 0 10.605l1.286 1.062A10.022 10.022 0 0 0 20 10ZM3.57 15.303a8.377 8.377 0 0 1 0-10.606L2.286 3.636a10.054 10.054 0 0 0 0 12.728l1.285-1.062Z"
-                      />
-                    </svg>
+            {isDropdownOpen && (
+              <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                {locations.map((location) => (
+                  <div
+                    key={location.id}
+                    className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                    onClick={() => handleLocationSelect(location)}
+                  >
+                    <span className="block truncate font-normal">
+                      {location.name}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">0</p>
-                    <p className="text-[10px] font-medium">Waspada</p>
-                  </div>
-                </div>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 10 10"
-                  className="w-3 h-3 text-gray-500 transition-all ease-in-out duration-200"
-                >
-                  <g fill="#000" clipPath="url(#i-1248217607__a)">
-                    <path d="M3 .75v8.5h.75V.75H3Z" />
-                    <path d="M1.25.75v8.5H2V.75h-.75Z" />
-                    <path d="m4.75 1.092 3.616 3.616a.425.425 0 0 1 0 .59L4.752 8.91l.59.589 3.613-3.614a1.281 1.281 0 0 0 0-1.768L5.34.502l-.589.59Z" />
-                  </g>
-                  <defs>
-                    <clipPath id="i-1248217607__a">
-                      <path fill="#fff" d="M0 10V0h10v10z" />
-                    </clipPath>
-                  </defs>
-                </svg>
+                ))}
               </div>
-            </div>
-
-            {/* Awas Status */}
-            <div className="p-1 rounded-xxs bg-white/70 cursor-pointer transition-colors duration-200 ease-in-out hover:bg-brand-100 hover:bg-opacity-90">
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <div className="rounded-xxs py-1 px-2 flex gap-2 items-center bg-[#F03D3B] text-white">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 20 20"
-                      className="w-3 h-3 flex-shrink-0"
-                    >
-                      <path
-                        fill="#353332"
-                        d="M10 16.667A6.674 6.674 0 0 1 3.333 10c.313-8.823 13.022-8.82 13.333 0A6.674 6.674 0 0 1 10 16.667ZM10 5c-6.608.21-6.607 9.79 0 10 6.607-.21 6.606-9.79 0-10Zm.833 1.667H9.166v4.166h1.667V6.667Zm0 5H9.166v1.666h1.667v-1.666ZM20 10a10.022 10.022 0 0 0-2.286-6.364l-1.286 1.061a8.377 8.377 0 0 1 0 10.605l1.286 1.062A10.022 10.022 0 0 0 20 10ZM3.57 15.303a8.377 8.377 0 0 1 0-10.606L2.286 3.636a10.054 10.054 0 0 0 0 12.728l1.285-1.062Z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">0</p>
-                    <p className="text-[10px] font-medium">Awas</p>
-                  </div>
-                </div>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 10 10"
-                  className="w-3 h-3 text-gray-500 transition-all ease-in-out duration-200"
-                >
-                  <g fill="#000" clipPath="url(#i-1248217607__a)">
-                    <path d="M3 .75v8.5h.75V.75H3Z" />
-                    <path d="M1.25.75v8.5H2V.75h-.75Z" />
-                    <path d="m4.75 1.092 3.616 3.616a.425.425 0 0 1 0 .59L4.752 8.91l.59.589 3.613-3.614a1.281 1.281 0 0 0 0-1.768L5.34.502l-.589.59Z" />
-                  </g>
-                  <defs>
-                    <clipPath id="i-1248217607__a">
-                      <path fill="#fff" d="M0 10V0h10v10z" />
-                    </clipPath>
-                  </defs>
-                </svg>
-              </div>
-            </div>
-
-            {/* Banjir Status */}
-            <div className="p-1 rounded-xxs bg-white/70 cursor-pointer transition-colors duration-200 ease-in-out hover:bg-brand-100 hover:bg-opacity-90">
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <div className="rounded-xxs py-1 px-2 flex gap-2 items-center bg-[#B518FA] text-grey-900">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 20 20"
-                      className="w-3 h-3 flex-shrink-0"
-                    >
-                      <path
-                        fill="#353332"
-                        d="M10 16.667A6.674 6.674 0 0 1 3.333 10c.313-8.823 13.022-8.82 13.333 0A6.674 6.674 0 0 1 10 16.667ZM10 5c-6.608.21-6.607 9.79 0 10 6.607-.21 6.606-9.79 0-10Zm.833 1.667H9.166v4.166h1.667V6.667Zm0 5H9.166v1.666h1.667v-1.666ZM20 10a10.022 10.022 0 0 0-2.286-6.364l-1.286 1.061a8.377 8.377 0 0 1 0 10.605l1.286 1.062A10.022 10.022 0 0 0 20 10ZM3.57 15.303a8.377 8.377 0 0 1 0-10.606L2.286 3.636a10.054 10.054 0 0 0 0 12.728l1.285-1.062Z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">0</p>
-                    <p className="text-[10px] font-medium">Banjir</p>
-                  </div>
-                </div>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 10 10"
-                  className="w-3 h-3 text-gray-500 transition-all ease-in-out duration-200"
-                >
-                  <g fill="#000" clipPath="url(#i-1248217607__a)">
-                    <path d="M3 .75v8.5h.75V.75H3Z" />
-                    <path d="M1.25.75v8.5H2V.75h-.75Z" />
-                    <path d="m4.75 1.092 3.616 3.616a.425.425 0 0 1 0 .59L4.752 8.91l.59.589 3.613-3.614a1.281 1.281 0 0 0 0-1.768L5.34.502l-.589.59Z" />
-                  </g>
-                  <defs>
-                    <clipPath id="i-1248217607__a">
-                      <path fill="#fff" d="M0 10V0h10v10z" />
-                    </clipPath>
-                  </defs>
-                </svg>
-              </div>
-            </div>
+            )}
           </div>
-          <div className="flex-1 sm:overflow-y-scroll space-y-2" />
+        </div>
+        <div>
+          <p className="text-sm text-grey-950 font-medium">
+            Select your return period scenario
+          </p>
+          <div className="relative mt-1">
+            <button
+              className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6"
+              onClick={() => setIsReturnDropdownOpen((s) => !s)}
+            >
+              <span className="block truncate">
+                {selectedReturnPeriod || "Select your return period scenario"}
+              </span>
+              <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </span>
+            </button>
+
+            {isReturnDropdownOpen && (
+              <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                {returnPeriods.map((rp) => (
+                  <div
+                    key={rp.id}
+                    className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                    onClick={() => {
+                      setSelectedReturnPeriod(rp.label);
+                      setIsReturnDropdownOpen(false);
+                    }}
+                  >
+                    <span className="block truncate font-normal">
+                      {rp.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Rainfall slider */}
+
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={handleRun}
+            className={`w-full text-center rounded-md bg-[#636059] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700`}
+            disabled={!selectedLocation}
+          >
+            AI Based Flood Simulation
+          </button>
+          <button
+            type="button"
+            onClick={handleRun}
+            className={`w-full text-center rounded-md bg-[#a49d93] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700`}
+            disabled={!selectedLocation}
+          >
+            Hydrodinamic Based Flood Simulation
+          </button>
         </div>
       </div>
     </div>

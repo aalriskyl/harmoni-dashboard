@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
-const RiverButton = ({ isActive, onClick }) => (
+const CrossSectionButton = ({ isActive, onClick, hidden }) => (
   <button
     type="button"
     onClick={(e) => {
@@ -9,7 +9,38 @@ const RiverButton = ({ isActive, onClick }) => (
     }}
     className={`flex items-center justify-center p-1 rounded-lg transition-all ${
       isActive
-        ? "bg-cyan-100 border-2 border-cyan-300"
+        ? "bg-gray-800 border-2 border-gray-800"
+        : "bg-white border-2 border-gray-200"
+    } hover:shadow-md`}
+    title="Cross Sections"
+    aria-label="Toggle Cross Sections"
+  >
+    <div className="w-8 h-8 flex items-center justify-center">
+      <img
+        src="/assets/img/River_Cross_Section_Icon.svg"
+        alt="Cross Sections"
+        className={`w-6 h-6 ${
+          hidden
+            ? "opacity-0 pointer-events-none"
+            : isActive
+            ? "filter invert"
+            : "opacity-80"
+        }`}
+      />
+    </div>
+  </button>
+);
+
+const RiverBodyButton = ({ isActive, onClick, hidden }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      onClick();
+    }}
+    className={`flex items-center justify-center p-1 rounded-lg transition-all ${
+      isActive
+        ? "bg-gray-800 border-2 border-gray-800"
         : "bg-white border-2 border-gray-200"
     } hover:shadow-md`}
     title="Rivers"
@@ -20,7 +51,13 @@ const RiverButton = ({ isActive, onClick }) => (
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
-        className={`w-6 h-6 ${!isActive ? "opacity-60" : ""}`}
+        className={`w-6 h-6 ${
+          hidden
+            ? "opacity-0 pointer-events-none"
+            : isActive
+            ? "text-white"
+            : "text-gray-700 opacity-80"
+        }`}
       >
         <path
           stroke="currentColor"
@@ -48,7 +85,7 @@ const RiverButton = ({ isActive, onClick }) => (
   </button>
 );
 
-const PumpButton = ({ isActive, onClick }) => (
+const PumpButton = ({ isActive, onClick, hidden }) => (
   <button
     type="button"
     onClick={(e) => {
@@ -57,7 +94,7 @@ const PumpButton = ({ isActive, onClick }) => (
     }}
     className={`flex items-center justify-center p-1 rounded-lg transition-all ${
       isActive
-        ? "bg-blue-100 border-2 border-blue-300"
+        ? "bg-gray-800 border-2 border-gray-800"
         : "bg-white border-2 border-gray-200"
     } hover:shadow-md`}
     title="Pumps"
@@ -67,13 +104,19 @@ const PumpButton = ({ isActive, onClick }) => (
       <img
         src="/assets/img/pump-icon.svg"
         alt="Pumps"
-        className={`w-6 h-6 ${!isActive ? "opacity-60" : ""}`}
+        className={`w-6 h-6 ${
+          hidden
+            ? "opacity-0 pointer-events-none"
+            : isActive
+            ? "filter invert"
+            : "opacity-80"
+        }`}
       />
     </div>
   </button>
 );
 
-const WaterLevelButton = ({ isActive, onClick }) => (
+const WaterLevelButton = ({ isActive, onClick, hidden }) => (
   <button
     type="button"
     onClick={(e) => {
@@ -82,7 +125,7 @@ const WaterLevelButton = ({ isActive, onClick }) => (
     }}
     className={`flex items-center justify-center p-1 rounded-lg transition-all ${
       isActive
-        ? "bg-teal-100 border-2 border-teal-300"
+        ? "bg-gray-800 border-2 border-gray-800 "
         : "bg-white border-2 border-gray-200"
     } hover:shadow-md`}
     title="Water Levels"
@@ -92,13 +135,19 @@ const WaterLevelButton = ({ isActive, onClick }) => (
       <img
         src="/assets/img/water-level-icon.svg"
         alt="Water Levels"
-        className={`w-6 h-6 ${!isActive ? "opacity-60" : ""}`}
+        className={`w-6 h-6 ${
+          hidden
+            ? "opacity-0 pointer-events-none"
+            : isActive
+            ? "filter invert"
+            : "opacity-80"
+        }`}
       />
     </div>
   </button>
 );
 
-const RainRecorderButton = ({ isActive, onClick }) => (
+const RainRecorderButton = ({ isActive, onClick, hidden }) => (
   <button
     type="button"
     onClick={(e) => {
@@ -107,7 +156,7 @@ const RainRecorderButton = ({ isActive, onClick }) => (
     }}
     className={`flex items-center justify-center p-1 rounded-lg transition-all ${
       isActive
-        ? "bg-indigo-100 border-2 border-indigo-300"
+        ? "bg-gray-800 border-2 border-gray-800"
         : "bg-white border-2 border-gray-200"
     } hover:shadow-md`}
     title="Rain Recorders"
@@ -117,7 +166,13 @@ const RainRecorderButton = ({ isActive, onClick }) => (
       <img
         src="/assets/img/rain-gauge-icon.svg"
         alt="Rain Recorders"
-        className={`w-6 h-6 ${!isActive ? "opacity-60" : ""}`}
+        className={`w-6 h-6 ${
+          hidden
+            ? "opacity-0 pointer-events-none"
+            : isActive
+            ? "filter invert"
+            : "opacity-80"
+        }`}
       />
     </div>
   </button>
@@ -128,25 +183,70 @@ const PumpControls = ({
   showWaterLevels = true,
   showRainRecorders = true,
   showRivers = true,
+  showCrossSections = true,
   onTogglePumps,
   onToggleWaterLevels,
   onToggleRainRecorders,
   onToggleRivers,
+  onToggleCrossSections,
 }) => {
+  const [hidden, setHidden] = useState(() => {
+    if (typeof window === "undefined") return false;
+    if (window.__welcomeVisible) return true;
+    // fallback: check if overlay element exists in DOM (refresh case)
+    try {
+      return !!document.getElementById("welcome-overlay");
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    function onShow() {
+      setHidden(true);
+    }
+    function onHide() {
+      setHidden(false);
+    }
+    window.addEventListener("welcomeShown", onShow);
+    window.addEventListener("welcomeHidden", onHide);
+    return () => {
+      window.removeEventListener("welcomeShown", onShow);
+      window.removeEventListener("welcomeHidden", onHide);
+    };
+  }, []);
+  const containerClass = `fixed right-[35px] top-1/2 transform -translate-y-1/2 z-10 flex flex-col gap-3 transition-all duration-200 ${
+    hidden
+      ? "opacity-0 pointer-events-none scale-95 translate-x-2"
+      : "opacity-100 pointer-events-auto scale-100"
+  }`;
+
   return (
-    <div className="fixed right-[30px] top-1/2 transform -translate-y-1/2 z-50 flex flex-col gap-3">
-      <PumpButton isActive={showPumps} onClick={() => onTogglePumps()} />
+    <div className={containerClass} aria-hidden={hidden}>
+      <PumpButton
+        isActive={showPumps}
+        onClick={() => onTogglePumps()}
+        hidden={hidden}
+      />
       <WaterLevelButton
         isActive={showWaterLevels}
         onClick={() => onToggleWaterLevels()}
+        hidden={hidden}
       />
       <RainRecorderButton
         isActive={showRainRecorders}
         onClick={() => onToggleRainRecorders()}
+        hidden={hidden}
       />
-      <RiverButton
+      <RiverBodyButton
         isActive={showRivers}
         onClick={() => onToggleRivers()}
+        hidden={hidden}
+      />
+      <CrossSectionButton
+        isActive={showCrossSections}
+        onClick={() => onToggleCrossSections()}
+        hidden={hidden}
       />
     </div>
   );

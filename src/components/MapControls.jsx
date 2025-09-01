@@ -7,7 +7,10 @@ const MapControls = ({
   onLabelVisibilityChange,
 }) => {
   return (
-    <div className="absolute bottom-16 right-32 bg-white p-4 rounded shadow-md z-10 w-64">
+    <div
+      className="fixed right-[30px] bg-white p-4 rounded shadow-md z-50 w-64"
+      style={{ top: "calc(50% + 140px)" }}
+    >
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Light Preset

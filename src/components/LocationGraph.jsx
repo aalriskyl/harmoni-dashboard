@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import Chart from "chart.js/auto";
 
+/* eslint-disable no-console */
+
 const LocationGraph = ({
   selectedPoint,
   onClose,

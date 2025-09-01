@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+/* eslint-disable no-console */
 import React, { useState, useEffect } from "react";
 import MapRaster from "./MapRaster";
 
@@ -237,7 +238,8 @@ const FloatingFlood = ({ setShowWeather }) => {
       setCurrentData(processedData);
       setViewMode("simulation");
       setSimulationRunning(true);
-      setShowWeather(false);
+      // Do not force-hide parent weather/controls here. Let the parent manage visibility.
+      // setShowWeather(false);
 
       // Get the appropriate image path based on current view mode and rainfall
       const imagePath = getImagePath(
@@ -280,7 +282,8 @@ const FloatingFlood = ({ setShowWeather }) => {
     } finally {
       setIsDataLoading(false);
       setSimulationRunning(true);
-      setShowWeather(false);
+      // Do not force-hide parent weather/controls here. Let the parent manage visibility.
+      // setShowWeather(false);
     }
   };
 
@@ -607,7 +610,7 @@ const FloatingFlood = ({ setShowWeather }) => {
             <div className="fixed bottom-4 right-4 z-50">
               <Legend viewMode={viewMode} />
             </div>
-            <div className="hidden sm:flex flex-col z-10 absolute w-[20.75rem] bg-white rounded-md left-8 overflow-hidden transition-all ease-in-out duration-300 top-[8rem] h-[calc(100%-9.5rem)]">
+            <div className="fixed flex flex-col z-40 w-[20.75rem] bg-white rounded-md left-8 overflow-hidden transition-all ease-in-out duration-300 top-[8rem] h-[calc(100%-9.5rem)]">
               <header className="px-3 pt-2 pb-2">
                 <p className="text-grey-950 font-medium">
                   {headerContent.title}
@@ -675,14 +678,14 @@ const FloatingFlood = ({ setShowWeather }) => {
             Flood Simulation
           </p>
         </div>
-        <p className="text-[#665e5e] text-xs">
-          Forecast flood inundation from a database of pre-computed
-          generation/propagation forecasts
+        <p className="text-sm text-grey-950 font-medium">
+          Simulate Flood in real time using Artificial Intelligence (AI) or
+          Hydrodynamic Models.
         </p>
         <div className="space-y-3">
           <div>
             <p className="text-sm text-grey-950 font-medium">
-              Select Flood Location
+              Select your catchment area
             </p>
             <div className="relative mt-1">
               <button
@@ -692,7 +695,7 @@ const FloatingFlood = ({ setShowWeather }) => {
                 <span className="block truncate">
                   {selectedLocation
                     ? selectedLocation.name
-                    : "-Select Regency/City-"}
+                    : "Select Regency/City"}
                 </span>
                 <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
                   <svg
@@ -757,9 +760,17 @@ const FloatingFlood = ({ setShowWeather }) => {
           type="button"
           disabled={!selectedLocation}
           onClick={runSimulation}
-          className="w-full justify-center rounded-md bg-[#636059] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="w-full justify-center rounded-md bg-[#636059] px-3 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed"
         >
-          Run Simulation
+          AI Based Flood Simulation
+        </button>
+        <button
+          type="button"
+          disabled={!selectedLocation}
+          onClick={runSimulation}
+          className="w-full justify-center rounded-md bg-[#a49d93] px-3 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed"
+        >
+          Hydrodinamic Based Flood Simulation
         </button>
       </div>
     </div>
