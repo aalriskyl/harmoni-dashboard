@@ -96,7 +96,8 @@ const FloatingFlood = ({ setShowWeather }) => {
 
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [rainfallAmount, setRainfallAmount] = useState(25);
+  const [rainfallAmount, setRainfallAmount] = useState(0); // Start with 0 for no rain by default
+  const [rainIntensity, setRainIntensity] = useState(0); // 0-1 value for rain intensity
   const [simulationRunning, setSimulationRunning] = useState(false);
   const [isFloodLayerLoading, setIsFloodLayerLoading] = useState(false);
   const [currentData, setCurrentData] = useState([]);
@@ -164,8 +165,18 @@ const FloatingFlood = ({ setShowWeather }) => {
   const handleRainfallChange = (e) => {
     const newRainfall = parseInt(e.target.value);
     setRainfallAmount(newRainfall);
-    if (simulationRunning) {
-      updateFloodImage(newRainfall, viewMode === "risk" ? "risk" : "hazard");
+    
+    // Update rain animation based on rainfall amount
+    const rainContainer = document.querySelector('.rain-container');
+    if (rainContainer) {
+      if (newRainfall > 0) {
+        // Calculate opacity based on rainfall (0.3 to 1.0)
+        const intensity = Math.min(0.3 + (newRainfall / 150) * 0.7, 1.0);
+        rainContainer.style.opacity = intensity;
+        rainContainer.style.display = 'block';
+      } else {
+        rainContainer.style.display = 'none';
+      }
     }
   };
 
@@ -376,7 +387,13 @@ const FloatingFlood = ({ setShowWeather }) => {
 
   const stopSimulation = () => {
     setSimulationRunning(false);
-    setRainfallAmount(25);
+    setRainfallAmount(0); // Reset to 0 to turn off rain animation
+
+    // Hide rain animation when stopping simulation
+    const rainContainer = document.querySelector('.rain-container');
+    if (rainContainer) {
+      rainContainer.style.display = 'none';
+    }
 
     // Clear any active flood/raster layers
     window.dispatchEvent(
@@ -679,13 +696,13 @@ const FloatingFlood = ({ setShowWeather }) => {
           </p>
         </div>
         <p className="text-sm text-grey-950 font-medium">
-          Simulate Flood in real time using Artificial Intelligence (AI) or
+          Simulate flood in real time using Artificial Intelligence (AI) or
           Hydrodynamic Models.
         </p>
         <div className="space-y-3">
           <div>
             <p className="text-sm text-grey-950 font-medium">
-              Select your catchment area
+              Select your catchment area:
             </p>
             <div className="relative mt-1">
               <button
@@ -731,7 +748,7 @@ const FloatingFlood = ({ setShowWeather }) => {
           </div>
           <div>
             <p className="text-sm text-grey-950 font-medium">
-              Rainfall Amount: {rainfallAmount}mm/day
+              Select your rainfall amount: {rainfallAmount}mm/day
             </p>
             <div className="mt-1 relative">
               <input
@@ -762,7 +779,7 @@ const FloatingFlood = ({ setShowWeather }) => {
           onClick={runSimulation}
           className="w-full justify-center rounded-md bg-[#636059] px-3 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed"
         >
-          AI Based Flood Simulation
+          AI-Based Flood Simulation
         </button>
         <button
           type="button"
@@ -770,7 +787,7 @@ const FloatingFlood = ({ setShowWeather }) => {
           onClick={runSimulation}
           className="w-full justify-center rounded-md bg-[#a49d93] px-3 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed"
         >
-          Hydrodinamic Based Flood Simulation
+          Hydrodinamic-Based Flood Simulation
         </button>
       </div>
     </div>

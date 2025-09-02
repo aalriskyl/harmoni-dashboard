@@ -1,19 +1,16 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-unused-vars */
-/* eslint-disable no-console */
 import React, {
   useRef,
   useEffect,
   useState,
   useCallback,
   useMemo,
-  createElement,
 } from "react";
 import { createRoot } from "react-dom/client";
 import mapboxgl from "mapbox-gl";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import "mapbox-gl/dist/mapbox-gl.css";
-import ReactDOM from "react-dom/client";
 import LocationGraph from "./LocationGraph";
 import FloodLayer from "./FloodLayer";
 import FloodPopup from "./FloodPopup";
@@ -21,17 +18,16 @@ import axios from "axios";
 import { Chart } from "chart.js/auto";
 import zoomPlugin from "chartjs-plugin-zoom";
 
-// Register the zoom plugin globally
+// Register the zoom plugin
 Chart.register(zoomPlugin);
 
 // Constants
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 const INITIAL_VIEW_STATE = {
-  // Default start coordinates requested by user (lng, lat)
   lng: 106.82726262118713,
   lat: -6.1749547950820505,
-  zoom: 17.2, // increase for close-in view
-  pitch: 60, // tilt for oblique 3D view
+  zoom: 17.2,
+  pitch: 60,
   bearing: -30,
 };
 const PUMP_STATUSES = [
@@ -138,23 +134,21 @@ const Map = ({
   const map = useRef(null);
   const markers = useRef([]);
   const popups = useRef([]);
+  // Store previous prop values for comparison
+  const prevPropsRef = useRef({
+    showPumps,
+    showWaterLevels,
+    showRainRecorders,
+    showRivers,
+    showCrossSections,
+  });
   // Rain canvas fallback for environments without map.setRain
   const rainCanvasRef = useRef(null);
   const rainAnimationRef = useRef(null);
   const rainParticlesRef = useRef([]);
 
-  // State
-
-  const [localShowPumps, setLocalShowPumps] = useState(showPumps);
-  const [localShowWaterLevels, setLocalShowWaterLevels] =
-    useState(showWaterLevels);
-  const [localShowRainRecorders, setLocalShowRainRecorders] =
-    useState(showRainRecorders);
-  // Ensure ant-path (rivers) is visible by default
-  const [localShowRivers, setLocalShowRivers] = useState(true);
-  // Cross-section markers visibility (separate from river ant-path)
-  const [localShowCrossSections, setLocalShowCrossSections] =
-    useState(showCrossSections);
+  // State - only for internal component state, not derived from props
+  const [isMapInitialized, setIsMapInitialized] = useState(false);
   const [riverSourceId] = useState("rivers-source");
   const [riverLayerId] = useState("rivers-layer");
   const [waterPumps, setWaterPumps] = useState([]);
@@ -184,27 +178,59 @@ const Map = ({
   const [floodIncidents, setFloodIncidents] = useState([]);
   const [riverHoverInfo, setRiverHoverInfo] = useState(null);
   const [isRaining, setIsRaining] = useState(false);
-  // Update local states when props change
-  useEffect(() => {
-    setLocalShowPumps(showPumps);
-  }, [showPumps]);
+  // Update marker visibility function - optimized to prevent unnecessary updates
+  const updateMarkerVisibility = useCallback(() => {
+    if (!markers.current.length || !map.current) return;
+    
+    markers.current.forEach(marker => {
+      if (!marker || !marker._type) return;
+      const element = marker.getElement();
+      if (!element) return;
+      
+      const isVisible = (() => {
+        switch(marker._type) {
+          case 'pump': return showPumps;
+          case 'waterlevel': return showWaterLevels;
+          case 'rainrecorder': return showRainRecorders;
+          case 'crosssection': return showCrossSections;
+          case 'floodincident': return true;
+          default: return true;
+        }
+      })();
+      
+      // Only update if visibility actually changed
+      const wasVisible = !element.classList.contains('hidden');
+      if (isVisible !== wasVisible) {
+        element.classList.toggle('hidden', !isVisible);
+      }
+    });
+  }, [showPumps, showWaterLevels, showRainRecorders, showCrossSections]);
 
+  // Effect to update marker visibility when props change - optimized
   useEffect(() => {
-    setLocalShowWaterLevels(showWaterLevels);
-  }, [showWaterLevels]);
-
-  useEffect(() => {
-    setLocalShowRainRecorders(showRainRecorders);
-  }, [showRainRecorders]);
-
-  useEffect(() => {
-    setLocalShowRivers(showRivers);
-  }, [showRivers]);
-
-  // Sync cross-section prop
-  useEffect(() => {
-    setLocalShowCrossSections(showCrossSections);
-  }, [showCrossSections]);
+    if (!map.current || !isMapInitialized) return;
+    
+    // Only update visibility if the relevant props have changed
+    const prevProps = prevPropsRef.current;
+    if (prevProps && 
+        prevProps.showPumps === showPumps &&
+        prevProps.showWaterLevels === showWaterLevels &&
+        prevProps.showRainRecorders === showRainRecorders &&
+        prevProps.showCrossSections === showCrossSections) {
+      return; // Skip if visibility props haven't changed
+    }
+    
+    updateMarkerVisibility();
+    
+    // Update previous props
+    prevPropsRef.current = {
+      showPumps,
+      showWaterLevels,
+      showRainRecorders,
+      showRivers,
+      showCrossSections,
+    };
+  }, [showPumps, showWaterLevels, showRainRecorders, showCrossSections, isMapInitialized, updateMarkerVisibility]);
 
   // Define image bounds for overlays
   const imageBounds = [
@@ -214,50 +240,26 @@ const Map = ({
     [106.6849284, -6.3729514], // Lower left
   ];
 
-  useEffect(() => {
-    if (!map.current) return;
-
-    console.log("Updating marker visibility:", {
-      showPumps,
-      showWaterLevels,
-      showRainRecorders,
-    });
-
-    markers.current.forEach((marker, index) => {
-      if (!marker || !marker._type) {
-        console.warn("Marker missing _type:", marker);
-        return;
-      }
-
-      const element = marker.getElement();
-      if (!element) {
-        console.warn("Marker has no DOM element:", marker);
-        return;
-      }
-
-      let visible = false;
-      const type = String(marker._type).toLowerCase();
-
-      // Match marker type to the correct visibility state
-      if (type === "pump") {
-        visible = showPumps;
-      } else if (type === "waterlevel") {
-        visible = showWaterLevels;
-      } else if (type === "rainrecorder") {
-        visible = showRainRecorders;
-      } else if (type === "crosssection") {
-        // Show cross-section markers based on the dedicated cross-section toggle
-        visible = localShowCrossSections;
-      } else if (type === "floodincident") {
-        visible = true;
-      }
-
-      element.style.display = visible ? "block" : "none";
-      console.log(
-        `Marker ${index} (${type}): ${visible ? "visible" : "hidden"}`
-      );
-    });
-  }, [showPumps, showWaterLevels, showRainRecorders]);
+  // Initialize markers with proper type normalization and visibility
+  const initializeMarkers = useCallback((marker, type) => {
+    if (!marker || !type) return;
+    
+    // Normalize the type for consistent checking
+    let normalizedType = type.toLowerCase();
+    if (normalizedType === 'waterpump') normalizedType = 'pump';
+    if (normalizedType === 'waterlevel') normalizedType = 'waterlevel';
+    if (normalizedType === 'rainrecorder') normalizedType = 'rainrecorder';
+    if (normalizedType === 'crosssection') normalizedType = 'crosssection';
+    
+    marker._type = normalizedType;
+    const element = marker.getElement();
+    if (!element) return;
+    
+    // Add marker class and set initial visibility
+    element.classList.add('marker');
+    updateMarkerVisibility();
+    markers.current.push(marker);
+  }, [updateMarkerVisibility]);
 
   const addRiverLayers = (riverData) => {
     // Add base river layer (thicker solid line for background)
@@ -318,7 +320,7 @@ const Map = ({
 
     // Animation function for top-to-bottom flow
     const animateDashArray = (timestamp) => {
-      if (!map.current.getLayer(riverLayerId) || !localShowRivers) {
+      if (!map.current.getLayer(riverLayerId) || !showRivers) {
         if (animationFrame) cancelAnimationFrame(animationFrame);
         return;
       }
@@ -462,7 +464,7 @@ const Map = ({
 
   // Load and update river data with ant path animation
   useEffect(() => {
-    if (!map.current || !localShowRivers) return;
+    if (!map.current || !showRivers) return;
 
     // Clean up any existing layers and source
     if (map.current.getLayer(riverLayerId)) {
@@ -528,7 +530,7 @@ const Map = ({
         });
       }
     };
-  }, [localShowRivers, map.current]);
+  }, [showRivers, riverLayerId, map.current]);
 
   // Load and display Jakarta province administrative boundary (perimeter only)
   useEffect(() => {
@@ -830,34 +832,11 @@ const Map = ({
     };
   }, []);
 
-  // Toggle visibility handlers
-  const togglePumps = (show) => {
-    setLocalShowPumps(show);
-    if (onTogglePumps) {
-      onTogglePumps(show);
-    }
-  };
-
-  const toggleWaterLevels = (show) => {
-    setLocalShowWaterLevels(show);
-    if (onToggleWaterLevels) {
-      onToggleWaterLevels(show);
-    }
-  };
-
-  const toggleRainRecorders = (show) => {
-    setLocalShowRainRecorders(show);
-    if (onToggleRainRecorders) {
-      onToggleRainRecorders(show);
-    }
-  };
-
-  const toggleCrossSections = (show) => {
-    setLocalShowCrossSections(show);
-    if (onToggleCrossSections) {
-      onToggleCrossSections(show);
-    }
-  };
+  // Toggle visibility handlers - simplified and optimized
+  const togglePumps = useCallback(() => onTogglePumps?.(), [onTogglePumps]);
+  const toggleWaterLevels = useCallback(() => onToggleWaterLevels?.(), [onToggleWaterLevels]);
+  const toggleRainRecorders = useCallback(() => onToggleRainRecorders?.(), [onToggleRainRecorders]);
+  const toggleCrossSections = useCallback(() => onToggleCrossSections?.(), [onToggleCrossSections]);
 
   // Derived state
   const pinPoints = useMemo(
@@ -872,18 +851,18 @@ const Map = ({
 
   const pointsToShow = useMemo(() => {
     return pinPoints.filter((point) => {
-      if (point.type === "Waterpump") return localShowPumps;
-      if (point.type === "WaterLevel") return localShowWaterLevels;
-      if (point.type === "RainRecorder") return localShowRainRecorders;
-      if (point.type === "CrossSection") return localShowCrossSections;
+      if (point.type === "Waterpump") return showPumps;
+      if (point.type === "WaterLevel") return showWaterLevels;
+      if (point.type === "RainRecorder") return showRainRecorders;
+      if (point.type === "CrossSection") return showCrossSections;
       return true; // Show other point types by default
     });
   }, [
     pinPoints,
-    localShowPumps,
-    localShowWaterLevels,
-    localShowRainRecorders,
-    localShowCrossSections,
+    showPumps,
+    showWaterLevels,
+    showRainRecorders,
+    showCrossSections,
   ]);
 
   // Helper functions
@@ -2015,7 +1994,7 @@ const Map = ({
   };
   // Add this to re-setup hover when river visibility changes
   useEffect(() => {
-    if (!map.current || !localShowRivers) return;
+    if (!map.current || !showRivers) return;
 
     // Wait a bit for layers to load, then setup hover
     const timer = setTimeout(() => {
@@ -2023,7 +2002,7 @@ const Map = ({
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [localShowRivers, setupRiverHover]);
+  }, [showRivers, setupRiverHover]);
 
   // Helper function to get status color based on status text
   // Function to close popup
@@ -3384,7 +3363,7 @@ const Map = ({
       </button>
 
       {controlsVisible && (
-        <div className="absolute bottom-16 right-9 bg-white p-4 rounded-lg shadow-md z-10 w-64">
+        <div className="absolute bottom-5 right-24 bg-white p-4 rounded-lg shadow-md z-10 w-64">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Light Preset
@@ -3485,10 +3464,10 @@ const Map = ({
     width: 43px !important;
     height: 40px !important;
     border-radius: 8px !important;
+    background-color: #f2f1ef !important;
+    border: 2px solid #f2f1ef !important;
     padding: 0 !important;
-    background-color: #1F2937 !important;
-    color: #FFFFFF !important;
-    border: 1px solid rgba(0,0,0,0.06) !important;
+    color: #636059 !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
     margin: 0 !important;
     box-sizing: border-box !important;
@@ -3500,20 +3479,30 @@ const Map = ({
   /* Hover states for all buttons */
   .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group button:hover,
   .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-geolocate:hover {
-    background-color: #374151 !important;
+    background-color: #f2f1ef !important;
     transform: translateY(-1px) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
   }
   
   /* Active states for all buttons */
   .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group button:active,
-  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-geolocate:active {
-    background-color: #111827 !important;
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-geolocate:active,
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group button.mapboxgl-ctrl-zoom-in:active,
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group button.mapboxgl-ctrl-zoom-out:active {
+    background-color: #636059 !important;
+    border-color: #636059 !important;
     transform: translateY(1px) !important;
   }
   
-  /* Make ALL Mapbox control icons white */
+  /* Style Mapbox control icons */
   .mapboxgl-ctrl-icon {
-    filter: invert(1) brightness(2) !important;
+    filter: invert(39%) sepia(4%) saturate(1234%) hue-rotate(349deg) brightness(92%) contrast(84%) !important;
+  }
+  
+  /* Active state for control icons */
+  .mapboxgl-ctrl button:active .mapboxgl-ctrl-icon,
+  .mapboxgl-ctrl-geolocate:active .mapboxgl-ctrl-icon {
+    filter: invert(96%) sepia(2%) saturate(209%) hue-rotate(343deg) brightness(96%) contrast(95%) !important;
   }
   
   /* Specifically target SVG elements in controls */
@@ -3555,25 +3544,62 @@ const Map = ({
     height: 40px !important;
   }
   
-  /* Fix for geolocation active state (blue dot) */
+  /* Fix for geolocation active state */
+  .mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-active {
+    background-color: #636059 !important;
+    border-color: #636059 !important;
+  }
   .mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon {
-    filter: invert(1) brightness(2) hue-rotate(180deg) !important;
+    filter: invert(96%) sepia(2%) saturate(209%) hue-rotate(343deg) brightness(96%) contrast(95%) !important;
   }
   
   /* Fix for geolocation waiting state (spinning) */
+  .mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-waiting,
+  .mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-seeking {
+    background-color: #636059 !important;
+    border-color: #636059 !important;
+  }
   .mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-waiting .mapboxgl-ctrl-icon,
   .mapboxgl-ctrl-geolocate.mapboxgl-ctrl-geolocate-seeking .mapboxgl-ctrl-icon {
     animation: mapboxgl-spin 2s infinite linear;
-    filter: invert(1) brightness(2) !important;
+    filter: invert(96%) sepia(2%) saturate(209%) hue-rotate(343deg) brightness(96%) contrast(95%) !important;
   }
   
   @keyframes mapboxgl-spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
+  
+  /* Marker visibility */
+  .marker {
+    transition: opacity 0.3s ease;
+  }
+  
+  .marker.hidden {
+    display: none;
+    opacity: 0;
+    pointer-events: none;
+  }
 `}</style>
     </div>
   );
 };
 
-export default Map;
+// Custom comparison function for React.memo - simplified and more efficient
+const areEqual = (prevProps, nextProps) => {
+  // Only re-render if these specific props change
+  return (
+    prevProps.showPumps === nextProps.showPumps &&
+    prevProps.showWaterLevels === nextProps.showWaterLevels &&
+    prevProps.showRainRecorders === nextProps.showRainRecorders &&
+    prevProps.showRivers === nextProps.showRivers &&
+    prevProps.showCrossSections === nextProps.showCrossSections &&
+    prevProps.onTogglePumps === nextProps.onTogglePumps &&
+    prevProps.onToggleWaterLevels === nextProps.onToggleWaterLevels &&
+    prevProps.onToggleRainRecorders === nextProps.onToggleRainRecorders &&
+    prevProps.onToggleRivers === nextProps.onToggleRivers &&
+    prevProps.onToggleCrossSections === nextProps.onToggleCrossSections
+  );
+};
+
+export default React.memo(Map, areEqual);

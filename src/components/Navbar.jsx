@@ -7,7 +7,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   const [isSimulationDropdownOpen, setIsSimulationDropdownOpen] =
     useState(false);
   const [selectedSimulation, setSelectedSimulation] = useState(
-    "Realtime Flood Simulation"
+    "Real-time Flood Simulation"
   );
   const [selectedFloodType, setSelectedFloodType] = useState(
     "Return Period Flood Simulation"

@@ -45,12 +45,12 @@ const FloatingContainer = ({ onRun }) => {
         {/* Select Location */}
         <div>
           <p className="text-sm text-grey-950 font-medium">
-            Simulate Flood in real time using Artificial Intelligence (AI) or
-            Hydrodynamic Models.
+            Simulate floods based on return period scenarios using Artificial
+            Intelligence (AI) or Hydrodynamic model.
           </p>
           <div className="relative mt-4">
             <p className="text-sm text-grey-950 font-medium">
-              Select your catchment area
+              Select your catchment area:
             </p>
             <button
               className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6"
@@ -96,7 +96,7 @@ const FloatingContainer = ({ onRun }) => {
         </div>
         <div>
           <p className="text-sm text-grey-950 font-medium">
-            Select your return period scenario
+            Select your return period scenario:
           </p>
           <div className="relative mt-1">
             <button
@@ -152,7 +152,7 @@ const FloatingContainer = ({ onRun }) => {
             className={`w-full text-center rounded-md bg-[#636059] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700`}
             disabled={!selectedLocation}
           >
-            AI Based Flood Simulation
+            AI-Based Flood Simulation
           </button>
           <button
             type="button"
@@ -160,7 +160,7 @@ const FloatingContainer = ({ onRun }) => {
             className={`w-full text-center rounded-md bg-[#a49d93] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700`}
             disabled={!selectedLocation}
           >
-            Hydrodinamic Based Flood Simulation
+            Hydrodinamic-Based Flood Simulation
           </button>
         </div>
       </div>

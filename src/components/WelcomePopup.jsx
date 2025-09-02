@@ -61,13 +61,13 @@ const WelcomePopup = ({ onDismiss }) => {
           className="w-full h-full object-cover object-bottom"
         />
       </div>
-      <div className="absolute right-8 top-42 z-9999 h-full overflow-hidden pointer-events-none text-[52px]">
-        <div className="flex flex-col items-end text-white font-extrabold leading-tight font">
-          <h2 className="inline-block bg-[#636059] py-2 px-4 whitespace-nowrap self-end">
+      <div className="absolute right-8 top-42 z-9999 h-full overflow-hidden pointer-events-none text-[62px]">
+        <div className="flex flex-col items-end text-white leading-tight font">
+          <h2 className="inline-block bg-[#636059] py-2 px-4 font-normal whitespace-nowrap self-end rounded-lg">
             Flood Prediction
           </h2>
-          <h2 className="inline-block bg-[#a49d93] py-2 px-4 whitespace-nowrap self-end">
-            in Minutes
+          <h2 className="inline-block font-normal bg-[#a49d93] py-2 px-4 whitespace-nowrap self-end rounded-lg">
+            in <span className="font-bold">Minutes</span>
           </h2>
         </div>
       </div>
