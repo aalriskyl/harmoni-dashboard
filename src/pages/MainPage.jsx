@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo, useRef } from "react";
+import React, { useState, useCallback, useMemo, memo } from "react";
 import { DateFilterProvider } from "../context/DateFilterContext.jsx";
 import Map from "../components/Map";
 import FloatingContainer from "../components/FloatingContainer";
@@ -18,68 +18,56 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
   const [showCrossSections, setShowCrossSections] = useState(true);
 
   // Memoize toggle handlers
-  const togglePumps = useCallback(() => setShowPumps((prev) => !prev), []);
-  const toggleWaterLevels = useCallback(
-    () => setShowWaterLevels((prev) => !prev),
-    []
-  );
-  const toggleRainRecorders = useCallback(
-    () => setShowRainRecorders((prev) => !prev),
-    []
-  );
-  const toggleRivers = useCallback(() => setShowRivers((prev) => !prev), []);
-  const toggleCrossSections = useCallback(
-    () => setShowCrossSections((prev) => !prev),
-    []
-  );
+  // Memoize toggle callbacks with useCallback to prevent recreation on each render
+  const togglePumps = useCallback(() => setShowPumps(prev => !prev), []);
+  const toggleWaterLevels = useCallback(() => setShowWaterLevels(prev => !prev), []);
+  const toggleRainRecorders = useCallback(() => setShowRainRecorders(prev => !prev), []);
+  const toggleRivers = useCallback(() => setShowRivers(prev => !prev), []);
+  const toggleCrossSections = useCallback(() => setShowCrossSections(prev => !prev), []);
+  
+  // Memoize the controls props to prevent unnecessary re-renders
+  const controlsProps = useMemo(() => ({
+    showPumps,
+    showWaterLevels,
+    showRainRecorders,
+    showRivers,
+    showCrossSections,
+    onTogglePumps: togglePumps,
+    onToggleWaterLevels: toggleWaterLevels,
+    onToggleRainRecorders: toggleRainRecorders,
+    onToggleRivers: toggleRivers,
+    onToggleCrossSections: toggleCrossSections,
+  }), [
+    showPumps,
+    showWaterLevels,
+    showRainRecorders,
+    showRivers,
+    showCrossSections,
+    togglePumps,
+    toggleWaterLevels,
+    toggleRainRecorders,
+    toggleRivers,
+    toggleCrossSections,
+  ]);
 
-  // Memoize the controls props
-  const controlsProps = useMemo(
-    () => ({
-      showPumps,
-      showWaterLevels,
-      showRainRecorders,
-      showRivers,
-      showCrossSections,
-      onTogglePumps: togglePumps,
-      onToggleWaterLevels: toggleWaterLevels,
-      onToggleRainRecorders: toggleRainRecorders,
-      onToggleRivers: toggleRivers,
-      onToggleCrossSections: toggleCrossSections,
-    }),
-    [
-      showPumps,
-      showWaterLevels,
-      showRainRecorders,
-      showRivers,
-      showCrossSections,
-      togglePumps,
-      toggleWaterLevels,
-      toggleRainRecorders,
-      toggleRivers,
-      toggleCrossSections,
-    ]
-  );
-
-  // Memoize map props - this is the key fix
-  const mapProps = useMemo(
-    () => ({
-      showPumps,
-      showWaterLevels,
-      showRainRecorders,
-      showRivers,
-      showCrossSections,
-      // Remove the toggle functions from mapProps if Map doesn't need them
-      // If Map needs them, make sure they're properly memoized
-    }),
-    [
-      showPumps,
-      showWaterLevels,
-      showRainRecorders,
-      showRivers,
-      showCrossSections,
-    ]
-  );
+  // Memoize map props to prevent unnecessary re-renders
+  const mapProps = useMemo(() => ({
+    showPumps,
+    showWaterLevels,
+    showRainRecorders,
+    showRivers,
+    showCrossSections,
+    onToggleRivers: toggleRivers,
+    onToggleCrossSections: toggleCrossSections
+  }), [
+    showPumps,
+    showWaterLevels,
+    showRainRecorders,
+    showRivers,
+    showCrossSections,
+    toggleRivers,
+    toggleCrossSections
+  ]);
 
   return (
     <div className="w-full h-screen flex flex-col bg-blue-900">

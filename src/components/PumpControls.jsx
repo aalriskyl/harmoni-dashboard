@@ -1,118 +1,252 @@
-import React, { useState, useCallback, useMemo, memo } from "react";
-import { DateFilterProvider } from "../context/DateFilterContext.jsx";
-import Map from "../components/Map";
-import FloatingContainer from "../components/FloatingContainer";
-import FloatingFlood from "../components/FloatingFlood";
-import FloatingCrowdsourced from "../components/FloatingCrowdSourced";
-import FloatingTweets from "../components/FloatingTweets";
-import PumpControls from "../components/PumpControls.jsx";
+import React, { useEffect, useState } from "react";
 
-// Memoize the Map component to prevent unnecessary re-renders
-const MemoizedMap = memo(
-  ({
-    showPumps,
-    showWaterLevels,
-    showRainRecorders,
-    showRivers,
-    showCrossSections,
-  }) => (
-    <Map
-      showPumps={showPumps}
-      showWaterLevels={showWaterLevels}
-      showRainRecorders={showRainRecorders}
-      showRivers={showRivers}
-      showCrossSections={showCrossSections}
-    />
-  )
+const CrossSectionButton = ({ isActive, onClick, hidden }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onClick) onClick();
+    }}
+    className={`flex items-center justify-center p-1 rounded-lg transition-all ${
+      isActive
+        ? "bg-[#636059] border-2 border-[#636059]"
+        : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
+    } hover:shadow-md`}
+    title="Cross Sections"
+    aria-label="Toggle Cross Sections"
+  >
+    <div className="w-8 h-8 flex items-center justify-center">
+      <img
+        src="/assets/img/River_Cross_Section_Icon.svg"
+        alt="Cross Sections"
+        className={`w-6 h-6 transition-colors ${
+          hidden ? "opacity-0 pointer-events-none" : "opacity-80"
+        }`}
+        style={{
+          filter: hidden
+            ? undefined
+            : isActive
+            ? "brightness(0) saturate(100%) invert(96%) sepia(2%) saturate(209%) hue-rotate(343deg) brightness(96%) contrast(95%)" // Light icon on dark background
+            : "brightness(0) saturate(100%) invert(39%) sepia(4%) saturate(1234%) hue-rotate(349deg) brightness(92%) contrast(84%)", // Dark icon on light background
+        }}
+      />
+    </div>
+  </button>
 );
 
-const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
-  const [showPumps, setShowPumps] = useState(true);
-  const [showWaterLevels, setShowWaterLevels] = useState(true);
-  const [showRainRecorders, setShowRainRecorders] = useState(true);
-  const [showRivers, setShowRivers] = useState(true);
-  const [showCrossSections, setShowCrossSections] = useState(true);
+const RiverBodyButton = ({ isActive, onClick, hidden }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onClick) onClick();
+    }}
+    className={`flex items-center justify-center p-1 rounded-lg transition-all ${
+      isActive
+        ? "bg-[#636059] border-2 border-[#636059]"
+        : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
+    } hover:shadow-md`}
+    title="Rivers"
+    aria-label="Toggle Rivers"
+  >
+    <div className="w-8 h-8 flex items-center justify-center">
+      <img
+        src="/assets/img/River_Body_Icon.svg"
+        alt="Cross Sections"
+        className={`w-6 h-6 transition-colors ${
+          hidden ? "opacity-0 pointer-events-none" : "opacity-80"
+        }`}
+        style={{
+          filter: hidden
+            ? undefined
+            : isActive
+            ? "brightness(0) saturate(100%) invert(96%) sepia(2%) saturate(209%) hue-rotate(343deg) brightness(96%) contrast(95%)" // Light icon on dark background
+            : "brightness(0) saturate(100%) invert(39%) sepia(4%) saturate(1234%) hue-rotate(349deg) brightness(92%) contrast(84%)", // Dark icon on light background
+        }}
+      />
+    </div>
+  </button>
+);
 
-  // Memoize toggle handlers with useCallback
-  const togglePumps = useCallback(() => setShowPumps((prev) => !prev), []);
-  const toggleWaterLevels = useCallback(
-    () => setShowWaterLevels((prev) => !prev),
-    []
-  );
-  const toggleRainRecorders = useCallback(
-    () => setShowRainRecorders((prev) => !prev),
-    []
-  );
-  const toggleRivers = useCallback(() => setShowRivers((prev) => !prev), []);
-  const toggleCrossSections = useCallback(
-    () => setShowCrossSections((prev) => !prev),
-    []
-  );
+const PumpButton = ({ isActive, onClick, hidden }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onClick) onClick();
+    }}
+    className={`flex items-center justify-center p-1 rounded-lg transition-all ${
+      isActive
+        ? "bg-[#636059] border-2 border-[#636059]"
+        : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
+    } hover:shadow-md`}
+    title="Pumps"
+    aria-label="Toggle Pumps"
+  >
+    <div className="w-8 h-8 flex items-center justify-center">
+      <img
+        src="/assets/img/pump-icon.svg"
+        alt="Pumps"
+        className={`w-6 h-6 transition-colors ${
+          hidden ? "opacity-0 pointer-events-none" : "opacity-80"
+        }`}
+        style={{
+          filter: hidden
+            ? undefined
+            : isActive
+            ? "brightness(0) saturate(100%) invert(96%) sepia(2%) saturate(209%) hue-rotate(343deg) brightness(96%) contrast(95%)" // Light icon on dark background
+            : "brightness(0) saturate(100%) invert(39%) sepia(4%) saturate(1234%) hue-rotate(349deg) brightness(92%) contrast(84%)", // Dark icon on light background
+        }}
+      />
+    </div>
+  </button>
+);
 
-  // Memoize the controls props
-  const controlsProps = useMemo(
-    () => ({
-      showPumps,
-      showWaterLevels,
-      showRainRecorders,
-      showRivers,
-      showCrossSections,
-      onTogglePumps: togglePumps,
-      onToggleWaterLevels: toggleWaterLevels,
-      onToggleRainRecorders: toggleRainRecorders,
-      onToggleRivers: toggleRivers,
-      onToggleCrossSections: toggleCrossSections,
-    }),
-    [
-      showPumps,
-      showWaterLevels,
-      showRainRecorders,
-      showRivers,
-      showCrossSections,
-      togglePumps,
-      toggleWaterLevels,
-      toggleRainRecorders,
-      toggleRivers,
-      toggleCrossSections,
-    ]
-  );
+const WaterLevelButton = ({ isActive, onClick, hidden }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onClick) onClick();
+    }}
+    className={`flex items-center justify-center p-1 rounded-lg transition-all ${
+      isActive
+        ? "bg-[#636059] border-2 border-[#636059] "
+        : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
+    } hover:shadow-md`}
+    title="Water Levels"
+    aria-label="Toggle Water Levels"
+  >
+    <div className="w-8 h-8 flex items-center justify-center">
+      <img
+        src="/assets/img/water-level-icon.svg"
+        alt="Water Levels"
+        className={`w-6 h-6 transition-colors ${
+          hidden ? "opacity-0 pointer-events-none" : "opacity-80"
+        }`}
+        style={{
+          filter: hidden
+            ? undefined
+            : isActive
+            ? "brightness(0) saturate(100%) invert(96%) sepia(2%) saturate(209%) hue-rotate(343deg) brightness(96%) contrast(95%)" // Light icon on dark background
+            : "brightness(0) saturate(100%) invert(39%) sepia(4%) saturate(1234%) hue-rotate(349deg) brightness(92%) contrast(84%)", // Dark icon on light background
+        }}
+      />
+    </div>
+  </button>
+);
+
+const RainRecorderButton = ({ isActive, onClick, hidden }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onClick) onClick();
+    }}
+    className={`flex items-center justify-center p-1 rounded-lg transition-all ${
+      isActive
+        ? "bg-[#636059] border-2 border-[#636059]"
+        : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
+    } hover:shadow-md`}
+    title="Rain Recorders"
+    aria-label="Toggle Rain Recorders"
+  >
+    <div className="w-8 h-8 flex items-center justify-center">
+      <img
+        src="/assets/img/rain-gauge-icon.svg"
+        alt="Rain Recorders"
+        className={`w-6 h-6 transition-colors ${
+          hidden ? "opacity-0 pointer-events-none" : "opacity-80"
+        }`}
+        style={{
+          filter: hidden
+            ? undefined
+            : isActive
+            ? "brightness(0) saturate(100%) invert(96%) sepia(2%) saturate(209%) hue-rotate(343deg) brightness(96%) contrast(95%)" // Light icon on dark background
+            : "brightness(0) saturate(100%) invert(39%) sepia(4%) saturate(1234%) hue-rotate(349deg) brightness(92%) contrast(84%)", // Dark icon on light background
+        }}
+      />
+    </div>
+  </button>
+);
+
+const PumpControls = ({
+  showPumps = true,
+  showWaterLevels = true,
+  showRainRecorders = true,
+  showRivers = true,
+  showCrossSections = true,
+  onTogglePumps,
+  onToggleWaterLevels,
+  onToggleRainRecorders,
+  onToggleRivers,
+  onToggleCrossSections,
+}) => {
+  const [hidden, setHidden] = useState(() => {
+    if (typeof window === "undefined") return false;
+    if (window.__welcomeVisible) return true;
+    // fallback: check if overlay element exists in DOM (refresh case)
+    try {
+      return !!document.getElementById("welcome-overlay");
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    function onShow() {
+      setHidden(true);
+    }
+    function onHide() {
+      setHidden(false);
+    }
+    window.addEventListener("welcomeShown", onShow);
+    window.addEventListener("welcomeHidden", onHide);
+    return () => {
+      window.removeEventListener("welcomeShown", onShow);
+      window.removeEventListener("welcomeHidden", onHide);
+    };
+  }, []);
+  const containerClass = `fixed right-[35px] top-1/2 transform -translate-y-1/2 z-10 flex flex-col gap-3 transition-all duration-200 ${
+    hidden
+      ? "opacity-0 pointer-events-none scale-95 translate-x-2"
+      : "opacity-100 pointer-events-auto scale-100"
+  }`;
 
   return (
-    <div className="w-full h-screen flex flex-col bg-blue-900">
-      <DateFilterProvider>
-        <div className="flex-1 relative">
-          <MemoizedMap
-            showPumps={showPumps}
-            showWaterLevels={showWaterLevels}
-            showRainRecorders={showRainRecorders}
-            showRivers={showRivers}
-            showCrossSections={showCrossSections}
-          />
-
-          <PumpControls {...controlsProps} />
-          {/* Floating container positioned relative to the map */}
-          <div
-            className={`absolute left-8 ${
-              showWeather ? "top-72" : "top-32"
-            } z-30 transition-all duration-300`}
-          >
-            <div className="flex flex-col gap-4">
-              {selectedMenu === "warnings" ? (
-                <FloatingContainer />
-              ) : selectedMenu === "simulations" ? (
-                <FloatingFlood />
-              ) : selectedMenu === "crowdsourced" ? (
-                <>
-                  <FloatingCrowdsourced showWeather={showWeather} />
-                  <FloatingTweets showWeather={showWeather} />
-                </>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </DateFilterProvider>
+    <div className={containerClass} aria-hidden={hidden}>
+      <PumpButton
+        isActive={showPumps}
+        onClick={() => onTogglePumps()}
+        hidden={hidden}
+      />
+      <WaterLevelButton
+        isActive={showWaterLevels}
+        onClick={() => onToggleWaterLevels()}
+        hidden={hidden}
+      />
+      <RainRecorderButton
+        isActive={showRainRecorders}
+        onClick={() => onToggleRainRecorders()}
+        hidden={hidden}
+      />
+      <RiverBodyButton
+        isActive={showRivers}
+        onClick={() => onToggleRivers()}
+        hidden={hidden}
+      />
+      <CrossSectionButton
+        isActive={showCrossSections}
+        onClick={() => onToggleCrossSections()}
+        hidden={hidden}
+      />
     </div>
   );
 };
 
-export default MainPage;
+export default PumpControls;
