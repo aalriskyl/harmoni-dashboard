@@ -120,6 +120,19 @@ if (MAPBOX_TOKEN) {
   );
 }
 
+// Function to get time-based preset
+const getTimeBasedPreset = (hour) => {
+  if (hour >= 6 && hour < 18) return "day";
+  return "night";
+};
+
+// Get initial light preset based on current time
+const getInitialLightPreset = () => {
+  const now = new Date();
+  const hour = now.getHours();
+  return getTimeBasedPreset(hour);
+};
+
 const Map = ({
   showPumps = true,
   showWaterLevels = true,
@@ -135,7 +148,13 @@ const Map = ({
   // Refs
   const mapContainer = useRef(null);
   const map = useRef(null);
-  const markers = useRef([]);
+  const markers = useRef({
+    pump: [],
+    waterlevel: [],
+    rainrecorder: [],
+    crosssection: [],
+    flood: [],
+  });
   const popups = useRef([]);
   // Rain canvas fallback for environments without map.setRain
   const rainCanvasRef = useRef(null);
@@ -164,7 +183,7 @@ const Map = ({
   const [rainRecorderData, setRainRecorderData] = useState([]);
   const [crossSectionData, setCrossSectionData] = useState([]);
   const [selectedPoint, setSelectedPoint] = useState(null);
-  const [lightPreset, setLightPreset] = useState("day");
+  const [lightPreset, setLightPreset] = useState(getInitialLightPreset());
   const [labelVisibility, setLabelVisibility] = useState({
     showPlaceLabels: true,
     showPointOfInterestLabels: true,
@@ -183,27 +202,147 @@ const Map = ({
   const [floodIncidents, setFloodIncidents] = useState([]);
   const [riverHoverInfo, setRiverHoverInfo] = useState(null);
   const [isRaining, setIsRaining] = useState(false);
-  // Update local states when props change
-  useEffect(() => {
-    setLocalShowPumps(showPumps);
-  }, [showPumps]);
+  const [controlsReady, setControlsReady] = useState(false);
+  const [forceUpdateKey, setForceUpdateKey] = useState(0);
 
+  // Initialize controls after map loads and welcome popup is dismissed
   useEffect(() => {
-    setLocalShowWaterLevels(showWaterLevels);
-  }, [showWaterLevels]);
+    if (!map.current) return;
 
-  useEffect(() => {
-    setLocalShowRainRecorders(showRainRecorders);
-  }, [showRainRecorders]);
+    let isMounted = true;
+    let cleanup = () => {};
 
-  useEffect(() => {
-    setLocalShowRivers(showRivers);
-  }, [showRivers]);
+    const initializeControls = () => {
+      if (!isMounted) return;
 
-  // Sync cross-section prop
+      const finalizeInitialization = () => {
+        if (!isMounted) return;
+
+        // Wait for all data to be loaded
+        const checkDataLoaded = () => {
+          if (!isMounted) return;
+
+          const dataLoaded =
+            waterPumps.length > 0 &&
+            waterLevelData.length > 0 &&
+            rainRecorderData.length > 0;
+
+          if (dataLoaded) {
+            setControlsReady(true);
+            // Force two updates with small delay to ensure proper rendering
+            setForceUpdateKey((prev) => prev + 1);
+            setTimeout(() => {
+              if (isMounted) {
+                setForceUpdateKey((prev) => prev + 1);
+                // One more update after a short delay
+                setTimeout(() => {
+                  if (isMounted) {
+                    setForceUpdateKey((prev) => prev + 1);
+                  }
+                }, 50);
+              }
+            }, 50);
+          } else {
+            setTimeout(checkDataLoaded, 100);
+          }
+        };
+
+        checkDataLoaded();
+      };
+
+      if (window.__welcomeVisible) {
+        // Wait for welcome popup to be dismissed
+        const onWelcomeHidden = () => {
+          if (isMounted) {
+            finalizeInitialization();
+          }
+        };
+
+        window.addEventListener("welcomeHidden", onWelcomeHidden, {
+          once: true,
+        });
+        cleanup = () =>
+          window.removeEventListener("welcomeHidden", onWelcomeHidden);
+      } else {
+        // Welcome popup already dismissed
+        finalizeInitialization();
+      }
+    };
+
+    // Handle map idle state
+    const handleMapIdle = () => {
+      if (isMounted) {
+        initializeControls();
+      }
+    };
+
+    if (map.current.loaded()) {
+      handleMapIdle();
+    } else {
+      map.current.once("load", handleMapIdle);
+    }
+
+    return () => {
+      isMounted = false;
+      cleanup();
+      if (map.current) {
+        map.current.off("load", handleMapIdle);
+      }
+    };
+  }, [
+    map.current,
+    waterPumps.length,
+    waterLevelData.length,
+    rainRecorderData.length,
+  ]);
+
+  // Update marker visibility when local toggles change (use internal state)
   useEffect(() => {
-    setLocalShowCrossSections(showCrossSections);
-  }, [showCrossSections]);
+    if (!map.current) return;
+
+    // Update marker visibility based on type
+    const updateMarkersVisibility = (type, visible) => {
+      const markerGroup = markers.current[type] || [];
+      markerGroup.forEach((marker) => {
+        try {
+          const element = marker.getElement();
+          if (element) {
+            element.style.display = visible ? "block" : "none";
+          }
+        } catch (e) {
+          console.warn(`Error updating ${type} marker:`, e);
+        }
+      });
+    };
+
+    // Update each marker type using local state
+    updateMarkersVisibility("pump", localShowPumps);
+    updateMarkersVisibility("waterlevel", localShowWaterLevels);
+    updateMarkersVisibility("rainrecorder", localShowRainRecorders);
+    updateMarkersVisibility("crosssection", localShowCrossSections);
+    // Always show flood markers
+    updateMarkersVisibility("flood", true);
+
+    // Update river layers visibility
+    if (map.current.getLayer(riverLayerId)) {
+      map.current.setLayoutProperty(
+        riverLayerId,
+        "visibility",
+        localShowRivers ? "visible" : "none"
+      );
+      map.current.setLayoutProperty(
+        `${riverLayerId}-base`,
+        "visibility",
+        localShowRivers ? "visible" : "none"
+      );
+    }
+  }, [
+    localShowPumps,
+    localShowWaterLevels,
+    localShowRainRecorders,
+    localShowRivers,
+    localShowCrossSections,
+  ]);
 
   // Define image bounds for overlays
   const imageBounds = [
@@ -213,85 +352,45 @@ const Map = ({
     [106.6849284, -6.3729514], // Lower left
   ];
 
-    useEffect(() => {
-    // if (!map.current) return;
-
-    console.log("Updating marker visibility:", {
-      showPumps,
-      showWaterLevels,
-      showRainRecorders,
-    });
-
-    markers.current.forEach((marker, index) => {
-      if (!marker || !marker._type) {
-        console.warn("Marker missing _type:", marker);
-        return;
-      }
-
-      const element = marker.getElement();
-      if (!element) {
-        console.warn("Marker has no DOM element:", marker);
-        return;
-      }
-
-      let visible = false;
-      const type = String(marker._type).toLowerCase();
-
-      // Match marker type to the correct visibility state
-      if (type === "pump") {
-        visible = showPumps;
-      } else if (type === "waterlevel") {
-        visible = showWaterLevels;
-      } else if (type === "rainrecorder") {
-        visible = showRainRecorders;
-      } else if (type === "crosssection") {
-        // Show cross-section markers based on the dedicated cross-section toggle
-        visible = localShowCrossSections;
-      } else if (type === "floodincident") {
-        visible = true;
-      }
-
-      element.style.display = visible ? "block" : "none";
-      console.log(
-        `Marker ${index} (${type}): ${visible ? "visible" : "hidden"}`
-      );
-    });
-  }, [showPumps, showWaterLevels, showRainRecorders]);
-
   const addRiverLayers = (riverData) => {
-    // Add base river layer (thicker solid line for background)
-    map.current.addLayer({
-      id: `${riverLayerId}-base`,
-      type: "line",
-      source: riverSourceId,
-      layout: {
-        "line-join": "round",
-        "line-cap": "round",
-      },
-      paint: {
-        "line-color": "#3b82f6",
-        "line-width": 6,
-        "line-opacity": 0.4,
-      },
-    });
+    // Only add layers if they don't exist yet
+    if (!map.current.getLayer(riverLayerId)) {
+      // Add base river layer (thicker solid line for background)
+      map.current.addLayer({
+        id: `${riverLayerId}-base`,
+        type: "line",
+        source: riverSourceId,
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+          visibility: showRivers ? "visible" : "none",
+        },
+        paint: {
+          "line-color": "#3b82f6",
+          "line-width": 6,
+          "line-opacity": 0.4,
+        },
+      });
 
-    // Add animated dashed line layer
-    map.current.addLayer({
-      id: riverLayerId,
-      type: "line",
-      source: riverSourceId,
-      layout: {
-        "line-join": "round",
-        "line-cap": "round",
-      },
-      paint: {
-        "line-color": "#3b82f6",
-        "line-width": 6,
-        "line-dasharray": [0, 4, 3],
-        "line-opacity": 1,
-        "line-emissive-strength": 1,
-      },
-    });
+      // Add animated dashed line layer
+      map.current.addLayer({
+        id: riverLayerId,
+        type: "line",
+        source: riverSourceId,
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+          visibility: showRivers ? "visible" : "none",
+        },
+        paint: {
+          "line-color": "#3b82f6",
+          "line-width": 6,
+          "line-dasharray": [0, 4, 3],
+          "line-opacity": 1,
+          "line-emissive-strength": 1,
+        },
+      });
+    }
 
     // Animation sequence for the dash array (top-to-bottom flow)
     // REVERSED the sequence to achieve true top-to-bottom flow
@@ -317,7 +416,7 @@ const Map = ({
 
     // Animation function for top-to-bottom flow
     const animateDashArray = (timestamp) => {
-      if (!map.current.getLayer(riverLayerId) || !localShowRivers) {
+      if (!map.current.getLayer(riverLayerId) || !showRivers) {
         if (animationFrame) cancelAnimationFrame(animationFrame);
         return;
       }
@@ -514,16 +613,21 @@ const Map = ({
 
       // Remove river markers
       if (markers.current) {
-        markers.current = markers.current.filter((marker) => {
-          if (marker.type === "river") {
-            if (marker.marker) marker.marker.remove();
-            if (marker.popup) marker.popup.remove();
-            if (marker.element && marker.element.parentNode) {
-              marker.element.parentNode.removeChild(marker.element);
-            }
-            return false;
+        // Process each marker type array
+        Object.keys(markers.current).forEach((key) => {
+          if (Array.isArray(markers.current[key])) {
+            markers.current[key] = markers.current[key].filter((marker) => {
+              if (marker.type === "river") {
+                if (marker.marker) marker.marker.remove();
+                if (marker.popup) marker.popup.remove();
+                if (marker.element && marker.element.parentNode) {
+                  marker.element.parentNode.removeChild(marker.element);
+                }
+                return false;
+              }
+              return true;
+            });
           }
-          return true;
         });
       }
     };
@@ -681,68 +785,94 @@ const Map = ({
 
     // Only add new layer if we have a valid image path
     if (imagePath) {
-      // Add new source and layer
-      map.current.addSource(sourceId, {
-        type: "image",
-        url: imagePath,
-        coordinates: imageBounds,
-      });
+      try {
+        // Add new source and layer
+        map.current.addSource(sourceId, {
+          type: "image",
+          url: imagePath,
+          coordinates: imageBounds,
+        });
 
-      map.current.addLayer({
-        id: layerId,
-        type: "raster",
-        source: sourceId,
-        paint: {
-          "raster-opacity": 0.7,
-        },
-      });
+        map.current.addLayer({
+          id: layerId,
+          type: "raster",
+          source: sourceId,
+          paint: {
+            "raster-opacity": 0.7,
+          },
+        });
+      } catch (e) {
+        console.warn("Failed to add flood image layer:", e);
+      }
     }
   }, []);
 
-  // Hide markers and controls while welcome overlay is visible
+  // Functions to handle welcome overlay show/hide
+  const onShow = useCallback(() => {
+    // Hide all markers and controls when welcome overlay is shown
+    Object.entries(markers.current).forEach(([type, markerGroup]) => {
+      markerGroup.forEach((marker) => {
+        try {
+          const el = marker?.getElement?.();
+          if (el) el.style.display = "none";
+        } catch (e) {
+          console.warn(`Error hiding ${type} marker:`, e);
+        }
+      });
+    });
+
+    // Hide map controls
+    const controls = document.querySelectorAll(".mapboxgl-ctrl");
+    controls.forEach((control) => {
+      control.style.display = "none";
+    });
+  }, []);
+
+  const onHide = useCallback(() => {
+    // Show markers based on their toggle state when welcome overlay is hidden
+    const visibility = {
+      pump: showPumps,
+      waterlevel: showWaterLevels,
+      rainrecorder: showRainRecorders,
+      crosssection: showCrossSections,
+      flood: true, // Always show flood markers
+    };
+
+    Object.entries(markers.current).forEach(([type, markerGroup]) => {
+      const isVisible = visibility[type] !== false; // Default to true if type not found
+      markerGroup.forEach((marker) => {
+        try {
+          const el = marker?.getElement?.();
+          if (el) el.style.display = isVisible ? "block" : "none";
+        } catch (e) {
+          console.warn(`Error showing ${type} marker:`, e);
+        }
+      });
+    });
+
+    // Show map controls
+    const controls = document.querySelectorAll(".mapboxgl-ctrl");
+    controls.forEach((control) => {
+      control.style.display = "block";
+    });
+  }, [showPumps, showWaterLevels, showRainRecorders, showCrossSections]);
+
+  // Initialize if welcome is already visible
   useEffect(() => {
-    function onShow() {
-      // hide markers
-      markers.current.forEach((m) => {
-        try {
-          const el = m.getElement();
-          if (el) {
-            el.style.opacity = "0";
-            el.style.pointerEvents = "none";
-            el.style.transition = "opacity 200ms ease";
-          }
-        } catch (e) {
-          // ignore
-        }
-      });
-    }
-
-    function onHide() {
-      markers.current.forEach((m) => {
-        try {
-          const el = m.getElement();
-          if (el) {
-            el.style.opacity = "";
-            el.style.pointerEvents = "";
-            el.style.transition = "opacity 200ms ease";
-          }
-        } catch (e) {
-          // ignore
-        }
-      });
-    }
-
+    // Add event listeners for welcome overlay
     window.addEventListener("welcomeShown", onShow);
     window.addEventListener("welcomeHidden", onHide);
 
-    // initialize if welcome is already visible
-    if (typeof window !== "undefined" && window.__welcomeVisible) onShow();
+    // Initial check
+    if (typeof window !== "undefined" && window.__welcomeVisible) {
+      onShow();
+    }
 
     return () => {
       window.removeEventListener("welcomeShown", onShow);
       window.removeEventListener("welcomeHidden", onHide);
     };
-  }, []);
+  }, [onShow, onHide]);
 
   // Add event listener for flood image updates
   useEffect(() => {
@@ -829,6 +959,40 @@ const Map = ({
     };
   }, []);
 
+  // Listen for layer toggle events from UI controls so we don't need to re-render the Map
+  useEffect(() => {
+    function onToggleLayer(e) {
+      try {
+        const layer = e?.detail?.layer;
+        if (!layer) return;
+        switch (layer) {
+          case "pumps":
+            setLocalShowPumps((v) => !v);
+            break;
+          case "waterlevels":
+            setLocalShowWaterLevels((v) => !v);
+            break;
+          case "rainrecorders":
+            setLocalShowRainRecorders((v) => !v);
+            break;
+          case "rivers":
+            setLocalShowRivers((v) => !v);
+            break;
+          case "crosssection":
+          case "crosssections":
+            setLocalShowCrossSections((v) => !v);
+            break;
+          default:
+            break;
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+    window.addEventListener("toggle-layer", onToggleLayer);
+    return () => window.removeEventListener("toggle-layer", onToggleLayer);
+  }, []);
+
   // Toggle visibility handlers
   const togglePumps = (show) => {
     setLocalShowPumps(show);
@@ -869,21 +1033,11 @@ const Map = ({
     [pumpStations, waterLevelData, rainRecorderData, crossSectionData]
   );
 
+  // Create markers for all available pin points once. Visibility is managed
+  // separately so toggling layers doesn't recreate markers or reinitialize map.
   const pointsToShow = useMemo(() => {
-    return pinPoints.filter((point) => {
-      if (point.type === "Waterpump") return localShowPumps;
-      if (point.type === "WaterLevel") return localShowWaterLevels;
-      if (point.type === "RainRecorder") return localShowRainRecorders;
-      if (point.type === "CrossSection") return localShowCrossSections;
-      return true; // Show other point types by default
-    });
-  }, [
-    pinPoints,
-    localShowPumps,
-    localShowWaterLevels,
-    localShowRainRecorders,
-    localShowCrossSections,
-  ]);
+    return pinPoints; // all points; visibility handled separately
+  }, [pinPoints]);
 
   // Helper functions
   const getTimeBasedPreset = (hour) => {
@@ -938,6 +1092,22 @@ const Map = ({
       }
     };
   }, [map.current, setupRiverHover, riverLayerId]);
+
+  useEffect(() => {
+    const updateTimeBasedStyles = () => {
+      const now = new Date();
+      const hour = now.getHours();
+      const newPreset = getTimeBasedPreset(hour);
+      setLightPreset(newPreset);
+      if (map.current) {
+        map.current.setConfigProperty("basemap", "lightPreset", newPreset);
+      }
+    };
+
+    // Update every hour
+    const interval = setInterval(updateTimeBasedStyles, 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const updateTimeBasedPreset = useCallback(() => {
     const now = new Date();
@@ -2660,122 +2830,114 @@ const Map = ({
   const updateMarkers = useCallback(() => {
     if (!map.current) return;
 
-    // Clear existing markers
-    markers.current.forEach((marker) => {
-      if (marker.marker && typeof marker.marker.remove === "function") {
-        marker.marker.remove();
-      }
-      if (marker.popup && typeof marker.popup.remove === "function") {
-        marker.popup.remove();
-      }
-      if (marker.element && marker.element.parentNode) {
-        marker.element.parentNode.removeChild(marker.element);
-      }
-    });
-    markers.current = [];
+    // Remove any existing markers (expecting mapboxgl.Marker instances)
+    try {
+      Object.values(markers.current || {}).forEach((arr) => {
+        if (!Array.isArray(arr)) return;
+        arr.forEach((m) => {
+          try {
+            if (m && typeof m.remove === "function") m.remove();
+          } catch (e) {
+            // ignore individual marker remove errors
+          }
+        });
+      });
+    } catch (err) {
+      // ignore
+    }
+
+    // Reset markers storage to predictable shape
+    markers.current = {
+      pump: [],
+      waterlevel: [],
+      rainrecorder: [],
+      crosssection: [],
+      flood: [],
+    };
     popups.current = [];
 
     if (!pointsToShow || pointsToShow.length === 0) return;
 
-    pointsToShow.forEach((point, index) => {
-      const el = document.createElement("div");
-      el.className =
-        "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
+    // Create markers once and keep them as mapboxgl.Marker instances
+    pointsToShow.forEach((point) => {
+      try {
+        const el = document.createElement("div");
+        el.className =
+          "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
 
-      const markerStyles = {
-        Waterpump: { bgColor: "#4e583b", borderColor: "#677056" },
-        RainRecorder: { bgColor: "#6A7F53", borderColor: "#6A7F53" },
-        WaterLevel: { bgColor: "#677056", borderColor: "#677056" },
-        default: { bgColor: "#6b7280", borderColor: "#9ca3af" },
-      };
-
-      const style = markerStyles[point.type] || markerStyles.default;
-      el.style.backgroundColor = style.bgColor;
-      el.style.border = `2px solid ${style.borderColor}`;
-      el.style.boxShadow = "0 0 0 2px rgba(0,0,0,0.1)";
-
-      const icon = document.createElement("img");
-      icon.src = getIconSrc(point.type);
-      icon.className = "w-6 h-6 p-1";
-      icon.style.filter = "brightness(0) invert(1)";
-      el.appendChild(icon);
-
-      const popupContent = document.createElement("div");
-
-      // Add specific class for cross-section popups
-      if (point.type === "CrossSection") {
-        popupContent.className = "cross-section-popup-content popup-content";
-      } else {
-        popupContent.className = "standard-popup-content popup-content";
-      }
-
-      popupContent.innerHTML = renderPopupContent(point);
-
-      const popup = new mapboxgl.Popup({
-        offset: 30,
-        className:
-          point.type === "CrossSection"
-            ? "cross-section-popup"
-            : "standard-popup",
-        maxWidth: "400px",
-        closeOnClick: false,
-        closeButton: false,
-      }).setDOMContent(popupContent);
-
-      // Add close button functionality
-      const closeButton = popupContent.querySelector(".close-popup");
-      if (closeButton) {
-        closeButton.addEventListener("click", (e) => {
-          e.stopPropagation();
-          closePopup(popup);
-        });
-      }
-
-      // In the updateMarkers function, add this condition to the marker creation
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([point.lng, point.lat])
-        .setPopup(popup)
-        .addTo(map.current);
-
-      // Store the marker type for filtering
-      if (point.type === "CrossSection") {
-        marker._type = "crossSection";
-      } else if (point.type === "Waterpump") {
-        marker._type = "pump";
-      } else if (point.type === "WaterLevel") {
-        marker._type = "waterLevel";
-      } else if (point.type === "RainRecorder") {
-        marker._type = "rainRecorder";
-      } else {
-        marker._type = point.type.toLowerCase();
-      }
-
-      console.log("Created marker:", {
-        originalType: point.type,
-        normalizedType: marker._type,
-        point,
-      });
-
-      // Add click handler for chart button
-      const chartButton = popupContent.querySelector(".chart-btn");
-      if (chartButton) {
-        chartButton.onclick = (e) => {
-          e.stopPropagation();
-          toggleChart(point);
+        const markerStyles = {
+          Waterpump: { bgColor: "#4e583b", borderColor: "#677056" },
+          RainRecorder: { bgColor: "#6A7F53", borderColor: "#6A7F53" },
+          WaterLevel: { bgColor: "#677056", borderColor: "#677056" },
+          CrossSection: { bgColor: "#4e583b", borderColor: "#677056" },
+          default: { bgColor: "#6b7280", borderColor: "#9ca3af" },
         };
+
+        const style = markerStyles[point.type] || markerStyles.default;
+        el.style.backgroundColor = style.bgColor;
+        el.style.border = `2px solid ${style.borderColor}`;
+        el.style.boxShadow = "0 0 0 2px rgba(0,0,0,0.1)";
+
+        const icon = document.createElement("img");
+        icon.src = getIconSrc(point.type);
+        icon.className = "w-6 h-6 p-1";
+        icon.style.filter = "brightness(0) invert(1)";
+        el.appendChild(icon);
+
+        const popupContent = document.createElement("div");
+        popupContent.className =
+          point.type === "CrossSection"
+            ? "cross-section-popup-content popup-content"
+            : "standard-popup-content popup-content";
+        popupContent.innerHTML = renderPopupContent(point);
+
+        const popup = new mapboxgl.Popup({
+          offset: 30,
+          className:
+            point.type === "CrossSection"
+              ? "cross-section-popup"
+              : "standard-popup",
+          maxWidth: "400px",
+          closeOnClick: false,
+          closeButton: false,
+        }).setDOMContent(popupContent);
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([point.lng, point.lat])
+          .setPopup(popup)
+          .addTo(map.current);
+
+        // Normalize type keys for storage
+        let key = (point.type || "").toLowerCase();
+        if (key === "waterpump") key = "pump";
+        if (key === "waterlevel") key = "waterlevel";
+        if (key === "rainrecorder") key = "rainrecorder";
+        if (key === "crosssection") key = "crosssection";
+
+        if (!markers.current[key]) markers.current[key] = [];
+        markers.current[key].push(marker);
+        marker._type = key;
+        popups.current.push(popup);
+
+        // Initialize popup internals after small delay
+        setTimeout(() => {
+          if (point.type === "CrossSection") {
+            initializeCrossSectionPopup(popupContent, point);
+          } else {
+            initializeStandardPopup(popupContent, point);
+          }
+          // wire up chart button inside popup if present
+          const chartButton = popupContent.querySelector(".chart-btn");
+          if (chartButton) {
+            chartButton.onclick = (e) => {
+              e.stopPropagation();
+              toggleChart(point);
+            };
+          }
+        }, 50);
+      } catch (err) {
+        console.warn("Failed to create marker for point:", point, err);
       }
-
-      // Initialize popup after a slight delay to ensure DOM is ready
-      setTimeout(() => {
-        if (point.type === "CrossSection") {
-          initializeCrossSectionPopup(popupContent, point);
-        } else {
-          initializeStandardPopup(popupContent, point);
-        }
-      }, 50);
-
-      markers.current.push(marker);
-      popups.current.push(popup);
     });
   }, [pointsToShow]);
 
@@ -2784,8 +2946,10 @@ const Map = ({
     if (!map.current) return;
 
     // Remove existing flood incident markers
-    markers.current.forEach((marker) => marker.remove());
-    markers.current = [];
+    Object.values(markers.current).forEach((markersOfType) => {
+      markersOfType.forEach((marker) => marker.remove());
+    });
+    markers.current = {};
     popups.current.forEach((popup) => popup.remove());
     popups.current = [];
 
@@ -2882,10 +3046,12 @@ const Map = ({
         .setPopup(popup)
         .addTo(map.current);
 
+      // Store the flood incident marker
+      markers.current.flood.push(marker);
+
       // Set marker type for filtering
       marker._type = "floodIncident";
 
-      markers.current.push(marker);
       popups.current.push(popup);
     });
 
@@ -3238,27 +3404,33 @@ const Map = ({
     }, 100);
 
     return () => {
-      // Clean up markers
-      markers.current.forEach((marker) => {
-        if (marker.marker && typeof marker.marker.remove === "function") {
-          marker.marker.remove();
-        }
-        if (marker.popup && typeof marker.popup.remove === "function") {
-          marker.popup.remove();
-        }
-        if (marker.element && marker.element.parentNode) {
-          marker.element.parentNode.removeChild(marker.element);
-        }
-      });
+      // Clean up markers (mapboxgl.Marker instances)
+      try {
+        Object.values(markers.current || {}).forEach((markerArray) => {
+          if (!Array.isArray(markerArray)) return;
+          markerArray.forEach((marker) => {
+            try {
+              if (marker && typeof marker.remove === "function")
+                marker.remove();
+            } catch (e) {
+              // ignore
+            }
+          });
+        });
+      } catch (err) {
+        // ignore
+      }
 
       // Clean up popups
-      popups.current.forEach((popup) => {
-        if (popup && typeof popup.remove === "function") {
-          popup.remove();
-        }
-      });
+      try {
+        popups.current.forEach((popup) => {
+          if (popup && typeof popup.remove === "function") popup.remove();
+        });
+      } catch (err) {
+        // ignore
+      }
 
-      markers.current = [];
+      markers.current = {};
       popups.current = [];
 
       if (map.current) {
@@ -3266,7 +3438,7 @@ const Map = ({
         map.current = null;
       }
     };
-  }, [setupRainEffect, lightPreset, labelVisibility, updateMarkers]);
+  }, [setupRainEffect]);
 
   // Time-based updates
   useEffect(() => {
@@ -3361,72 +3533,87 @@ const Map = ({
         </div>
       )}
 
-      <button
-        onClick={() => setControlsVisible(!controlsVisible)}
-        className="absolute bottom-5 right-9 bg-white p-2 rounded-lg shadow-md z-10 hover:bg-gray-100 transition-colors"
-        aria-label="Toggle controls"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+      <>
+        <button
+          key={`control-btn-${forceUpdateKey}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.nativeEvent?.stopImmediatePropagation?.();
+            setControlsVisible((prev) => !prev);
+          }}
+          className="absolute bottom-5 right-9 bg-white p-2 rounded-lg shadow-md z-[1000] hover:bg-gray-100 transition-colors cursor-pointer"
+          aria-label="Toggle controls"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 6h16M4 12h16M4 18h16"
-          />
-        </svg>
-      </button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
 
-      {controlsVisible && (
-        <div className="absolute bottom-5 right-24 bg-white p-4 rounded-lg shadow-md z-10 w-64">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Light Preset
-            </label>
-            <select
-              id="lightPreset"
-              value={lightPreset}
-              onChange={handleLightPresetChange}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm"
-            >
-              <option value="dawn">Dawn</option>
-              <option value="day">Day</option>
-              <option value="dusk">Dusk</option>
-              <option value="night">Night</option>
-            </select>
-          </div>
+        {controlsVisible && (
+          <div
+            key={`control-panel-${forceUpdateKey}`}
+            className="absolute bottom-5 right-24 bg-white p-4 rounded-lg shadow-md z-[1000] w-64"
+            onClick={(e) => {
+              if (!controlsReady) return;
+              e.stopPropagation();
+              e.nativeEvent?.stopImmediatePropagation?.();
+            }}
+          >
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Light Preset
+              </label>
+              <select
+                id="lightPreset"
+                value={lightPreset}
+                onChange={handleLightPresetChange}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="dawn">Dawn</option>
+                <option value="day">Day</option>
+                <option value="dusk">Dusk</option>
+                <option value="night">Night</option>
+              </select>
+            </div>
 
-          <div className="space-y-3">
-            {Object.entries({
-              showPlaceLabels: "Place Labels",
-              showPointOfInterestLabels: "POI Labels",
-              showRoadLabels: "Road Labels",
-              showTransitLabels: "Transit Labels",
-            }).map(([key, label]) => (
-              <div key={key} className="flex items-center justify-between">
-                <label
-                  htmlFor={key}
-                  className="text-sm font-medium text-gray-700"
-                >
-                  {label}
-                </label>
-                <input
-                  type="checkbox"
-                  id={key}
-                  checked={labelVisibility[key]}
-                  onChange={handleLabelVisibilityChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-              </div>
-            ))}
+            <div className="space-y-3">
+              {Object.entries({
+                showPlaceLabels: "Place Labels",
+                showPointOfInterestLabels: "POI Labels",
+                showRoadLabels: "Road Labels",
+                showTransitLabels: "Transit Labels",
+              }).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between">
+                  <label
+                    htmlFor={key}
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    {label}
+                  </label>
+                  <input
+                    type="checkbox"
+                    id={key}
+                    checked={labelVisibility[key]}
+                    onChange={handleLabelVisibilityChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </>
 
       {showFloodLayer && !showVulnerabilityLayer && (
         <FloodLayer

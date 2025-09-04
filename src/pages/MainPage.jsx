@@ -19,55 +19,68 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
 
   // Memoize toggle handlers
   // Memoize toggle callbacks with useCallback to prevent recreation on each render
-  const togglePumps = useCallback(() => setShowPumps(prev => !prev), []);
-  const toggleWaterLevels = useCallback(() => setShowWaterLevels(prev => !prev), []);
-  const toggleRainRecorders = useCallback(() => setShowRainRecorders(prev => !prev), []);
-  const toggleRivers = useCallback(() => setShowRivers(prev => !prev), []);
-  const toggleCrossSections = useCallback(() => setShowCrossSections(prev => !prev), []);
-  
+  const togglePumps = useCallback(() => setShowPumps((prev) => !prev), []);
+  const toggleWaterLevels = useCallback(
+    () => setShowWaterLevels((prev) => !prev),
+    []
+  );
+  const toggleRainRecorders = useCallback(
+    () => setShowRainRecorders((prev) => !prev),
+    []
+  );
+  const toggleRivers = useCallback(() => setShowRivers((prev) => !prev), []);
+  const toggleCrossSections = useCallback(
+    () => setShowCrossSections((prev) => !prev),
+    []
+  );
+
   // Memoize the controls props to prevent unnecessary re-renders
-  const controlsProps = useMemo(() => ({
-    showPumps,
-    showWaterLevels,
-    showRainRecorders,
-    showRivers,
-    showCrossSections,
-    onTogglePumps: togglePumps,
-    onToggleWaterLevels: toggleWaterLevels,
-    onToggleRainRecorders: toggleRainRecorders,
-    onToggleRivers: toggleRivers,
-    onToggleCrossSections: toggleCrossSections,
-  }), [
-    showPumps,
-    showWaterLevels,
-    showRainRecorders,
-    showRivers,
-    showCrossSections,
-    togglePumps,
-    toggleWaterLevels,
-    toggleRainRecorders,
-    toggleRivers,
-    toggleCrossSections,
-  ]);
+  const controlsProps = useMemo(
+    () => ({
+      showPumps,
+      showWaterLevels,
+      showRainRecorders,
+      showRivers,
+      showCrossSections,
+      onTogglePumps: togglePumps,
+      onToggleWaterLevels: toggleWaterLevels,
+      onToggleRainRecorders: toggleRainRecorders,
+      onToggleRivers: toggleRivers,
+      onToggleCrossSections: toggleCrossSections,
+    }),
+    [
+      showPumps,
+      showWaterLevels,
+      showRainRecorders,
+      showRivers,
+      showCrossSections,
+      togglePumps,
+      toggleWaterLevels,
+      toggleRainRecorders,
+      toggleRivers,
+      toggleCrossSections,
+    ]
+  );
 
   // Memoize map props to prevent unnecessary re-renders
-  const mapProps = useMemo(() => ({
-    showPumps,
-    showWaterLevels,
-    showRainRecorders,
-    showRivers,
-    showCrossSections,
-    onToggleRivers: toggleRivers,
-    onToggleCrossSections: toggleCrossSections
-  }), [
-    showPumps,
-    showWaterLevels,
-    showRainRecorders,
-    showRivers,
-    showCrossSections,
-    toggleRivers,
-    toggleCrossSections
-  ]);
+  // Keep mapProps stable to avoid re-rendering the Map when UI toggles change.
+  const mapProps = useMemo(
+    () => ({
+      // Map reads layer visibility via events; keep props minimal and stable
+      onTogglePumps: togglePumps,
+      onToggleWaterLevels: toggleWaterLevels,
+      onToggleRainRecorders: toggleRainRecorders,
+      onToggleRivers: toggleRivers,
+      onToggleCrossSections: toggleCrossSections,
+    }),
+    [
+      togglePumps,
+      toggleWaterLevels,
+      toggleRainRecorders,
+      toggleRivers,
+      toggleCrossSections,
+    ]
+  );
 
   return (
     <div className="w-full h-screen flex flex-col bg-blue-900">

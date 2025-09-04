@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from "react";
 
 const CrossSectionButton = ({ isActive, onClick, hidden }) => (
@@ -7,6 +8,13 @@ const CrossSectionButton = ({ isActive, onClick, hidden }) => (
       e.preventDefault();
       e.stopPropagation();
       if (onClick) onClick();
+      try {
+        window.dispatchEvent(
+          new CustomEvent("toggle-layer", { detail: { layer: "crosssection" } })
+        );
+      } catch (err) {
+        // ignore
+      }
     }}
     className={`flex items-center justify-center p-1 rounded-lg transition-all ${
       isActive
@@ -42,6 +50,13 @@ const RiverBodyButton = ({ isActive, onClick, hidden }) => (
       e.preventDefault();
       e.stopPropagation();
       if (onClick) onClick();
+      try {
+        window.dispatchEvent(
+          new CustomEvent("toggle-layer", { detail: { layer: "rivers" } })
+        );
+      } catch (err) {
+        // ignore
+      }
     }}
     className={`flex items-center justify-center p-1 rounded-lg transition-all ${
       isActive
@@ -77,6 +92,13 @@ const PumpButton = ({ isActive, onClick, hidden }) => (
       e.preventDefault();
       e.stopPropagation();
       if (onClick) onClick();
+      try {
+        window.dispatchEvent(
+          new CustomEvent("toggle-layer", { detail: { layer: "pumps" } })
+        );
+      } catch (err) {
+        // ignore
+      }
     }}
     className={`flex items-center justify-center p-1 rounded-lg transition-all ${
       isActive
@@ -112,6 +134,13 @@ const WaterLevelButton = ({ isActive, onClick, hidden }) => (
       e.preventDefault();
       e.stopPropagation();
       if (onClick) onClick();
+      try {
+        window.dispatchEvent(
+          new CustomEvent("toggle-layer", { detail: { layer: "waterlevels" } })
+        );
+      } catch (err) {
+        // ignore
+      }
     }}
     className={`flex items-center justify-center p-1 rounded-lg transition-all ${
       isActive
@@ -147,6 +176,15 @@ const RainRecorderButton = ({ isActive, onClick, hidden }) => (
       e.preventDefault();
       e.stopPropagation();
       if (onClick) onClick();
+      try {
+        window.dispatchEvent(
+          new CustomEvent("toggle-layer", {
+            detail: { layer: "rainrecorders" },
+          })
+        );
+      } catch (err) {
+        // ignore
+      }
     }}
     className={`flex items-center justify-center p-1 rounded-lg transition-all ${
       isActive
@@ -212,7 +250,8 @@ const PumpControls = ({
       window.removeEventListener("welcomeHidden", onHide);
     };
   }, []);
-  const containerClass = `fixed right-[35px] top-1/2 transform -translate-y-1/2 z-10 flex flex-col gap-3 transition-all duration-200 ${
+  // Increased z-index so controls remain above map overlays/popups that may be added later
+  const containerClass = `fixed right-[35px] top-1/2 transform -translate-y-1/2 z-[9999] flex flex-col gap-3 transition-all duration-200 ${
     hidden
       ? "opacity-0 pointer-events-none scale-95 translate-x-2"
       : "opacity-100 pointer-events-auto scale-100"
