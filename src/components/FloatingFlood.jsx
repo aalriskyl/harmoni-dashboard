@@ -165,17 +165,17 @@ const FloatingFlood = ({ setShowWeather }) => {
   const handleRainfallChange = (e) => {
     const newRainfall = parseInt(e.target.value);
     setRainfallAmount(newRainfall);
-    
+
     // Update rain animation based on rainfall amount
-    const rainContainer = document.querySelector('.rain-container');
+    const rainContainer = document.querySelector(".rain-container");
     if (rainContainer) {
       if (newRainfall > 0) {
         // Calculate opacity based on rainfall (0.3 to 1.0)
         const intensity = Math.min(0.3 + (newRainfall / 150) * 0.7, 1.0);
         rainContainer.style.opacity = intensity;
-        rainContainer.style.display = 'block';
+        rainContainer.style.display = "block";
       } else {
-        rainContainer.style.display = 'none';
+        rainContainer.style.display = "none";
       }
     }
   };
@@ -390,9 +390,9 @@ const FloatingFlood = ({ setShowWeather }) => {
     setRainfallAmount(0); // Reset to 0 to turn off rain animation
 
     // Hide rain animation when stopping simulation
-    const rainContainer = document.querySelector('.rain-container');
+    const rainContainer = document.querySelector(".rain-container");
     if (rainContainer) {
-      rainContainer.style.display = 'none';
+      rainContainer.style.display = "none";
     }
 
     // Clear any active flood/raster layers
@@ -787,7 +787,7 @@ const FloatingFlood = ({ setShowWeather }) => {
           onClick={runSimulation}
           className="w-full justify-center rounded-md bg-[#a49d93] px-3 py-2 text-sm font-semibold text-white shadow-sm disabled:cursor-not-allowed"
         >
-          Hydrodinamic-Based Flood Simulation
+          Hydrodynamic-Based Flood Simulation
         </button>
       </div>
     </div>

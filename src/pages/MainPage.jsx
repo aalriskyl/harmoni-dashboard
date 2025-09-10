@@ -63,10 +63,13 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
   );
 
   // Memoize map props to prevent unnecessary re-renders
-  // Keep mapProps stable to avoid re-rendering the Map when UI toggles change.
   const mapProps = useMemo(
     () => ({
-      // Map reads layer visibility via events; keep props minimal and stable
+      showPumps,
+      showWaterLevels,
+      showRainRecorders,
+      showRivers,
+      showCrossSections,
       onTogglePumps: togglePumps,
       onToggleWaterLevels: toggleWaterLevels,
       onToggleRainRecorders: toggleRainRecorders,
@@ -74,6 +77,11 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
       onToggleCrossSections: toggleCrossSections,
     }),
     [
+      showPumps,
+      showWaterLevels,
+      showRainRecorders,
+      showRivers,
+      showCrossSections,
       togglePumps,
       toggleWaterLevels,
       toggleRainRecorders,
