@@ -3686,13 +3686,13 @@ const Map = ({
             e.nativeEvent?.stopImmediatePropagation?.();
             setControlsVisible((prev) => !prev);
           }}
-          className="absolute bottom-5 right-9 bg-white p-2 rounded-lg shadow-md z-[1000] hover:bg-gray-100 transition-colors cursor-pointer"
-          style={{ transform: "scale(0.75)", transformOrigin: "bottom right" }}
+          className="absolute bottom-16 right-9 bg-white p-2 rounded-lg shadow-md z-[20] hover:bg-gray-100 transition-colors cursor-pointer"
+          style={{ transform: "scale(1)", transformOrigin: "bottom right" }}
           aria-label="Toggle controls"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
+            className="h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -3709,9 +3709,9 @@ const Map = ({
         {controlsVisible && (
           <div
             key={`control-panel-${forceUpdateKey}`}
-            className="absolute bottom-5 right-24 bg-white p-4 rounded-lg shadow-md z-[1000] w-64"
+            className="absolute bottom-16 right-20 bg-white p-4 rounded-lg shadow-md z-[1000] w-64"
             style={{
-              transform: "scale(0.75)",
+              transform: "scale(1)",
               transformOrigin: "bottom right",
             }}
             onClick={(e) => {

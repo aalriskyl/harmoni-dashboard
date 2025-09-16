@@ -29,8 +29,8 @@ const CrossSectionButton = ({ isActive, onClick, hidden }) => (
           filter: hidden
             ? undefined
             : isActive
-            ? "brightness(0) saturate(120%) invert(96%) sepia(8%) saturate(260%) hue-rotate(343deg) brightness(100%) contrast(110%)" // stronger for active
-            : "brightness(0) saturate(120%) invert(36%) sepia(6%) saturate(1300%) hue-rotate(349deg) brightness(96%) contrast(100%)", // stronger for inactive
+            ? "brightness(0) saturate(120%) invert(96%) sepia(8%) saturate(260%) hue-rotate(343deg) brightness(100%) contrast(110%)"
+            : "brightness(0) saturate(120%) invert(36%) sepia(6%) saturate(1300%) hue-rotate(349deg) brightness(96%) contrast(100%)",
         }}
       />
     </div>
@@ -437,26 +437,38 @@ const PumpControls = ({
     }
     return String(r);
   };
+  const deviceTypeLabel =
+    datasets.find((d) => d.key === selectedDataset)?.label || "Devices";
+  const locationLabel = `${selectedKota || "All Kota"}, ${
+    selectedKecamatan || "All Kecamatan"
+  }, ${selectedKelurahan || "All Kelurahan"}`;
 
   return (
     <>
-      {/* Full-height search panel (100% height) rendered unscaled to the left of the controls */}
-      {/* Collapsed search card when closed (small card like reference image) */}
-      {dataExplorerVisible && !searchOpen && (
+      {dataExplorerVisible && (
         <div
-          className="fixed z-40 right-[80px] top-[60.3%] transform -translate-y-1/2  bg-white shadow-md"
-          style={{ borderRadius: 12, padding: "0.75rem" }}
+          className="fixed z-40 right-[80px] bg-white shadow-md max-w-[360px]"
+          style={{
+            borderRadius: 12,
+            padding: "1rem",
+            top: searchOpen ? "306px" : "306px",
+            width: searchOpen ? 360 : 360,
+            maxWidth: "90vw",
+          }}
         >
-          <div className="mb-2">
-            <p className="text-lg font-semibold">Data Explorer</p>
-            <hr className="mt-2 mb-2 border-gray-300" />
-            <p className="text-sm text-black font-medium">
-              Search and filter monitoring data based on type and location.
+          {/* Shared header and filter controls (render once) */}
+          <div className="mb-3 overflow-y-hidden">
+            <p className="text-xl font-semibold">Data Explorer</p>
+            <p className="block mb-4 text-sm text-black font-medium mt-2">
+              {searchOpen
+                ? `${deviceTypeLabel} in ${locationLabel}`
+                : "Search and filter monitoring data based on type and location."}
             </p>
           </div>
-          <div className="mt-3">
+
+          <div className={searchOpen ? "hidden mb-4" : "block"}>
             <label className="text-sm text-gray-700 block mb-1">
-              Select dataset
+              Select monitoring element:
             </label>
             <select
               value={selectedDataset}
@@ -473,13 +485,12 @@ const PumpControls = ({
             <p className="text-sm text-gray-700">Select location:</p>
             <div className="space-y-2">
               <div>
-                <label className="text-xs text-gray-500">Kota</label>
                 <select
                   value={selectedKota}
                   onChange={(e) => setSelectedKota(e.target.value)}
                   className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
                 >
-                  <option value="">-- all kota --</option>
+                  <option value="">Kota</option>
                   {kotaOptions.map((k) => (
                     <option key={k} value={k}>
                       {k}
@@ -488,14 +499,13 @@ const PumpControls = ({
                 </select>
               </div>
               <div className="flex flex-row gap-2">
-                <div>
-                  <label className="text-xs text-gray-500">Kecamatan</label>
+                <div className="flex-1">
                   <select
                     value={selectedKecamatan}
                     onChange={(e) => setSelectedKecamatan(e.target.value)}
                     className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
                   >
-                    <option value="">-- all kecamatan --</option>
+                    <option value="">Kecamatan</option>
                     {kecamatanOptions.map((k) => (
                       <option key={k} value={k}>
                         {k}
@@ -503,127 +513,13 @@ const PumpControls = ({
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs text-gray-500">Kelurahan</label>
+                <div className="flex-1">
                   <select
                     value={selectedKelurahan}
                     onChange={(e) => setSelectedKelurahan(e.target.value)}
                     className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
                   >
-                    <option value="">-- all kelurahan --</option>
-                    {kelurahanOptions.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              className="w-full py-2 rounded-full bg-[#636059] text-white font-semibold"
-            >
-              Find Data
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Full-height expanded search panel when opened */}
-      {dataExplorerVisible && searchOpen && (
-        <div
-          className="fixed z-40 right-[80px] top-[37.5%] h-auto max-h-[490px] max-w-[360px] w-full bg-white rounded-xl"
-          style={{
-            padding: "1rem",
-            boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {/* Header section - fixed */}
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-gray-800">
-              Data Explorer
-            </h3>
-            <button
-              type="button"
-              onClick={() => setSearchOpen(false)}
-              className="p-2 rounded-md bg-gray-100 hover:bg-gray-200"
-              aria-label="Close search"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Filter controls section - fixed */}
-          <div className="text-sm text-gray-700 mb-4">
-            <p className="mb-3">
-              Search and filter monitoring data based on type and location.
-            </p>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-700 block mb-1">
-                  Select dataset
-                </label>
-                <select
-                  value={selectedDataset}
-                  onChange={(e) => setSelectedDataset(e.target.value)}
-                  className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
-                >
-                  {datasets.map((d) => (
-                    <option key={d.key} value={d.key}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm text-gray-700 block mb-1">Kota</label>
-                <select
-                  value={selectedKota}
-                  onChange={(e) => setSelectedKota(e.target.value)}
-                  className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
-                >
-                  <option value="">-- all kota --</option>
-                  {kotaOptions.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-row gap-2">
-                <div>
-                  <label className="text-sm text-gray-700 block mb-1">
-                    Kecamatan
-                  </label>
-                  <select
-                    value={selectedKecamatan}
-                    onChange={(e) => setSelectedKecamatan(e.target.value)}
-                    className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
-                  >
-                    <option value="">-- all kecamatan --</option>
-                    {kecamatanOptions.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-700 block mb-1">
-                    Kelurahan
-                  </label>
-                  <select
-                    value={selectedKelurahan}
-                    onChange={(e) => setSelectedKelurahan(e.target.value)}
-                    className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
-                  >
-                    <option value="">-- all kelurahan --</option>
+                    <option value="">Kelurahan</option>
                     {kelurahanOptions.map((k) => (
                       <option key={k} value={k}>
                         {k}
@@ -635,166 +531,270 @@ const PumpControls = ({
             </div>
           </div>
 
-          {/* Card list section - scrollable */}
-          <div className="overflow-y-auto" style={{ maxHeight: "200px" }}>
-            <div className="mt-6">
-              {/** render matching features from the loaded geojson */}
-              {features
-                .filter((f) => {
-                  const p = f.properties || {};
-                  if (
-                    selectedKota &&
-                    !(p.Kota === selectedKota || p.kota === selectedKota)
-                  )
-                    return false;
-                  if (
-                    selectedKecamatan &&
-                    !(
-                      p.Kecamatan === selectedKecamatan ||
-                      p.kecamatan === selectedKecamatan
-                    )
-                  )
-                    return false;
-                  if (
-                    selectedKelurahan &&
-                    !(
-                      p.Kelurahan === selectedKelurahan ||
-                      p.kelurahan === selectedKelurahan
-                    )
-                  )
-                    return false;
-                  return true;
-                })
-                .slice(0, 20) // limit results
-                .map((f, idx) => {
-                  const p = f.properties || {};
-                  // pick sensible display fields
-                  const title =
-                    p.AWLR_Name ||
-                    p.Pompa ||
-                    p.Name ||
-                    p.AWRL_Name ||
-                    p.Device_ID ||
-                    `Feature ${idx + 1}`;
-                  const id =
-                    p.Device_ID || p.DeviceId || p.Pompa || p.id || `id-${idx}`;
-                  const reading =
-                    p.Reading ||
-                    p.reading ||
-                    p.Capacity ||
-                    p["Reading_(+6hr)"] ||
-                    "N/A";
-                  // choose icon based on selected dataset
-                  const iconSrc =
-                    selectedDataset === "ARR"
-                      ? "/assets/img/rain-gauge-icon.svg"
-                      : selectedDataset === "AWLR"
-                      ? "/assets/img/water-level-icon.svg"
-                      : "/assets/img/pump-icon.svg";
+          {/* Collapsed: only show Find Data button */}
+          <div className={searchOpen ? "hidden" : "block"}>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="w-full py-2 rounded-md bg-[#636059] text-white font-semibold"
+              >
+                Find Data
+              </button>
+            </div>
+          </div>
 
-                  return (
-                    <div
-                      key={idx}
-                      role="button"
-                      title={`Zoom to ${title}`}
-                      onClick={() => {
-                        try {
-                          let coords = null;
-                          if (f && f.geometry) {
-                            const g = f.geometry;
-                            if (g.type === "Point") coords = g.coordinates;
-                            else if (Array.isArray(g.coordinates)) {
-                              // line or polygon: take first coord fallback
-                              const first = g.coordinates[0];
-                              coords = Array.isArray(first[0])
-                                ? first[0]
-                                : first;
-                            }
-                          }
-                          // try common property fallbacks
-                          if (!coords) {
-                            if (p.longitude && p.latitude)
-                              coords = [p.longitude, p.latitude];
-                            else if (
-                              (p.Longitude || p.Lon || p.lon) &&
-                              (p.Latitude || p.Lat || p.lat)
+          {/* Expanded: header + results (only results are toggled) */}
+          <div className={searchOpen ? "block" : "hidden"}>
+            <div className="my-4">
+              <button
+                type="button"
+                onClick={() => setSearchOpen(false)}
+                className="w-full py-2 rounded-md bg-[#636059] text-white font-medium"
+                aria-label="Close search"
+              >
+                Stop Filtering
+              </button>
+            </div>
+
+            <div
+              className="overflow-y-auto"
+              style={{ maxHeight: searchOpen ? "50vh" : "auto" }}
+            >
+              <div className="">
+                {/** render matching features from the loaded geojson */}
+                {features
+                  .filter((f) => {
+                    const p = f.properties || {};
+                    if (
+                      selectedKota &&
+                      !(p.Kota === selectedKota || p.kota === selectedKota)
+                    )
+                      return false;
+                    if (
+                      selectedKecamatan &&
+                      !(
+                        p.Kecamatan === selectedKecamatan ||
+                        p.kecamatan === selectedKecamatan
+                      )
+                    )
+                      return false;
+                    if (
+                      selectedKelurahan &&
+                      !(
+                        p.Kelurahan === selectedKelurahan ||
+                        p.kelurahan === selectedKelurahan
+                      )
+                    )
+                      return false;
+                    return true;
+                  })
+                  .slice(0, 20)
+                  .map((f, idx) => {
+                    const p = f.properties || {};
+                    const title =
+                      p.AWLR_Name ||
+                      p.Pompa ||
+                      p.Name ||
+                      p.AWRL_Name ||
+                      p.Device_ID ||
+                      `Feature ${idx + 1}`;
+                    const id =
+                      p.Device_ID ||
+                      p.DeviceId ||
+                      p.Pompa ||
+                      p.id ||
+                      `id-${idx}`;
+                    const reading =
+                      p.Reading ||
+                      p.reading ||
+                      p.Capacity ||
+                      p["Reading_(+6hr)"] ||
+                      "N/A";
+                    const iconSrc =
+                      selectedDataset === "ARR"
+                        ? "/assets/img/rain-gauge-icon.svg"
+                        : selectedDataset === "AWLR"
+                        ? "/assets/img/water-level-icon.svg"
+                        : "/assets/img/pump-icon.svg";
+
+                    // derive status value and color class
+                    let statusValue = null;
+                    const dc =
+                      p.Device_Condition ||
+                      p.device_condition ||
+                      p.deviceCondition;
+                    if (dc !== undefined && dc !== null) {
+                      if (typeof dc === "string" || typeof dc === "number") {
+                        statusValue = String(dc);
+                      } else if (typeof dc === "object") {
+                        const prefer = [
+                          "Condition",
+                          "condition",
+                          "Status",
+                          "status",
+                          "State",
+                          "state",
+                          "Online",
+                          "online",
+                        ];
+                        for (const k of prefer) {
+                          if (k in dc) {
+                            const v = dc[k];
+                            if (
+                              typeof v === "string" ||
+                              typeof v === "number"
                             ) {
-                              coords = [
-                                p.Longitude || p.Lon || p.lon,
-                                p.Latitude || p.Lat || p.lat,
-                              ];
+                              statusValue = String(v);
+                              break;
                             }
                           }
-                          if (
-                            coords &&
-                            Array.isArray(coords) &&
-                            coords.length >= 2
-                          ) {
-                            window.dispatchEvent(
-                              new CustomEvent("feature:focus", {
-                                detail: { coordinates: coords, zoom: 17, id },
-                              })
-                            );
-                          }
-                        } catch (err) {
-                          console.warn("feature focus failed", err);
                         }
-                      }}
-                      className="p-3 bg-gray-100 rounded mb-3 cursor-pointer"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-white rounded shadow">
-                          <img src={iconSrc} alt="icon" className="w-6 h-6" />
-                        </div>
-                        <div className="text-sm w-full">
-                          <div className="font-semibold">{title}</div>
-                          <div className="text-xs text-gray-600">
-                            Device ID: {id}
+                        if (!statusValue) {
+                          try {
+                            const json = JSON.stringify(dc);
+                            statusValue =
+                              json.length > 60
+                                ? json.slice(0, 57) + "..."
+                                : json;
+                          } catch (e) {
+                            // ignore
+                          }
+                        }
+                      }
+                    }
+                    if (!statusValue) {
+                      const statusCandidates = [
+                        p.Status,
+                        p.status,
+                        p.Online,
+                        p.online,
+                        p.State,
+                      ];
+                      const st = statusCandidates.find(
+                        (s) => typeof s === "string" || typeof s === "number"
+                      );
+                      if (st) statusValue = String(st);
+                    }
+                    const statusText = statusValue
+                      ? `Status: ${statusValue}`
+                      : "Status: unknown";
+                    const s = (statusValue || "").toLowerCase();
+                    let statusColorClass = "text-gray-600";
+                    if (
+                      s.includes("good") ||
+                      s.includes("ok") ||
+                      s.includes("online") ||
+                      s.includes("operational") ||
+                      s.includes("normal") ||
+                      s.includes("available")
+                    ) {
+                      statusColorClass = "text-green-600";
+                    } else if (
+                      s.includes("poor") ||
+                      s.includes("bad") ||
+                      s.includes("offline") ||
+                      s.includes("broken") ||
+                      s.includes("fault") ||
+                      s.includes("no") ||
+                      s.includes("fail")
+                    ) {
+                      statusColorClass = "text-red-600";
+                    } else if (
+                      s.includes("warn") ||
+                      s.includes("partial") ||
+                      s.includes("maintenance") ||
+                      s.includes("unknown") ||
+                      s.includes("degraded")
+                    ) {
+                      statusColorClass = "text-yellow-600";
+                    }
+
+                    return (
+                      <div
+                        key={idx}
+                        role="button"
+                        title={`Zoom to ${title}`}
+                        onClick={() => {
+                          try {
+                            let coords = null;
+                            if (f && f.geometry) {
+                              const g = f.geometry;
+                              if (g.type === "Point") coords = g.coordinates;
+                              else if (Array.isArray(g.coordinates)) {
+                                const first = g.coordinates[0];
+                                coords = Array.isArray(first[0])
+                                  ? first[0]
+                                  : first;
+                              }
+                            }
+                            if (!coords) {
+                              if (p.longitude && p.latitude)
+                                coords = [p.longitude, p.latitude];
+                              else if (
+                                (p.Longitude || p.Lon || p.lon) &&
+                                (p.Latitude || p.Lat || p.lat)
+                              )
+                                coords = [
+                                  p.Longitude || p.Lon || p.lon,
+                                  p.Latitude || p.Lat || p.lat,
+                                ];
+                            }
+                            if (
+                              coords &&
+                              Array.isArray(coords) &&
+                              coords.length >= 2
+                            )
+                              window.dispatchEvent(
+                                new CustomEvent("feature:focus", {
+                                  detail: { coordinates: coords, zoom: 17, id },
+                                })
+                              );
+                          } catch (err) {
+                            console.warn("feature focus failed", err);
+                          }
+                        }}
+                        className="p-3 bg-gray-100 rounded mb-3 cursor-pointer"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-white rounded shadow">
+                            <img src={iconSrc} alt="icon" className="w-6 h-6" />
                           </div>
-                          {reading !== "N/A" && (
-                            <div className="text-xs text-gray-600">
-                              Reading: {formatReading(reading)}
+                          <div className="text-sm w-full">
+                            <div className="font-semibold truncate">
+                              {title}
                             </div>
-                          )}
-                          {p.Kota && (
-                            <div className="text-xs text-gray-600">
-                              Kota: {p.Kota}
+                            <div className="text-xs text-gray-600 mt-1">
+                              <div className="text-xs">Device ID: {id}</div>
+                              <div className="text-xs">
+                                Reading: {formatReading(reading)} m
+                              </div>
+                              {p["Reading_(+6hr)"] || p["Reading (+6hr)"] ? (
+                                <div className="text-xs">
+                                  Reading (+6hr):{" "}
+                                  {formatReading(
+                                    p["Reading_(+6hr)"] || p["Reading (+6hr)"]
+                                  )}
+                                </div>
+                              ) : null}
+                              <div
+                                className={`text-xs font-medium mt-1 ${statusColorClass}`}
+                              >
+                                {statusText}
+                              </div>
                             </div>
-                          )}
-                          {p.Kecamatan && (
-                            <div className="text-xs text-gray-600">
-                              Kecamatan: {p.Kecamatan}
-                            </div>
-                          )}
-                          {p.Kelurahan && (
-                            <div className="text-xs text-gray-600">
-                              Kelurahan: {p.Kelurahan}
-                            </div>
-                          )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              {features.length === 0 && (
-                <div className="p-3 text-sm text-gray-600">
-                  No data loaded for the selected dataset.
-                </div>
-              )}
-            </div>
-            {/* kept a single placeholder example card for UX */}
-            <div className="p-4 bg-gray-100 rounded mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 flex items-center justify-center bg-white rounded shadow">
-                  ☁️
-                </div>
-                <div className="text-sm">
-                  <div>Example device card (UI placeholder)</div>
-                  <div className="text-xs text-gray-600">
-                    Use real data by selecting a dataset
+                    );
+                  })}
+                {features.length === 0 && (
+                  <div className="p-3 text-sm text-gray-600">
+                    No data loaded for the selected dataset.
                   </div>
-                </div>
+                )}
               </div>
+              {/* kept a single placeholder example card for UX */}
             </div>
           </div>
         </div>

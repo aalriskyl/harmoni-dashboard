@@ -50,7 +50,7 @@ const FloatingFlood = ({ setShowWeather }) => {
 
     return (
       <div
-        className={`absolute bottom-[80px] right-[2px] bg-white/90 p-3 rounded-md shadow-md z-20 border border-gray-200 ${className}`}
+        className={`absolute bottom-12  right-20 bg-white/90 p-3 rounded-md shadow-md z-20 border border-gray-200 ${className}`}
       >
         <div className="text-sm font-medium text-gray-700 mb-2">{title}</div>
 
