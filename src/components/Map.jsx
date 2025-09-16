@@ -2922,6 +2922,30 @@ const Map = ({
           if (popupEl) {
             // cheap replace: set innerHTML again
             popupEl.innerHTML = renderPopupContent(point);
+            // Attach close button handlers so the internal "x" closes the popup
+            try {
+              const closeBtns = popupEl.querySelectorAll(".close-popup");
+              closeBtns.forEach((btn) => {
+                // remove any existing listener by cloning the node to avoid duplicates
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                newBtn.addEventListener("click", (ev) => {
+                  ev.stopPropagation();
+                  try {
+                    if (
+                      existing &&
+                      existing.popup &&
+                      typeof existing.popup.remove === "function"
+                    )
+                      existing.popup.remove();
+                  } catch (e) {
+                    // ignore
+                  }
+                });
+              });
+            } catch (e) {
+              // ignore
+            }
             // re-initialize internals
             setTimeout(() => {
               if (point.type === "CrossSection")
@@ -3001,6 +3025,26 @@ const Map = ({
                 e.stopPropagation();
                 toggleChart(point);
               };
+            // Attach close button handlers so the internal "x" closes the popup
+            try {
+              const closeBtns = popupContent.querySelectorAll(".close-popup");
+              closeBtns.forEach((btn) => {
+                // clone to remove previously attached listeners
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                newBtn.addEventListener("click", (ev) => {
+                  ev.stopPropagation();
+                  try {
+                    if (popup && typeof popup.remove === "function")
+                      popup.remove();
+                  } catch (e) {
+                    // ignore
+                  }
+                });
+              });
+            } catch (e) {
+              // ignore
+            }
           }, 50);
         } catch (err) {
           console.warn("Failed to create marker for point:", point, err);

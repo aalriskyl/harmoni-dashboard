@@ -9,7 +9,8 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   border: 1px solid #e2e8f0;
-  width: 10px;
+  width: auto;
+  max-width: 420px;
   max-height: 50vh;
   font-size: 0.8125rem;
   overflow-y: auto;

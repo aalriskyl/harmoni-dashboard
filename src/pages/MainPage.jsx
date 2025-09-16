@@ -100,7 +100,7 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
           {/* Floating container positioned relative to the map */}
           <div
             className={`absolute left-8 ${
-              showWeather ? "top-72" : "top-32"
+              showWeather ? "top-76" : "top-32"
             } z-30 transition-all duration-300`}
           >
             <div className="flex flex-col gap-4">

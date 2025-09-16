@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import SearchButton from "./SearchButton";
 
 const CrossSectionButton = ({ isActive, onClick, hidden }) => (
@@ -396,6 +396,59 @@ const PumpControls = ({
       if (el) el.remove();
     };
   }, []);
+
+  // Inject select/option styling used by the Data Explorer dropdowns
+  useEffect(() => {
+    const styleId = "pumpcontrols-select-style";
+    if (document.getElementById(styleId)) return;
+    const s = document.createElement("style");
+    s.id = styleId;
+    s.textContent = `
+      /* PumpControls: more consistent select/option visuals */
+      .pump-select { 
+        -webkit-appearance: none; 
+        -moz-appearance: none; 
+        appearance: none; 
+        background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); 
+        background-position: calc(100% - 0.75rem) calc(50% - 0.15rem), calc(100% - 0.5rem) calc(50% - 0.15rem); 
+        background-size: 6px 6px, 6px 6px; 
+        background-repeat: no-repeat; 
+      }
+      .pump-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+      /* Option styling (may be ignored by some browsers) */
+      .pump-select option { padding: 0.5rem 0.75rem; color: #111827; background: #ffffff; }
+    `;
+    document.head.appendChild(s);
+    return () => {
+      const el = document.getElementById(styleId);
+      if (el) el.remove();
+    };
+  }, []);
+  // Refs + open state for custom dropdowns (dataset + location columns)
+  const datasetRef = useRef(null);
+  const kotaRef = useRef(null);
+  const kecRef = useRef(null);
+  const kelRef = useRef(null);
+  const [openDataset, setOpenDataset] = useState(false);
+  const [openKota, setOpenKota] = useState(false);
+  const [openKec, setOpenKec] = useState(false);
+  const [openKel, setOpenKel] = useState(false);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function onDocClick(e) {
+      if (datasetRef.current && !datasetRef.current.contains(e.target))
+        setOpenDataset(false);
+      if (kotaRef.current && !kotaRef.current.contains(e.target))
+        setOpenKota(false);
+      if (kecRef.current && !kecRef.current.contains(e.target))
+        setOpenKec(false);
+      if (kelRef.current && !kelRef.current.contains(e.target))
+        setOpenKel(false);
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
   // SearchButton component imported from ./SearchButton
 
   // format reading values for display (handles primitives, arrays, objects)
@@ -459,7 +512,7 @@ const PumpControls = ({
           {/* Shared header and filter controls (render once) */}
           <div className="mb-3 overflow-y-hidden">
             <p className="text-xl font-semibold">Data Explorer</p>
-            <p className="block mb-4 text-sm text-black font-medium mt-2">
+            <p className="block text-sm text-black font-medium mt-2">
               {searchOpen
                 ? `${deviceTypeLabel} in ${locationLabel}`
                 : "Search and filter monitoring data based on type and location."}
@@ -470,62 +523,221 @@ const PumpControls = ({
             <label className="text-sm text-gray-700 block mb-1">
               Select monitoring element:
             </label>
-            <select
-              value={selectedDataset}
-              onChange={(e) => setSelectedDataset(e.target.value)}
-              className="w-full p-2 rounded bg-white border border-gray-200 mb-3 text-sm"
-            >
-              {datasets.map((d) => (
-                <option key={d.key} value={d.key}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative mt-1" ref={datasetRef}>
+              <button
+                type="button"
+                onClick={() => setOpenDataset((s) => !s)}
+                className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm mb-3"
+              >
+                <span className="block truncate">
+                  {datasets.find((d) => d.key === selectedDataset)?.label ||
+                    "Select dataset"}
+                </span>
+                <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </span>
+              </button>
+              {openDataset && (
+                <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                  {datasets.map((d) => (
+                    <div
+                      key={d.key}
+                      className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                      onClick={() => {
+                        setSelectedDataset(d.key);
+                        setOpenDataset(false);
+                      }}
+                    >
+                      <span className="block truncate font-normal">
+                        {d.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <p className="text-sm text-gray-700">Select location:</p>
             <div className="space-y-2">
-              <div>
-                <select
-                  value={selectedKota}
-                  onChange={(e) => setSelectedKota(e.target.value)}
-                  className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
-                >
-                  <option value="">Kota</option>
-                  {kotaOptions.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
+              <div ref={kotaRef}>
+                <div className="relative mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setOpenKota((s) => !s)}
+                    className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  >
+                    <span className="block truncate">
+                      {selectedKota || "Kota"}
+                    </span>
+                    <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                      <svg
+                        className="h-5 w-5 text-gray-400"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </span>
+                  </button>
+                  {openKota && (
+                    <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                      <div
+                        className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                        onClick={() => {
+                          setSelectedKota("");
+                          setOpenKota(false);
+                        }}
+                      >
+                        <span className="block truncate font-normal">
+                          All Kota
+                        </span>
+                      </div>
+                      {kotaOptions.map((k) => (
+                        <div
+                          key={k}
+                          className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                          onClick={() => {
+                            setSelectedKota(k);
+                            setOpenKota(false);
+                          }}
+                        >
+                          <span className="block truncate font-normal">
+                            {k}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex flex-row gap-2">
-                <div className="flex-1">
-                  <select
-                    value={selectedKecamatan}
-                    onChange={(e) => setSelectedKecamatan(e.target.value)}
-                    className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
-                  >
-                    <option value="">Kecamatan</option>
-                    {kecamatanOptions.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex-1" ref={kecRef}>
+                  <div className="relative mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenKec((s) => !s)}
+                      className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    >
+                      <span className="block truncate">
+                        {selectedKecamatan || "Kecamatan"}
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                        <svg
+                          className="h-5 w-5 text-gray-400"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </span>
+                    </button>
+                    {openKec && (
+                      <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                        <div
+                          className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                          onClick={() => {
+                            setSelectedKecamatan("");
+                            setOpenKec(false);
+                          }}
+                        >
+                          <span className="block truncate font-normal">
+                            All Kecamatan
+                          </span>
+                        </div>
+                        {kecamatanOptions.map((k) => (
+                          <div
+                            key={k}
+                            className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                            onClick={() => {
+                              setSelectedKecamatan(k);
+                              setOpenKec(false);
+                            }}
+                          >
+                            <span className="block truncate font-normal">
+                              {k}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <select
-                    value={selectedKelurahan}
-                    onChange={(e) => setSelectedKelurahan(e.target.value)}
-                    className="w-full p-2 rounded bg-white border border-gray-200 text-sm"
-                  >
-                    <option value="">Kelurahan</option>
-                    {kelurahanOptions.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex-1" ref={kelRef}>
+                  <div className="relative mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenKel((s) => !s)}
+                      className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    >
+                      <span className="block truncate">
+                        {selectedKelurahan || "Kelurahan"}
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                        <svg
+                          className="h-5 w-5 text-gray-400"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </span>
+                    </button>
+                    {openKel && (
+                      <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                        <div
+                          className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                          onClick={() => {
+                            setSelectedKelurahan("");
+                            setOpenKel(false);
+                          }}
+                        >
+                          <span className="block truncate font-normal">
+                            All Kelurahan
+                          </span>
+                        </div>
+                        {kelurahanOptions.map((k) => (
+                          <div
+                            key={k}
+                            className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                            onClick={() => {
+                              setSelectedKelurahan(k);
+                              setOpenKel(false);
+                            }}
+                          >
+                            <span className="block truncate font-normal">
+                              {k}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -765,22 +977,36 @@ const PumpControls = ({
                               {title}
                             </div>
                             <div className="text-xs text-gray-600 mt-1">
-                              <div className="text-xs">Device ID: {id}</div>
-                              <div className="text-xs">
-                                Reading: {formatReading(reading)} m
-                              </div>
-                              {p["Reading_(+6hr)"] || p["Reading (+6hr)"] ? (
-                                <div className="text-xs">
-                                  Reading (+6hr):{" "}
-                                  {formatReading(
-                                    p["Reading_(+6hr)"] || p["Reading (+6hr)"]
-                                  )}
+                              <div className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-1 items-center">
+                                <div className="text-gray-700">Device ID</div>
+                                <div className="truncate">: {id}</div>
+
+                                <div className="text-gray-700">Reading</div>
+                                <div className="truncate">
+                                  : {formatReading(reading)} m
                                 </div>
-                              ) : null}
-                              <div
-                                className={`text-xs font-medium mt-1 ${statusColorClass}`}
-                              >
-                                {statusText}
+
+                                {p["Reading_(+6hr)"] || p["Reading (+6hr)"] ? (
+                                  <>
+                                    <div className="text-gray-700">
+                                      Reading (+6hr)
+                                    </div>
+                                    <div className="truncate">
+                                      :{" "}
+                                      {formatReading(
+                                        p["Reading_(+6hr)"] ||
+                                          p["Reading (+6hr)"]
+                                      )}
+                                    </div>
+                                  </>
+                                ) : null}
+
+                                <div className="text-gray-700">Status</div>
+                                <div
+                                  className={`font-medium ${statusColorClass} truncate`}
+                                >
+                                  : {statusText.replace(/^Status:\s*/i, "")}
+                                </div>
                               </div>
                             </div>
                           </div>
