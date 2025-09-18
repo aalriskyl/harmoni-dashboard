@@ -171,6 +171,8 @@ const Map = ({
   // Cache for rendered cross-section snapshots (dataURL) keyed by point id
   // Use globalThis.Map to avoid shadowing with the `Map` component name
   const crossSectionSnapshotRef = useRef(new globalThis.Map());
+  // Store active Chart.js instances for cross-section keyed by point id
+  const crossSectionChartRef = useRef(new globalThis.Map());
   // Rain canvas fallback for environments without map.setRain
   const rainCanvasRef = useRef(null);
   const rainAnimationRef = useRef(null);
@@ -3585,14 +3587,14 @@ const Map = ({
         try {
           const el = document.createElement("div");
           el.className =
-            "w-8 h-8 rounded-full flex items-center justify-center cursor-pointer";
+            "w-8 h-8 rounded-md flex items-center justify-center cursor-pointer";
 
           const markerStyles = {
-            Waterpump: { bgColor: "#4e583b", borderColor: "#677056" },
-            RainRecorder: { bgColor: "#6A7F53", borderColor: "#6A7F53" },
-            WaterLevel: { bgColor: "#677056", borderColor: "#677056" },
-            CrossSection: { bgColor: "#4e583b", borderColor: "#677056" },
-            default: { bgColor: "#6b7280", borderColor: "#9ca3af" },
+            Waterpump: { bgColor: "#636059", borderColor: "#636059" },
+            RainRecorder: { bgColor: "#636059", borderColor: "#636059" },
+            WaterLevel: { bgColor: "#636059", borderColor: "#636059" },
+            CrossSection: { bgColor: "#636059", borderColor: "#636059" },
+            default: { bgColor: "#636059", borderColor: "#636059" },
           };
 
           const style = markerStyles[point.type] || markerStyles.default;
