@@ -48,35 +48,35 @@ const LocationGraph = ({
 
       console.log("Valid entries found:", validEntries);
 
-      // Filter data for 2020 only
-      const year2020Data = validEntries.filter(
-        (entry) => entry.dateObj.getFullYear() === 2020
-      );
+      // Choose the most recent year available in the data (avoid hard-coding 2020)
+      const years = validEntries
+        .map((entry) => entry.dateObj.getFullYear())
+        .filter(Boolean);
+      const targetYear = years.length ? Math.max(...years) : null;
 
-      console.log("2020 data:", year2020Data);
-
-      if (year2020Data.length === 0) {
+      if (!targetYear) {
         setChartData([]);
         setHasData(false);
         return;
       }
 
-      // Calculate monthly averages for 2020
-      const monthlyAverages = Array(12)
-        .fill(null)
-        .map(() => []);
+      const yearData = validEntries.filter(
+        (entry) => entry.dateObj.getFullYear() === targetYear
+      );
 
-      year2020Data.forEach((entry) => {
+      // Calculate monthly averages for the target year
+      const monthlyAverages = Array.from({ length: 12 }, () => []);
+      yearData.forEach((entry) => {
         const month = entry.dateObj.getMonth(); // 0-11
         monthlyAverages[month].push(entry.value);
       });
 
       const monthlyValues = monthlyAverages.map((monthData) => {
-        if (monthData.length === 0) return null;
+        if (!monthData || monthData.length === 0) return null;
         return monthData.reduce((sum, val) => sum + val, 0) / monthData.length;
       });
 
-      console.log("Monthly averages for 2020:", monthlyValues);
+      console.log(`Monthly averages for ${targetYear}:`, monthlyValues);
       setChartData(monthlyValues);
       setHasData(monthlyValues.some((val) => val !== null && val > 0));
 
@@ -106,16 +106,29 @@ const LocationGraph = ({
       return;
     }
 
-    const ctx = chartRef.current.getContext("2d");
+    // Ensure canvas is properly sized for devicePixelRatio so Chart.js renders crisply
+    const canvas = chartRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    const ctx = canvas.getContext("2d");
+    // set transform so Chart.js draws at correct scale
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Check if we have data
     if (!hasData) {
-      ctx.font = "16px Arial";
+      ctx.font = "14px Inter, Arial, sans-serif";
       ctx.textAlign = "center";
+      ctx.fillStyle = "#6b7280";
+      const cx = canvas.width / dpr / 2;
+      const cy = canvas.height / dpr / 2;
       ctx.fillText(
-        `No ${dataType.toLowerCase()} data available for 2020`,
-        chartRef.current.width / 2,
-        chartRef.current.height / 2
+        `No ${dataType.toLowerCase()} data available for selected year`,
+        cx,
+        cy
       );
       return;
     }

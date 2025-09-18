@@ -1,7 +1,8 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-console */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import MapRaster from "./MapRaster";
+import Timeline from "./Timeline";
 
 const FloatingFlood = ({ setShowWeather }) => {
   const Legend = ({ viewMode, className = "" }) => {
@@ -178,6 +179,39 @@ const FloatingFlood = ({ setShowWeather }) => {
         rainContainer.style.display = "none";
       }
     }
+    // Debounced dispatch of rainfall change so we don't spam events while dragging
+    try {
+      if (!rainfallDispatchRef.current)
+        rainfallDispatchRef.current = { timer: null };
+      if (rainfallDispatchRef.current.timer) {
+        clearTimeout(rainfallDispatchRef.current.timer);
+      }
+      rainfallDispatchRef.current.timer = setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("rainfallChange", {
+            detail: { rainfall: newRainfall },
+          })
+        );
+        rainfallDispatchRef.current.timer = null;
+      }, 80); // throttle to ~80ms
+    } catch (err) {}
+  };
+
+  // Ref to hold debounce timer
+  const rainfallDispatchRef = useRef(null);
+
+  const handleRainSliderCommit = (e) => {
+    // Ensure final value is dispatched immediately on mouseup/touchend
+    const finalValue = Number(e.target.value);
+    try {
+      if (rainfallDispatchRef.current && rainfallDispatchRef.current.timer) {
+        clearTimeout(rainfallDispatchRef.current.timer);
+        rainfallDispatchRef.current.timer = null;
+      }
+      window.dispatchEvent(
+        new CustomEvent("rainfallChange", { detail: { rainfall: finalValue } })
+      );
+    } catch (err) {}
   };
 
   // Function to get the appropriate image path based on rainfall amount and view mode
@@ -460,6 +494,17 @@ const FloatingFlood = ({ setShowWeather }) => {
         "floodLayerStateChange",
         handleFloodLayerStateChange
       );
+      // clear any pending rainfall dispatch timer
+      try {
+        if (
+          rainfallDispatchRef &&
+          rainfallDispatchRef.current &&
+          rainfallDispatchRef.current.timer
+        ) {
+          clearTimeout(rainfallDispatchRef.current.timer);
+          rainfallDispatchRef.current.timer = null;
+        }
+      } catch (e) {}
     };
   }, []);
 
@@ -474,6 +519,15 @@ const FloatingFlood = ({ setShowWeather }) => {
       );
     }
   }, [simulationRunning, rainfallAmount]);
+
+  // Handle timeline changes from the Timeline component (minutes resolution)
+  const handleTimelineChange = (minutes) => {
+    const hh = Math.floor(minutes / 60);
+    const mm = minutes % 60;
+    window.dispatchEvent(
+      new CustomEvent("timelineChange", { detail: { minutes, hh, mm } })
+    );
+  };
 
   const getHeaderContent = () => {
     switch (viewMode) {
@@ -624,10 +678,30 @@ const FloatingFlood = ({ setShowWeather }) => {
           />
         ) : (
           <>
+            {/* Timeline shown only during simulation */}
+            <Timeline
+              initialMinutes={0}
+              onChange={handleTimelineChange}
+              onRasterChange={
+                /* passthrough to MainPage via global handler */ (
+                  path,
+                  idx
+                ) => {
+                  // forward raster change via global event (MainPage will update local state when it listens)
+                  try {
+                    window.dispatchEvent(
+                      new CustomEvent("timelineRasterChange", {
+                        detail: { path, index: idx },
+                      })
+                    );
+                  } catch (e) {}
+                }
+              }
+            />
             <div className="fixed bottom-4 right-4 z-50">
               <Legend viewMode={viewMode} />
             </div>
-            <div className="fixed flex flex-col z-40 w-[20.75rem] bg-white rounded-md left-8 overflow-hidden transition-all ease-in-out duration-300 top-[8rem] h-[calc(100%-9.5rem)]">
+            <div className="fixed flex flex-col z-40 w-[20.75rem] bg-white rounded-md left-8 overflow-hidden transition-all ease-in-out duration-300 top-[8rem] h-[calc(85%-9.5rem)]">
               <header className="px-3 pt-2 pb-2">
                 <p className="text-grey-950 font-medium">
                   {headerContent.title}
@@ -758,6 +832,8 @@ const FloatingFlood = ({ setShowWeather }) => {
                 step="25"
                 value={rainfallAmount}
                 onChange={handleRainfallChange}
+                onMouseUp={handleRainSliderCommit}
+                onTouchEnd={handleRainSliderCommit}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 list="rainfall-ticks"
               />

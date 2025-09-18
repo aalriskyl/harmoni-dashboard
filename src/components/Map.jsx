@@ -22,8 +22,6 @@ import zoomPlugin from "chartjs-plugin-zoom";
 
 // Register the zoom plugin globally
 Chart.register(zoomPlugin);
-
-// Constants
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 const INITIAL_VIEW_STATE = {
   // Default start coordinates requested by user (lng, lat)
@@ -80,6 +78,17 @@ style.textContent = `
     padding: 1.25rem !important;
     border-radius: 12px !important;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+    /* Allow the canvas inside to be visible and not clipped */
+    overflow: visible !important;
+  }
+
+  /* Keep popup content overflow visible so canvas/SVG can extend visually */
+  .mapboxgl-popup .mapboxgl-popup-content {
+    overflow: visible !important;
+  }
+  /* Avoid overriding Mapbox's transform-based positioning. Only relax overflow on popup content so the canvas can extend visually. */
+  .mapboxgl-popup .mapboxgl-popup-content {
+    overflow: visible !important;
   }
   
   /* Standard popup styles */
@@ -144,6 +153,7 @@ const Map = ({
   onToggleRainRecorders,
   onToggleRivers,
   onToggleCrossSections,
+  rasterOverlay = { path: null, index: null },
 }) => {
   // Refs
   const mapContainer = useRef(null);
@@ -158,6 +168,9 @@ const Map = ({
   // Map of markers by unique id so we can reuse them across updates
   const markersById = useRef({});
   const popups = useRef([]);
+  // Cache for rendered cross-section snapshots (dataURL) keyed by point id
+  // Use globalThis.Map to avoid shadowing with the `Map` component name
+  const crossSectionSnapshotRef = useRef(new globalThis.Map());
   // Rain canvas fallback for environments without map.setRain
   const rainCanvasRef = useRef(null);
   const rainAnimationRef = useRef(null);
@@ -1258,17 +1271,26 @@ const Map = ({
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = container.getBoundingClientRect();
+      // Reset any transforms first to avoid cumulative scaling
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       canvas.width = Math.max(1, Math.floor(rect.width * dpr));
       canvas.height = Math.max(1, Math.floor(rect.height * dpr));
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
+      // Scale drawing to device pixel ratio
       ctx.scale(dpr, dpr);
     };
 
     const { intensity, densityScale, dropletLow } =
       computeRainParams(rainfallAmount);
 
-    const maxParticles = Math.round(30 + densityScale * 370); // 30..400
+    // Reduce maximum particles to avoid screen-filling lines on heavy rain.
+    // Previously allowed up to ~400 which could overwhelm the canvas. Limit to 220.
+    const maxParticles = Math.round(20 + densityScale * 200); // 20..220
+
+    // Initialize sizing constants used by both initParticles and draw
+    const baseLen = 6;
+    const maxExtraLen = Math.max(2, dropletLow / 3);
 
     // Initialize or shrink/expand particles
     const initParticles = () => {
@@ -1276,12 +1298,13 @@ const Map = ({
       const h = canvas.clientHeight || container.clientHeight;
       const particles = rainParticlesRef.current || [];
       while (particles.length < maxParticles) {
+        // keep lengths and speeds more conservative
         particles.push({
           x: Math.random() * w,
           y: Math.random() * -h,
-          len: 6 + Math.random() * (dropletLow / 2 + 6),
-          speed: 2 + intensity * 18 + Math.random() * 4,
-          alpha: 0.2 + Math.random() * 0.6,
+          len: baseLen + Math.random() * maxExtraLen,
+          speed: 1 + intensity * 10 + Math.random() * 2,
+          alpha: 0.12 + Math.random() * 0.5,
         });
       }
       if (particles.length > maxParticles) particles.length = maxParticles;
@@ -1292,31 +1315,37 @@ const Map = ({
       const w = canvas.clientWidth || container.clientWidth;
       const h = canvas.clientHeight || container.clientHeight;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // clear using CSS pixel dimensions (context is scaled to devicePixelRatio)
+      ctx.clearRect(0, 0, w, h);
       ctx.save();
       // draw with light bluish streaks
-      ctx.strokeStyle = "rgba(168,173,188,0.9)";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(168,173,188,0.85)";
+      ctx.lineWidth = Math.max(0.8, 1 * (densityScale > 0.5 ? 1 : 0.9));
       ctx.lineCap = "round";
 
       const particles = rainParticlesRef.current || [];
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
-        ctx.globalAlpha = Math.min(1, p.alpha * (0.2 + intensity * 0.8));
+        ctx.globalAlpha = Math.min(1, p.alpha * (0.15 + intensity * 0.7));
+        // Ensure finite numeric positions to prevent drawing artifacts
+        const px = Number.isFinite(p.x) ? p.x : Math.random() * w;
+        const py = Number.isFinite(p.y) ? p.y : Math.random() * h * -0.5;
+        const lx = px + p.len * 0.12;
+        const ly = py + p.len;
         ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x + p.len * 0.15, p.y + p.len);
+        ctx.moveTo(px, py);
+        ctx.lineTo(lx, ly);
         ctx.stroke();
+        // Update positions and clamp
+        p.y = p.y + p.speed || Math.random() * -h * 0.5;
+        p.x = p.x + p.speed * 0.02 || Math.random() * w;
 
-        p.y += p.speed;
-        p.x += p.speed * 0.03; // slight drift
-
-        if (p.y > h + 20) {
-          p.y = Math.random() * -h * 0.5;
+        if (p.y > h + 20 || !Number.isFinite(p.y)) {
+          p.y = Math.random() * -h * 0.6;
           p.x = Math.random() * w;
-          p.speed = 2 + intensity * 18 + Math.random() * 4;
-          p.len = 6 + Math.random() * (dropletLow / 2 + 6);
-          p.alpha = 0.2 + Math.random() * 0.6;
+          p.speed = 1 + intensity * 10 + Math.random() * 2;
+          p.len = baseLen + Math.random() * maxExtraLen;
+          p.alpha = 0.12 + Math.random() * 0.5;
         }
       }
 
@@ -2293,6 +2322,8 @@ const Map = ({
       return "#ef4444"; // Red
     return "#6b7280"; // Default gray
   };
+
+  // ...existing code...
   // Add this useEffect to debug cross-section data
   useEffect(() => {
     console.log("Cross-section data loaded:", crossSectionData);
@@ -2311,6 +2342,40 @@ const Map = ({
     const dots = container.querySelectorAll(".pagination-dot");
     const pages = container.querySelectorAll(".popup-page");
     let csChart = null;
+    // Timer id for the manual fallback draw scheduled after chart creation
+    let manualFallbackTimer = null;
+    // ResizeObserver reference so we can disconnect it from outer scope
+    let ro = null;
+    // Observer for popup attribute changes (style/class) so we can cleanup when popup is hidden
+    let attributeObserver = null;
+    // Find the mapbox popup ancestor so we can observe hide/close events
+    const popupElement =
+      container && container.closest && container.closest(".mapboxgl-popup");
+    if (popupElement) {
+      try {
+        attributeObserver = new MutationObserver(() => {
+          try {
+            // If the popup DOM is removed from document or hidden, cleanup
+            if (
+              !popupElement.isConnected ||
+              popupElement.style.display === "none"
+            ) {
+              try {
+                cleanupChart &&
+                  typeof cleanupChart === "function" &&
+                  cleanupChart();
+              } catch (e) {}
+            }
+          } catch (e) {}
+        });
+        attributeObserver.observe(popupElement, {
+          attributes: true,
+          attributeFilter: ["style", "class"],
+        });
+      } catch (e) {
+        // ignore observer setup failures
+      }
+    }
 
     // Function to switch pages
     const switchPage = (targetPage) => {
@@ -2353,6 +2418,8 @@ const Map = ({
 
     // Initialize Chart.js for cross-section if canvas exists
     const canvas = container.querySelector(".cross-section-canvas");
+    const svgFallback = container.querySelector(".cross-section-svg");
+    // Silence debug logs; keep minimal error handling only.
     if (canvas) {
       try {
         const props = point.properties || {};
@@ -2363,57 +2430,604 @@ const Map = ({
         const stations = profile.map((p) => p.station || 0);
         const depths = profile.map((p) => p.depth || 0);
 
-        // If no profile, show a placeholder message inside the canvas container
-        if (stations.length === 0) {
-          const ctx = canvas.getContext("2d");
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.font = "12px Inter, sans-serif";
-          ctx.fillStyle = "#6b7280";
-          ctx.textAlign = "center";
-          ctx.fillText(
-            "No cross-section profile available",
-            canvas.width / 2,
-            canvas.height / 2
-          );
-        } else {
-          // Build dataset like the tutorial
-          const dataPoints = stations.map((s, i) => ({ x: s, y: depths[i] }));
+        // profile data prepared for chart rendering
 
-          const ctx = canvas.getContext("2d");
-          csChart = new Chart(ctx, {
-            type: "line",
-            data: {
-              datasets: [
-                {
-                  label: "Cross Section",
-                  data: dataPoints,
-                  fill: true,
-                  borderColor: "#339af0",
-                  backgroundColor: "rgba(80,150,255,0.5)",
-                  pointRadius: 2,
-                  tension: 0.3,
+        // Helper to get a reliable size for the canvas. If getBoundingClientRect
+        // returns zero (popup not yet laid out), fall back to sensible defaults
+        // and wait for ResizeObserver to trigger.
+        const getSafeRect = () => {
+          try {
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) return rect;
+          } catch (e) {
+            console.warn(
+              "initializeCrossSectionPopup.getSafeRect: getBoundingClientRect failed",
+              e
+            );
+          }
+          // Fallback size when layout isn't ready yet
+          return { width: 400, height: 160 };
+        };
+
+        let createChartRetryCount = 0;
+        let createChartRetryTimer = null;
+        const MAX_CREATE_RETRIES = 5;
+
+        const createChart = () => {
+          try {
+            const rect = getSafeRect();
+            const dpr = window.devicePixelRatio || 1;
+
+            console.log("initializeCrossSectionPopup.createChart: rect,dpr", {
+              rect,
+              dpr,
+              pointId: point?.id,
+            });
+
+            // Ensure canvas has explicit pixel dimensions to avoid blurriness
+            canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+            canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+
+            // Use untransformed context; let Chart.js handle DPR and resizing
+            const ctx = canvas.getContext("2d");
+
+            // Prepare canvas size and context; avoid debug drawing here
+
+            // If no profile data, draw placeholder text into the canvas
+            if (!stations || stations.length === 0) {
+              ctx.clearRect(0, 0, rect.width, rect.height);
+              ctx.font = "12px Inter, sans-serif";
+              ctx.fillStyle = "#6b7280";
+              ctx.textAlign = "center";
+              ctx.fillText(
+                "No cross-section profile available",
+                rect.width / 2,
+                rect.height / 2
+              );
+              return null;
+            }
+
+            const dataPoints = stations.map((s, i) => ({ x: s, y: depths[i] }));
+
+            // Render SVG fallback immediately so the user sees the profile even if canvas/Chart fail
+            try {
+              if (svgFallback) {
+                // Build path coordinates scaled to SVG viewBox
+                const maxW = Math.max(1, Math.max(...stations));
+                const maxD = Math.max(1, Math.max(...depths));
+                const vbW = Math.max(100, maxW);
+                const vbH = Math.max(50, maxD * 1.5);
+                const pointsStr = stations
+                  .map(
+                    (s, i) => `${(s / maxW) * vbW},${(depths[i] / maxD) * vbH}`
+                  )
+                  .join(" ");
+
+                const pathD =
+                  stations.length > 0
+                    ? `M ${pointsStr.split(" ")[0]} ` +
+                      pointsStr
+                        .split(" ")
+                        .slice(1)
+                        .map((p) => `L ${p}`)
+                        .join(" ")
+                    : "";
+
+                svgFallback.setAttribute("viewBox", `0 0 ${vbW} ${vbH}`);
+                svgFallback.innerHTML = ``;
+
+                if (pathD) {
+                  const svgPath = document.createElementNS(
+                    "http://www.w3.org/2000/svg",
+                    "path"
+                  );
+                  svgPath.setAttribute(
+                    "d",
+                    pathD + ` L ${vbW} ${vbH} L 0 ${vbH} Z`
+                  );
+                  svgPath.setAttribute("fill", "rgba(59,130,246,0.12)");
+                  svgPath.setAttribute("stroke", "#2563eb");
+                  svgPath.setAttribute("stroke-width", "1.5");
+                  svgPath.setAttribute("stroke-linejoin", "round");
+                  svgFallback.appendChild(svgPath);
+
+                  // Waterline
+                  const waterLine = document.createElementNS(
+                    "http://www.w3.org/2000/svg",
+                    "line"
+                  );
+                  waterLine.setAttribute("x1", "0");
+                  waterLine.setAttribute("y1", `${vbH - 2}`);
+                  waterLine.setAttribute("x2", `${vbW}`);
+                  waterLine.setAttribute("y2", `${vbH - 2}`);
+                  waterLine.setAttribute("stroke", "#ef4444");
+                  waterLine.setAttribute("stroke-width", "1");
+                  waterLine.setAttribute("stroke-dasharray", "4 2");
+                  svgFallback.appendChild(waterLine);
+                } else {
+                  // empty fallback text
+                  const txt = document.createElementNS(
+                    "http://www.w3.org/2000/svg",
+                    "text"
+                  );
+                  txt.setAttribute("x", "50%");
+                  txt.setAttribute("y", "50%");
+                  txt.setAttribute("dominant-baseline", "middle");
+                  txt.setAttribute("text-anchor", "middle");
+                  txt.setAttribute("fill", "#6b7280");
+                  txt.setAttribute("font-size", "12");
+                  txt.textContent = "No cross-section profile available";
+                  svgFallback.appendChild(txt);
+                }
+              }
+            } catch (e) {
+              // ignore svg fallback failures
+              console.warn(
+                "initializeCrossSectionPopup: svg fallback draw failed",
+                e
+              );
+            }
+
+            // If we have a cached snapshot for this point, draw it immediately into the canvas
+            try {
+              const cached = crossSectionSnapshotRef.current.get(point.id);
+              if (cached && canvas && canvas.getContext) {
+                const img = new Image();
+                img.onload = () => {
+                  try {
+                    const ctx2 = canvas.getContext("2d");
+                    // ensure canvas sizing for DPR
+                    const r = getSafeRect();
+                    const dpr2 = window.devicePixelRatio || 1;
+                    canvas.width = Math.max(1, Math.floor(r.width * dpr2));
+                    canvas.height = Math.max(1, Math.floor(r.height * dpr2));
+                    canvas.style.width = `${r.width}px`;
+                    canvas.style.height = `${r.height}px`;
+                    try {
+                      ctx2.setTransform(dpr2, 0, 0, dpr2, 0, 0);
+                    } catch (e) {}
+                    ctx2.clearRect(
+                      0,
+                      0,
+                      canvas.width / dpr2,
+                      canvas.height / dpr2
+                    );
+                    ctx2.drawImage(
+                      img,
+                      0,
+                      0,
+                      canvas.width / dpr2,
+                      canvas.height / dpr2
+                    );
+                    // mark rendered so manual fallback doesn't draw over it
+                    try {
+                      canvas.dataset.csRendered = "1";
+                    } catch (e) {}
+                  } catch (e) {}
+                };
+                img.src = cached;
+              }
+            } catch (e) {}
+
+            // Reuse existing chart when possible (follow LocationGraph pattern)
+            // Ensure canvas is properly sized for devicePixelRatio so Chart.js renders crisply
+            try {
+              const rectClient = canvas.getBoundingClientRect();
+              const dpr = window.devicePixelRatio || 1;
+              canvas.width = Math.max(1, Math.floor(rectClient.width * dpr));
+              canvas.height = Math.max(1, Math.floor(rectClient.height * dpr));
+              canvas.style.width = `${rectClient.width}px`;
+              canvas.style.height = `${rectClient.height}px`;
+              // set transform so Chart.js draws at correct scale
+              try {
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+              } catch (e) {}
+            } catch (e) {
+              // ignore sizing failures, Chart will attempt to render
+            }
+
+            const maxStation = Math.max(...stations, 1);
+            const maxDepthVal = Math.max(...depths, 1);
+            const xPadding = Math.max(1, maxStation * 0.02);
+            const yPadding = Math.max(0.5, maxDepthVal * 0.05);
+
+            // If a chart instance already exists, update its data and update it
+            if (csChart && csChart.data && csChart.data.datasets) {
+              try {
+                csChart.data.datasets[0].data = dataPoints;
+                // update scales min/max if present
+                if (csChart.options && csChart.options.scales) {
+                  csChart.options.scales.x.min = Math.max(
+                    0,
+                    Math.min(...stations) - xPadding
+                  );
+                  csChart.options.scales.x.max =
+                    Math.max(...stations) + xPadding;
+                  csChart.options.scales.y.max = Math.max(...depths) + yPadding;
+                }
+                if (typeof csChart.update === "function") csChart.update();
+                // Mark rendered and cancel manual fallback
+                try {
+                  canvas.dataset.csRendered = "1";
+                  if (manualFallbackTimer) {
+                    clearTimeout(manualFallbackTimer);
+                    manualFallbackTimer = null;
+                  }
+                } catch (e) {}
+                // Hide svg fallback
+                try {
+                  if (svgFallback) {
+                    svgFallback.style.display = "none";
+                    svgFallback.innerHTML = "";
+                  }
+                } catch (e) {}
+                return csChart;
+              } catch (e) {
+                // if update failed, fallthrough to recreate
+                try {
+                  csChart.destroy();
+                } catch (dErr) {}
+                csChart = null;
+              }
+            }
+
+            // Create a new Chart instance if none exists
+            try {
+              csChart = new Chart(ctx, {
+                type: "line",
+                data: {
+                  datasets: [
+                    {
+                      label: "Cross Section",
+                      data: dataPoints,
+                      fill: true,
+                      borderColor: "#339af0",
+                      backgroundColor: "rgba(80,150,255,0.5)",
+                      pointRadius: 3,
+                      tension: 0.3,
+                    },
+                  ],
                 },
-              ],
-            },
-            options: {
-              parsing: false,
-              plugins: { legend: { display: false } },
-              scales: {
-                x: {
-                  type: "linear",
-                  title: { display: true, text: "Station (m)" },
-                  grid: { display: false },
+                options: {
+                  parsing: false,
+                  animation: { duration: 0 },
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        label: function (ctx) {
+                          return `Station: ${ctx.parsed.x} m, Depth: ${ctx.parsed.y} m`;
+                        },
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      type: "linear",
+                      title: { display: true, text: "Station (m)" },
+                      grid: { display: false },
+                      min: Math.max(0, Math.min(...stations) - xPadding),
+                      max: Math.max(...stations) + xPadding,
+                    },
+                    y: {
+                      type: "linear",
+                      reverse: true,
+                      title: { display: true, text: "Depth (m)" },
+                      grid: { display: false },
+                      min: 0,
+                      max: Math.max(...depths) + yPadding,
+                    },
+                  },
+                  responsive: false,
+                  maintainAspectRatio: false,
                 },
-                y: {
-                  type: "linear",
-                  reverse: true,
-                  title: { display: true, text: "Depth (m)" },
-                  grid: { display: false },
-                },
-              },
-            },
+              });
+            } catch (chartErr) {
+              console.warn(
+                "initializeCrossSectionPopup.createChart: Chart constructor failed",
+                chartErr
+              );
+              csChart = null;
+            }
+
+            try {
+              // expose chart instance on canvas for optional inspection
+              try {
+                canvas._csChart = csChart;
+              } catch (e) {}
+              // Force an immediate update/draw pass
+              try {
+                if (csChart && typeof csChart.resize === "function")
+                  csChart.resize();
+                if (csChart && typeof csChart.update === "function")
+                  csChart.update();
+                if (csChart && typeof csChart.draw === "function")
+                  csChart.draw();
+              } catch (e) {
+                // swallow non-critical draw errors
+              }
+            } catch (e) {}
+            // Hide SVG fallback since Chart has rendered
+            try {
+              if (svgFallback) {
+                svgFallback.style.display = "none";
+                try {
+                  svgFallback.innerHTML = "";
+                } catch (e) {}
+              }
+            } catch (e) {}
+
+            // Mark canvas as rendered so scheduled manual fallback will skip
+            try {
+              canvas.dataset.csRendered = "1";
+            } catch (e) {}
+
+            // Cancel any pending manual fallback timer
+            try {
+              if (manualFallbackTimer) {
+                clearTimeout(manualFallbackTimer);
+                manualFallbackTimer = null;
+              }
+            } catch (e) {}
+
+            // Capture a snapshot of the canvas and cache it so reopening the popup
+            // can show the image immediately without needing to recreate the chart
+            try {
+              if (canvas && point && point.id) {
+                try {
+                  const dpr3 = window.devicePixelRatio || 1;
+                  // create an offscreen canvas to scale down to CSS pixels
+                  const off = document.createElement("canvas");
+                  off.width = Math.max(
+                    1,
+                    Math.floor((canvas.width || 1) / dpr3)
+                  );
+                  off.height = Math.max(
+                    1,
+                    Math.floor((canvas.height || 1) / dpr3)
+                  );
+                  const offCtx = off.getContext("2d");
+                  offCtx.drawImage(canvas, 0, 0, off.width, off.height);
+                  const dataURL = off.toDataURL("image/png");
+                  crossSectionSnapshotRef.current.set(point.id, dataURL);
+                } catch (e) {}
+              }
+            } catch (e) {}
+
+            // If chart is created but SVG remains visible for some reason, schedule a guarded manual fallback
+            manualFallbackTimer = setTimeout(() => {
+              try {
+                // If chart has already rendered, skip manual fallback
+                if (canvas.dataset.csRendered === "1") {
+                  manualFallbackTimer = null;
+                  return;
+                }
+                if (svgFallback && svgFallback.style.display !== "none") {
+                  // draw directly to canvas as a last-resort
+                  try {
+                    // draw simple polyline from dataPoints
+                    ctx.save();
+                    ctx.strokeStyle = "#1d4ed8";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    if (dataPoints && dataPoints.length > 0) {
+                      // scale to canvas client size
+                      const w = Math.max(1, canvas.clientWidth || rect.width);
+                      const h = Math.max(1, canvas.clientHeight || rect.height);
+                      const maxX = Math.max(...stations);
+                      const maxY = Math.max(...depths);
+                      dataPoints.forEach((pt, i) => {
+                        const x = (pt.x / (maxX || 1)) * (w - 16) + 8;
+                        const y = (pt.y / (maxY || 1)) * (h - 16) + 8;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                      });
+                      ctx.stroke();
+                    }
+                    ctx.restore();
+                  } catch (e) {}
+                  try {
+                    svgFallback.style.display = "none";
+                    try {
+                      svgFallback.innerHTML = "";
+                    } catch (e) {}
+                  } catch (e) {}
+                }
+              } catch (e) {}
+              manualFallbackTimer = null;
+            }, 300);
+
+            return csChart;
+          } catch (err) {
+            console.warn("Failed to initialize cross-section chart:", err);
+            return null;
+          }
+        };
+
+        // Try creating chart immediately; if layout isn't ready we'll observe
+        // size changes and retry once the canvas has a non-zero size.
+        let createdChart = createChart();
+        // Also schedule a retry on next animation frame to handle popup open
+        // animations or layout timing where the initial attempt may run
+        // before the browser has fully positioned the popup.
+        try {
+          requestAnimationFrame(() => {
+            try {
+              if (!canvas.dataset.csRendered) createChart();
+            } catch (e) {}
           });
+        } catch (e) {}
+
+        // Bounded retry with backoff to handle timing/layout races on some devices
+        const scheduleRetryCreateChart = (delay = 120) => {
+          try {
+            if (createChartRetryCount >= MAX_CREATE_RETRIES) return;
+            createChartRetryCount += 1;
+            if (createChartRetryTimer) clearTimeout(createChartRetryTimer);
+            createChartRetryTimer = setTimeout(() => {
+              try {
+                if (!canvas.dataset.csRendered) createChart();
+              } catch (e) {}
+            }, delay);
+          } catch (e) {}
+        };
+
+        // Kick off a couple of retries spaced out slightly
+        scheduleRetryCreateChart(120);
+        scheduleRetryCreateChart(350);
+
+        if (!createdChart) {
+          // initial createChart returned null, set up ResizeObserver fallback
+          // Use ResizeObserver to detect when the canvas receives layout
+          if (typeof ResizeObserver !== "undefined") {
+            ro = new ResizeObserver((entries) => {
+              for (const entry of entries) {
+                const cr =
+                  entry.contentRect || entry.target.getBoundingClientRect();
+                // ResizeObserver entry
+                if (cr.width > 0 && cr.height > 0) {
+                  try {
+                    const c = createChart();
+                    if (c && ro) {
+                      // chart created via ResizeObserver; disconnect below
+                      try {
+                        ro.disconnect();
+                      } catch (e) {}
+                      ro = null;
+                    }
+                  } catch (e) {
+                    console.warn(
+                      "initializeCrossSectionPopup.ResizeObserver: createChart failed",
+                      e
+                    );
+                  }
+                }
+              }
+            });
+            try {
+              ro.observe(canvas);
+            } catch (e) {
+              console.warn(
+                "initializeCrossSectionPopup: ResizeObserver.observe failed",
+                e
+              );
+            }
+          } else {
+            // ResizeObserver not available; retry once after delay
+            // Fallback: retry once after short delay
+            const t = setTimeout(() => {
+              try {
+                createChart();
+              } catch (e) {
+                console.warn(
+                  "initializeCrossSectionPopup: delayed createChart failed",
+                  e
+                );
+              }
+              clearTimeout(t);
+            }, 300);
+          }
         }
+
+        const cleanupChart = () => {
+          try {
+            // If the chart has been rendered and the popup is still visible,
+            // avoid destroying the chart. This prevents the chart from being
+            // removed while the user is still viewing the popup.
+            try {
+              const isRendered =
+                canvas && canvas.dataset && canvas.dataset.csRendered === "1";
+              const popupVisible = popupElement
+                ? popupElement.isConnected &&
+                  (window.getComputedStyle(popupElement).display || "") !==
+                    "none"
+                : false;
+              if (isRendered && popupVisible) {
+                // Clear any pending createChart retry timer but keep the chart
+                try {
+                  if (createChartRetryTimer) {
+                    clearTimeout(createChartRetryTimer);
+                    createChartRetryTimer = null;
+                  }
+                } catch (e) {}
+                return;
+              }
+            } catch (e) {}
+            if (csChart && typeof csChart.destroy === "function") {
+              csChart.destroy();
+              csChart = null;
+            }
+          } catch (e) {}
+          try {
+            if (ro) {
+              try {
+                ro.disconnect();
+              } catch (e) {}
+              ro = null;
+            }
+          } catch (e) {}
+          try {
+            if (attributeObserver) {
+              try {
+                attributeObserver.disconnect();
+              } catch (e) {}
+              attributeObserver = null;
+            }
+          } catch (e) {}
+          try {
+            // Clear and cancel any manual fallback timer
+            if (manualFallbackTimer) {
+              clearTimeout(manualFallbackTimer);
+              manualFallbackTimer = null;
+            }
+            // Clear any createChart retry timer
+            try {
+              if (createChartRetryTimer) {
+                clearTimeout(createChartRetryTimer);
+                createChartRetryTimer = null;
+              }
+            } catch (e) {}
+            // Clear rendered flag and remove svg fallback content
+            try {
+              if (canvas) canvas.dataset.csRendered = "";
+            } catch (e) {}
+            try {
+              if (svgFallback) {
+                svgFallback.innerHTML = "";
+                svgFallback.style.display = "none";
+              }
+            } catch (e) {}
+            // Clear canvas pixel buffer to avoid stale drawings on reopen
+            try {
+              const ctx =
+                canvas && canvas.getContext && canvas.getContext("2d");
+              if (ctx) {
+                // reset any transforms then clear the full pixel buffer
+                try {
+                  ctx.setTransform(1, 0, 0, 1, 0, 0);
+                } catch (e) {}
+                try {
+                  ctx.clearRect(0, 0, canvas.width || 0, canvas.height || 0);
+                } catch (e) {}
+              }
+              try {
+                if (canvas) canvas.style.border = "";
+              } catch (e) {}
+            } catch (e) {}
+          } catch (e) {}
+        };
+
+        const removalObserver = new MutationObserver((mutations) => {
+          for (const m of mutations) {
+            if (m.removedNodes && m.removedNodes.length > 0) {
+              cleanupChart();
+              removalObserver.disconnect();
+            }
+          }
+        });
+        removalObserver.observe(container, { childList: true, subtree: true });
       } catch (err) {
         console.warn("Failed to initialize cross-section chart:", err);
       }
@@ -2423,11 +3037,13 @@ const Map = ({
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((m) => {
         if (m.removedNodes && m.removedNodes.length > 0) {
-          if (csChart && typeof csChart.destroy === "function") {
-            csChart.destroy();
-            csChart = null;
-          }
-          observer.disconnect();
+          try {
+            // Use shared cleanup to ensure timers/observers are cleared
+            if (typeof cleanupChart === "function") cleanupChart();
+          } catch (e) {}
+          try {
+            observer.disconnect();
+          } catch (e) {}
         }
       });
     });
@@ -2483,6 +3099,10 @@ const Map = ({
   };
 
   const renderPopupContent = (point) => {
+    const canvasId = `cross-section-canvas-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+
     if (point.type === "CrossSection") {
       console.log("Cross-section popup opened with data:", {
         point: point,
@@ -2578,8 +3198,12 @@ const Map = ({
               profile.length > 0
                 ? `
             <div class="mb-4">
-              <div class="h-40 w-full overflow-hidden flex items-center justify-center">
-                <canvas class="w-full h-full cross-section-canvas" aria-label="Cross section chart"></canvas>
+             
+              <div class="h-40 w-full overflow-hidden flex items-center justify-center" style="position:relative;height:160px;min-height:120px;">
+               
+                <canvas class="cross-section-canvas" id="${canvasId}" aria-label="Cross section chart" style="position:absolute;inset:0;width:100%;height:100%;background:rgba(255,255,255,0.02);"></canvas>
+               
+                <svg class="cross-section-svg" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;z-index:100001;pointer-events:none;" preserveAspectRatio="none"></svg>
               </div>
             </div>`
                 : ""
@@ -3007,6 +3631,24 @@ const Map = ({
             .setPopup(popup)
             .addTo(map.current);
 
+          // Initialize popup internals when the popup opens to ensure layout is ready
+          try {
+            popup.on("open", () => {
+              try {
+                const popupEl = popup.getElement();
+                const content =
+                  popupEl && popupEl.querySelector(".popup-content");
+                if (content) {
+                  if (point.type === "CrossSection")
+                    initializeCrossSectionPopup(content, point);
+                  else initializeStandardPopup(content, point);
+                }
+              } catch (e) {
+                console.warn("popup.open handler failed", e);
+              }
+            });
+          } catch (e) {}
+
           markersById.current[point.id] = {
             id: point.id,
             marker,
@@ -3014,11 +3656,9 @@ const Map = ({
             type: point.type,
           };
 
-          // initialize internals
-          setTimeout(() => {
-            if (point.type === "CrossSection")
-              initializeCrossSectionPopup(popupContent, point);
-            else initializeStandardPopup(popupContent, point);
+          // Attach chart button and close button handlers; actual popup initialization
+          // (Chart/SVG) runs when popup emits 'open' to ensure correct layout.
+          try {
             const chartButton = popupContent.querySelector(".chart-btn");
             if (chartButton)
               chartButton.onclick = (e) => {
@@ -3045,7 +3685,7 @@ const Map = ({
             } catch (e) {
               // ignore
             }
-          }, 50);
+          } catch (e) {}
         } catch (err) {
           console.warn("Failed to create marker for point:", point, err);
         }
@@ -3259,9 +3899,12 @@ const Map = ({
       setShowFloodLayer(event.detail.isActive);
       setRainfallAmount(event.detail.rainfall);
 
-      // Enable rain only if simulation is active and rainfall > 0
-      const raining = !!(event.detail.isActive && event.detail.rainfall > 0);
-      setIsRaining(raining);
+      // Do NOT force isRaining here. Rain should be controlled by the rainfall slider
+      // via the `rainfallChange` event. If the simulation intentionally wants to
+      // override rain, it can pass `overrideRain: true` in the event detail.
+      if (event.detail && event.detail.overrideRain) {
+        setIsRaining(!!(event.detail.rainfall > 0));
+      }
 
       // Only show vulnerability layer if explicitly requested
       if (event.detail.isActive && event.detail.showVulnerability) {
@@ -3397,6 +4040,14 @@ const Map = ({
       "simulationStateChange",
       handleSimulationStateChange
     );
+    // Listen for rainfall changes coming from the rainfall slider so rain is
+    // driven directly by the slider value (not only by simulation state).
+    const handleRainfallChange = (e) => {
+      const r = e?.detail?.rainfall ?? 0;
+      setRainfallAmount(r);
+      setIsRaining(!!(r > 0));
+    };
+    window.addEventListener("rainfallChange", handleRainfallChange);
     window.addEventListener("floodLayerClick", handleFloodLayerClick);
     window.addEventListener("showFloodPopup", handleShowFloodPopup);
     window.addEventListener("centerMapOnCoordinates", handleCenterMap);
@@ -3410,6 +4061,7 @@ const Map = ({
         "simulationStateChange",
         handleSimulationStateChange
       );
+      window.removeEventListener("rainfallChange", handleRainfallChange);
       window.removeEventListener("floodLayerClick", handleFloodLayerClick);
       window.removeEventListener("showFloodPopup", handleShowFloodPopup);
       window.removeEventListener("centerMapOnCoordinates", handleCenterMap);
@@ -3688,6 +4340,74 @@ const Map = ({
     }
   }, [floodPopupInfo]);
 
+  // Add timeline raster overlay on the map using the exact coordinates provided by user
+  useEffect(() => {
+    if (!map.current || !map.current.addSource) return;
+
+    const sourceId = "timeline-overlay-source";
+    const layerId = "timeline-overlay-layer";
+
+    // Coordinates in order: upper-left, upper-right, lower-right, lower-left
+    const imageCoords = [
+      [106.6849284, -6.0790941], // UL
+      [106.9742925, -6.0790941], // UR
+      [106.9742925, -6.3729514], // LR
+      [106.6849284, -6.3729514], // LL
+    ];
+
+    // Helper to remove existing overlay safely
+    const removeOverlay = () => {
+      try {
+        if (map.current.getLayer && map.current.getLayer(layerId)) {
+          map.current.removeLayer(layerId);
+        }
+      } catch (e) {}
+      try {
+        if (map.current.getSource && map.current.getSource(sourceId)) {
+          map.current.removeSource(sourceId);
+        }
+      } catch (e) {}
+    };
+
+    // Always remove any previous overlay before adding a new one
+    removeOverlay();
+
+    if (rasterOverlay && rasterOverlay.path) {
+      const add = () => {
+        try {
+          // Add image source and raster layer
+          map.current.addSource(sourceId, {
+            type: "image",
+            url: rasterOverlay.path,
+            coordinates: imageCoords,
+          });
+
+          map.current.addLayer({
+            id: layerId,
+            type: "raster",
+            source: sourceId,
+            paint: { "raster-opacity": 0.95 },
+          });
+        } catch (e) {
+          // ignore add errors (map not ready or source exists)
+        }
+      };
+
+      if (map.current.loaded && !map.current.loaded()) {
+        // Wait for load
+        const onLoad = () => {
+          add();
+          map.current.off("load", onLoad);
+        };
+        map.current.on("load", onLoad);
+      } else {
+        add();
+      }
+    }
+
+    return () => removeOverlay();
+  }, [rasterOverlay]);
+
   return (
     <div className="w-full h-screen relative">
       <div ref={mapContainer} className="w-full h-full" />
@@ -3721,9 +4441,20 @@ const Map = ({
           {riverHoverInfo.name}
         </div>
       )}
-
+      {/* Render raster overlay centered above map for quick verification (non-interactive) */}
+      {rasterOverlay && rasterOverlay.path && (
+        <div className="pointer-events-none fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-40 flex items-center justify-center">
+          <img
+            src={rasterOverlay.path}
+            alt="raster-overlay"
+            className="w-48 h-48 opacity-90"
+            style={{ filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.25))" }}
+          />
+        </div>
+      )}
+      {/* dev helper removed */}
       <>
-        <button
+        {/* <button
           key={`control-btn-${forceUpdateKey}`}
           onClick={(e) => {
             e.stopPropagation();
@@ -3748,7 +4479,7 @@ const Map = ({
               d="M4 6h16M4 12h16M4 18h16"
             />
           </svg>
-        </button>
+        </button> */}
 
         {controlsVisible && (
           <div

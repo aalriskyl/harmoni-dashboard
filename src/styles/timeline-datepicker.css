@@ -1,0 +1,39 @@
+/* Customizable datepicker styles for Timeline component */
+
+:root {
+  --td-bg: #ffffff;
+  --td-border: #e5e7eb; /* gray-200 */
+  --td-text: #111827; /* gray-900 */
+  --td-accent: #ff6b6b; /* thumb/accent */
+}
+
+.timeline-datepicker {
+  background: var(--td-bg);
+  color: var(--td-text);
+  border: 1px solid var(--td-border);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+/* Input truncation and spacing */
+.timeline-datepicker:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+}
+
+/* WebKit native date input icon and padding adjustments */
+.timeline-datepicker::-webkit-calendar-picker-indicator {
+  filter: invert(0.15) sepia(1) saturate(5) hue-rotate(330deg);
+}
+
+/* optional: small override for browsers that display clear button */
+.timeline-datepicker::-ms-clear {
+  display: none;
+}
+
+/* You can customize these variables in global CSS or via a theme */
+
+/* Example: change accent color */
+.timeline-datepicker-accent {
+  --td-accent: #4f46e5;
+}

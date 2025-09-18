@@ -220,7 +220,7 @@ const PumpControls = ({
       window.removeEventListener("ensureControlsVisible", onEnsure);
     };
   }, []);
-  const containerClass = `fixed right-[35px] top-[57%] transform -translate-y-1/2 z-10 flex flex-col gap-3 transition-all duration-200 ${
+  const containerClass = `fixed right-[35px] top-[57%] transform -translate-y-1/2 z-10 flex flex-col transition-all duration-200 ${
     hidden
       ? "opacity-0 pointer-events-none scale-95 translate-x-2"
       : "opacity-100 pointer-events-auto scale-100"
@@ -498,565 +498,573 @@ const PumpControls = ({
 
   return (
     <>
-      {dataExplorerVisible && (
-        <div
-          className="fixed z-40 right-[80px] bg-white shadow-md max-w-[360px]"
-          style={{
-            borderRadius: 12,
-            padding: "1rem",
-            top: searchOpen ? "306px" : "306px",
-            width: searchOpen ? 360 : 360,
-            maxWidth: "90vw",
-          }}
-        >
-          {/* Shared header and filter controls (render once) */}
-          <div className="mb-3 overflow-y-hidden">
-            <p className="text-xl font-semibold">Data Explorer</p>
-            <p className="block text-sm text-black font-medium mt-2">
-              {searchOpen
-                ? `${deviceTypeLabel} in ${locationLabel}`
-                : "Search and filter monitoring data based on type and location."}
-            </p>
-          </div>
-
-          <div className={searchOpen ? "hidden mb-4" : "block"}>
-            <label className="text-sm text-gray-700 block mb-1">
-              Select monitoring element:
-            </label>
-            <div className="relative mt-1" ref={datasetRef}>
-              <button
-                type="button"
-                onClick={() => setOpenDataset((s) => !s)}
-                className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm mb-3"
-              >
-                <span className="block truncate">
-                  {datasets.find((d) => d.key === selectedDataset)?.label ||
-                    "Select dataset"}
-                </span>
-                <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
-                  <svg
-                    className="h-5 w-5 text-gray-400"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </span>
-              </button>
-              {openDataset && (
-                <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                  {datasets.map((d) => (
-                    <div
-                      key={d.key}
-                      className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
-                      onClick={() => {
-                        setSelectedDataset(d.key);
-                        setOpenDataset(false);
-                      }}
-                    >
-                      <span className="block truncate font-normal">
-                        {d.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+      <div className={containerClass} aria-hidden={hidden}>
+        <div style={scaledContainerStyle}>
+          <SearchButton onClick={toggleSearch} hidden={hidden} />
+        </div>
+        {dataExplorerVisible && (
+          <div
+            className="fixed z-40 right-12 bg-white shadow-md max-w-[360px]"
+            style={{
+              borderRadius: 12,
+              padding: "1rem",
+              // top: searchOpen ? "306px" : "306px",
+              width: searchOpen ? 360 : 360,
+              maxWidth: "90vw",
+            }}
+          >
+            {/* Shared header and filter controls (render once) */}
+            <div className="mb-3 overflow-y-hidden">
+              <p className="text-xl font-semibold">Data Explorer</p>
+              <p className="block text-sm text-black font-medium mt-2">
+                {searchOpen
+                  ? `${deviceTypeLabel} in ${locationLabel}`
+                  : "Search and filter monitoring data based on type and location."}
+              </p>
             </div>
 
-            <p className="text-sm text-gray-700">Select location:</p>
-            <div className="space-y-2">
-              <div ref={kotaRef}>
-                <div className="relative mt-1">
-                  <button
-                    type="button"
-                    onClick={() => setOpenKota((s) => !s)}
-                    className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                  >
-                    <span className="block truncate">
-                      {selectedKota || "Kota"}
-                    </span>
-                    <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </span>
-                  </button>
-                  {openKota && (
-                    <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+            <div className={searchOpen ? "hidden mb-4" : "block"}>
+              <label className="text-sm text-gray-700 block mb-1">
+                Select monitoring element:
+              </label>
+              <div className="relative mt-1" ref={datasetRef}>
+                <button
+                  type="button"
+                  onClick={() => setOpenDataset((s) => !s)}
+                  className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm mb-3"
+                >
+                  <span className="block truncate">
+                    {datasets.find((d) => d.key === selectedDataset)?.label ||
+                      "Select dataset"}
+                  </span>
+                  <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                    <svg
+                      className="h-5 w-5 text-gray-400"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </span>
+                </button>
+                {openDataset && (
+                  <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                    {datasets.map((d) => (
                       <div
+                        key={d.key}
                         className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
                         onClick={() => {
-                          setSelectedKota("");
-                          setOpenKota(false);
+                          setSelectedDataset(d.key);
+                          setOpenDataset(false);
                         }}
                       >
                         <span className="block truncate font-normal">
-                          All Kota
+                          {d.label}
                         </span>
                       </div>
-                      {kotaOptions.map((k) => (
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-sm text-gray-700">Select location:</p>
+              <div className="space-y-2">
+                <div ref={kotaRef}>
+                  <div className="relative mt-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenKota((s) => !s)}
+                      className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    >
+                      <span className="block truncate">
+                        {selectedKota || "Kota"}
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                        <svg
+                          className="h-5 w-5 text-gray-400"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </span>
+                    </button>
+                    {openKota && (
+                      <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                         <div
-                          key={k}
                           className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
                           onClick={() => {
-                            setSelectedKota(k);
+                            setSelectedKota("");
                             setOpenKota(false);
                           }}
                         >
                           <span className="block truncate font-normal">
-                            {k}
+                            All Kota
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-row gap-2">
-                <div className="flex-1" ref={kecRef}>
-                  <div className="relative mt-1">
-                    <button
-                      type="button"
-                      onClick={() => setOpenKec((s) => !s)}
-                      className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                    >
-                      <span className="block truncate">
-                        {selectedKecamatan || "Kecamatan"}
-                      </span>
-                      <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
-                        <svg
-                          className="h-5 w-5 text-gray-400"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          aria-hidden="true"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </span>
-                    </button>
-                    {openKec && (
-                      <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                        <div
-                          className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
-                          onClick={() => {
-                            setSelectedKecamatan("");
-                            setOpenKec(false);
-                          }}
-                        >
-                          <span className="block truncate font-normal">
-                            All Kecamatan
-                          </span>
-                        </div>
-                        {kecamatanOptions.map((k) => (
+                        {kotaOptions.map((k) => (
                           <div
                             key={k}
                             className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
                             onClick={() => {
-                              setSelectedKecamatan(k);
+                              setSelectedKota(k);
+                              setOpenKota(false);
+                            }}
+                          >
+                            <span className="block truncate font-normal">
+                              {k}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-row gap-2">
+                  <div className="flex-1" ref={kecRef}>
+                    <div className="relative mt-1">
+                      <button
+                        type="button"
+                        onClick={() => setOpenKec((s) => !s)}
+                        className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      >
+                        <span className="block truncate">
+                          {selectedKecamatan || "Kecamatan"}
+                        </span>
+                        <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                          <svg
+                            className="h-5 w-5 text-gray-400"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </span>
+                      </button>
+                      {openKec && (
+                        <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                          <div
+                            className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                            onClick={() => {
+                              setSelectedKecamatan("");
                               setOpenKec(false);
                             }}
                           >
                             <span className="block truncate font-normal">
-                              {k}
+                              All Kecamatan
                             </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1" ref={kelRef}>
-                  <div className="relative mt-1">
-                    <button
-                      type="button"
-                      onClick={() => setOpenKel((s) => !s)}
-                      className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                    >
-                      <span className="block truncate">
-                        {selectedKelurahan || "Kelurahan"}
-                      </span>
-                      <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
-                        <svg
-                          className="h-5 w-5 text-gray-400"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          aria-hidden="true"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </span>
-                    </button>
-                    {openKel && (
-                      <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-                        <div
-                          className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
-                          onClick={() => {
-                            setSelectedKelurahan("");
-                            setOpenKel(false);
-                          }}
-                        >
-                          <span className="block truncate font-normal">
-                            All Kelurahan
-                          </span>
+                          {kecamatanOptions.map((k) => (
+                            <div
+                              key={k}
+                              className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                              onClick={() => {
+                                setSelectedKecamatan(k);
+                                setOpenKec(false);
+                              }}
+                            >
+                              <span className="block truncate font-normal">
+                                {k}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                        {kelurahanOptions.map((k) => (
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1" ref={kelRef}>
+                    <div className="relative mt-1">
+                      <button
+                        type="button"
+                        onClick={() => setOpenKel((s) => !s)}
+                        className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      >
+                        <span className="block truncate">
+                          {selectedKelurahan || "Kelurahan"}
+                        </span>
+                        <span className="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
+                          <svg
+                            className="h-5 w-5 text-gray-400"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.47-2.47a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </span>
+                      </button>
+                      {openKel && (
+                        <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
                           <div
-                            key={k}
                             className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
                             onClick={() => {
-                              setSelectedKelurahan(k);
+                              setSelectedKelurahan("");
                               setOpenKel(false);
                             }}
                           >
                             <span className="block truncate font-normal">
-                              {k}
+                              All Kelurahan
                             </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          {kelurahanOptions.map((k) => (
+                            <div
+                              key={k}
+                              className="relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 hover:bg-indigo-600 hover:text-white"
+                              onClick={() => {
+                                setSelectedKelurahan(k);
+                                setOpenKel(false);
+                              }}
+                            >
+                              <span className="block truncate font-normal">
+                                {k}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Collapsed: only show Find Data button */}
-          <div className={searchOpen ? "hidden" : "block"}>
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className="w-full py-2 rounded-md bg-[#636059] text-white font-semibold"
-              >
-                Find Data
-              </button>
-            </div>
-          </div>
-
-          {/* Expanded: header + results (only results are toggled) */}
-          <div className={searchOpen ? "block" : "hidden"}>
-            <div className="my-4">
-              <button
-                type="button"
-                onClick={() => setSearchOpen(false)}
-                className="w-full py-2 rounded-md bg-[#636059] text-white font-medium"
-                aria-label="Close search"
-              >
-                Stop Filtering
-              </button>
+            {/* Collapsed: only show Find Data button */}
+            <div className={searchOpen ? "hidden" : "block"}>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  className="w-full py-2 rounded-md bg-[#636059] text-white font-semibold"
+                >
+                  Find Data
+                </button>
+              </div>
             </div>
 
-            <div
-              className="overflow-y-auto"
-              style={{ maxHeight: searchOpen ? "50vh" : "auto" }}
-            >
-              <div className="">
-                {/** render matching features from the loaded geojson */}
-                {features
-                  .filter((f) => {
-                    const p = f.properties || {};
-                    if (
-                      selectedKota &&
-                      !(p.Kota === selectedKota || p.kota === selectedKota)
-                    )
-                      return false;
-                    if (
-                      selectedKecamatan &&
-                      !(
-                        p.Kecamatan === selectedKecamatan ||
-                        p.kecamatan === selectedKecamatan
-                      )
-                    )
-                      return false;
-                    if (
-                      selectedKelurahan &&
-                      !(
-                        p.Kelurahan === selectedKelurahan ||
-                        p.kelurahan === selectedKelurahan
-                      )
-                    )
-                      return false;
-                    return true;
-                  })
-                  .slice(0, 20)
-                  .map((f, idx) => {
-                    const p = f.properties || {};
-                    const title =
-                      p.AWLR_Name ||
-                      p.Pompa ||
-                      p.Name ||
-                      p.AWRL_Name ||
-                      p.Device_ID ||
-                      `Feature ${idx + 1}`;
-                    const id =
-                      p.Device_ID ||
-                      p.DeviceId ||
-                      p.Pompa ||
-                      p.id ||
-                      `id-${idx}`;
-                    const reading =
-                      p.Reading ||
-                      p.reading ||
-                      p.Capacity ||
-                      p["Reading_(+6hr)"] ||
-                      "N/A";
-                    const iconSrc =
-                      selectedDataset === "ARR"
-                        ? "/assets/img/rain-gauge-icon.svg"
-                        : selectedDataset === "AWLR"
-                        ? "/assets/img/water-level-icon.svg"
-                        : "/assets/img/pump-icon.svg";
+            {/* Expanded: header + results (only results are toggled) */}
+            <div className={searchOpen ? "block" : "hidden"}>
+              <div className="my-4">
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(false)}
+                  className="w-full py-2 rounded-md bg-[#636059] text-white font-medium"
+                  aria-label="Close search"
+                >
+                  Stop Filtering
+                </button>
+              </div>
 
-                    // derive status value and color class
-                    let statusValue = null;
-                    const dc =
-                      p.Device_Condition ||
-                      p.device_condition ||
-                      p.deviceCondition;
-                    if (dc !== undefined && dc !== null) {
-                      if (typeof dc === "string" || typeof dc === "number") {
-                        statusValue = String(dc);
-                      } else if (typeof dc === "object") {
-                        const prefer = [
-                          "Condition",
-                          "condition",
-                          "Status",
-                          "status",
-                          "State",
-                          "state",
-                          "Online",
-                          "online",
-                        ];
-                        for (const k of prefer) {
-                          if (k in dc) {
-                            const v = dc[k];
-                            if (
-                              typeof v === "string" ||
-                              typeof v === "number"
-                            ) {
-                              statusValue = String(v);
-                              break;
+              <div
+                className="overflow-y-auto"
+                style={{ maxHeight: searchOpen ? "50vh" : "auto" }}
+              >
+                <div className="">
+                  {/** render matching features from the loaded geojson */}
+                  {features
+                    .filter((f) => {
+                      const p = f.properties || {};
+                      if (
+                        selectedKota &&
+                        !(p.Kota === selectedKota || p.kota === selectedKota)
+                      )
+                        return false;
+                      if (
+                        selectedKecamatan &&
+                        !(
+                          p.Kecamatan === selectedKecamatan ||
+                          p.kecamatan === selectedKecamatan
+                        )
+                      )
+                        return false;
+                      if (
+                        selectedKelurahan &&
+                        !(
+                          p.Kelurahan === selectedKelurahan ||
+                          p.kelurahan === selectedKelurahan
+                        )
+                      )
+                        return false;
+                      return true;
+                    })
+                    .slice(0, 20)
+                    .map((f, idx) => {
+                      const p = f.properties || {};
+                      const title =
+                        p.AWLR_Name ||
+                        p.Pompa ||
+                        p.Name ||
+                        p.AWRL_Name ||
+                        p.Device_ID ||
+                        `Feature ${idx + 1}`;
+                      const id =
+                        p.Device_ID ||
+                        p.DeviceId ||
+                        p.Pompa ||
+                        p.id ||
+                        `id-${idx}`;
+                      const reading =
+                        p.Reading ||
+                        p.reading ||
+                        p.Capacity ||
+                        p["Reading_(+6hr)"] ||
+                        "N/A";
+                      const iconSrc =
+                        selectedDataset === "ARR"
+                          ? "/assets/img/rain-gauge-icon.svg"
+                          : selectedDataset === "AWLR"
+                          ? "/assets/img/water-level-icon.svg"
+                          : "/assets/img/pump-icon.svg";
+
+                      // derive status value and color class
+                      let statusValue = null;
+                      const dc =
+                        p.Device_Condition ||
+                        p.device_condition ||
+                        p.deviceCondition;
+                      if (dc !== undefined && dc !== null) {
+                        if (typeof dc === "string" || typeof dc === "number") {
+                          statusValue = String(dc);
+                        } else if (typeof dc === "object") {
+                          const prefer = [
+                            "Condition",
+                            "condition",
+                            "Status",
+                            "status",
+                            "State",
+                            "state",
+                            "Online",
+                            "online",
+                          ];
+                          for (const k of prefer) {
+                            if (k in dc) {
+                              const v = dc[k];
+                              if (
+                                typeof v === "string" ||
+                                typeof v === "number"
+                              ) {
+                                statusValue = String(v);
+                                break;
+                              }
                             }
                           }
-                        }
-                        if (!statusValue) {
-                          try {
-                            const json = JSON.stringify(dc);
-                            statusValue =
-                              json.length > 60
-                                ? json.slice(0, 57) + "..."
-                                : json;
-                          } catch (e) {
-                            // ignore
+                          if (!statusValue) {
+                            try {
+                              const json = JSON.stringify(dc);
+                              statusValue =
+                                json.length > 60
+                                  ? json.slice(0, 57) + "..."
+                                  : json;
+                            } catch (e) {
+                              // ignore
+                            }
                           }
                         }
                       }
-                    }
-                    if (!statusValue) {
-                      const statusCandidates = [
-                        p.Status,
-                        p.status,
-                        p.Online,
-                        p.online,
-                        p.State,
-                      ];
-                      const st = statusCandidates.find(
-                        (s) => typeof s === "string" || typeof s === "number"
-                      );
-                      if (st) statusValue = String(st);
-                    }
-                    const statusText = statusValue
-                      ? `Status: ${statusValue}`
-                      : "Status: unknown";
-                    const s = (statusValue || "").toLowerCase();
-                    let statusColorClass = "text-gray-600";
-                    if (
-                      s.includes("good") ||
-                      s.includes("ok") ||
-                      s.includes("online") ||
-                      s.includes("operational") ||
-                      s.includes("normal") ||
-                      s.includes("available")
-                    ) {
-                      statusColorClass = "text-green-600";
-                    } else if (
-                      s.includes("poor") ||
-                      s.includes("bad") ||
-                      s.includes("offline") ||
-                      s.includes("broken") ||
-                      s.includes("fault") ||
-                      s.includes("no") ||
-                      s.includes("fail")
-                    ) {
-                      statusColorClass = "text-red-600";
-                    } else if (
-                      s.includes("warn") ||
-                      s.includes("partial") ||
-                      s.includes("maintenance") ||
-                      s.includes("unknown") ||
-                      s.includes("degraded")
-                    ) {
-                      statusColorClass = "text-yellow-600";
-                    }
+                      if (!statusValue) {
+                        const statusCandidates = [
+                          p.Status,
+                          p.status,
+                          p.Online,
+                          p.online,
+                          p.State,
+                        ];
+                        const st = statusCandidates.find(
+                          (s) => typeof s === "string" || typeof s === "number"
+                        );
+                        if (st) statusValue = String(st);
+                      }
+                      const statusText = statusValue
+                        ? `Status: ${statusValue}`
+                        : "Status: unknown";
+                      const s = (statusValue || "").toLowerCase();
+                      let statusColorClass = "text-gray-600";
+                      if (
+                        s.includes("good") ||
+                        s.includes("ok") ||
+                        s.includes("online") ||
+                        s.includes("operational") ||
+                        s.includes("normal") ||
+                        s.includes("available")
+                      ) {
+                        statusColorClass = "text-green-600";
+                      } else if (
+                        s.includes("poor") ||
+                        s.includes("bad") ||
+                        s.includes("offline") ||
+                        s.includes("broken") ||
+                        s.includes("fault") ||
+                        s.includes("no") ||
+                        s.includes("fail")
+                      ) {
+                        statusColorClass = "text-red-600";
+                      } else if (
+                        s.includes("warn") ||
+                        s.includes("partial") ||
+                        s.includes("maintenance") ||
+                        s.includes("unknown") ||
+                        s.includes("degraded")
+                      ) {
+                        statusColorClass = "text-yellow-600";
+                      }
 
-                    return (
-                      <div
-                        key={idx}
-                        role="button"
-                        title={`Zoom to ${title}`}
-                        onClick={() => {
-                          try {
-                            let coords = null;
-                            if (f && f.geometry) {
-                              const g = f.geometry;
-                              if (g.type === "Point") coords = g.coordinates;
-                              else if (Array.isArray(g.coordinates)) {
-                                const first = g.coordinates[0];
-                                coords = Array.isArray(first[0])
-                                  ? first[0]
-                                  : first;
+                      return (
+                        <div
+                          key={idx}
+                          role="button"
+                          title={`Zoom to ${title}`}
+                          onClick={() => {
+                            try {
+                              let coords = null;
+                              if (f && f.geometry) {
+                                const g = f.geometry;
+                                if (g.type === "Point") coords = g.coordinates;
+                                else if (Array.isArray(g.coordinates)) {
+                                  const first = g.coordinates[0];
+                                  coords = Array.isArray(first[0])
+                                    ? first[0]
+                                    : first;
+                                }
                               }
-                            }
-                            if (!coords) {
-                              if (p.longitude && p.latitude)
-                                coords = [p.longitude, p.latitude];
-                              else if (
-                                (p.Longitude || p.Lon || p.lon) &&
-                                (p.Latitude || p.Lat || p.lat)
+                              if (!coords) {
+                                if (p.longitude && p.latitude)
+                                  coords = [p.longitude, p.latitude];
+                                else if (
+                                  (p.Longitude || p.Lon || p.lon) &&
+                                  (p.Latitude || p.Lat || p.lat)
+                                )
+                                  coords = [
+                                    p.Longitude || p.Lon || p.lon,
+                                    p.Latitude || p.Lat || p.lat,
+                                  ];
+                              }
+                              if (
+                                coords &&
+                                Array.isArray(coords) &&
+                                coords.length >= 2
                               )
-                                coords = [
-                                  p.Longitude || p.Lon || p.lon,
-                                  p.Latitude || p.Lat || p.lat,
-                                ];
+                                window.dispatchEvent(
+                                  new CustomEvent("feature:focus", {
+                                    detail: {
+                                      coordinates: coords,
+                                      zoom: 17,
+                                      id,
+                                    },
+                                  })
+                                );
+                            } catch (err) {
+                              console.warn("feature focus failed", err);
                             }
-                            if (
-                              coords &&
-                              Array.isArray(coords) &&
-                              coords.length >= 2
-                            )
-                              window.dispatchEvent(
-                                new CustomEvent("feature:focus", {
-                                  detail: { coordinates: coords, zoom: 17, id },
-                                })
-                              );
-                          } catch (err) {
-                            console.warn("feature focus failed", err);
-                          }
-                        }}
-                        className="p-3 bg-gray-100 rounded mb-3 cursor-pointer"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-white rounded shadow">
-                            <img src={iconSrc} alt="icon" className="w-6 h-6" />
-                          </div>
-                          <div className="text-sm w-full">
-                            <div className="font-semibold truncate">
-                              {title}
+                          }}
+                          className="p-3 bg-gray-100 rounded mb-3 cursor-pointer"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-white rounded shadow">
+                              <img
+                                src={iconSrc}
+                                alt="icon"
+                                className="w-6 h-6"
+                              />
                             </div>
-                            <div className="text-xs text-gray-600 mt-1">
-                              <div className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-1 items-center">
-                                <div className="text-gray-700">Device ID</div>
-                                <div className="truncate">: {id}</div>
+                            <div className="text-sm w-full">
+                              <div className="font-semibold truncate">
+                                {title}
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                <div className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-1 items-center">
+                                  <div className="text-gray-700">Device ID</div>
+                                  <div className="truncate">: {id}</div>
 
-                                <div className="text-gray-700">Reading</div>
-                                <div className="truncate">
-                                  : {formatReading(reading)} m
-                                </div>
+                                  <div className="text-gray-700">Reading</div>
+                                  <div className="truncate">
+                                    : {formatReading(reading)} m
+                                  </div>
 
-                                {p["Reading_(+6hr)"] || p["Reading (+6hr)"] ? (
-                                  <>
-                                    <div className="text-gray-700">
-                                      Reading (+6hr)
-                                    </div>
-                                    <div className="truncate">
-                                      :{" "}
-                                      {formatReading(
-                                        p["Reading_(+6hr)"] ||
-                                          p["Reading (+6hr)"]
-                                      )}
-                                    </div>
-                                  </>
-                                ) : null}
+                                  {p["Reading_(+6hr)"] ||
+                                  p["Reading (+6hr)"] ? (
+                                    <>
+                                      <div className="text-gray-700">
+                                        Reading (+6hr)
+                                      </div>
+                                      <div className="truncate">
+                                        :{" "}
+                                        {formatReading(
+                                          p["Reading_(+6hr)"] ||
+                                            p["Reading (+6hr)"]
+                                        )}
+                                      </div>
+                                    </>
+                                  ) : null}
 
-                                <div className="text-gray-700">Status</div>
-                                <div
-                                  className={`font-medium ${statusColorClass} truncate`}
-                                >
-                                  : {statusText.replace(/^Status:\s*/i, "")}
+                                  <div className="text-gray-700">Status</div>
+                                  <div
+                                    className={`font-medium ${statusColorClass} truncate`}
+                                  >
+                                    : {statusText.replace(/^Status:\s*/i, "")}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                {features.length === 0 && (
-                  <div className="p-3 text-sm text-gray-600">
-                    No data loaded for the selected dataset.
-                  </div>
-                )}
+                      );
+                    })}
+                  {features.length === 0 && (
+                    <div className="p-3 text-sm text-gray-600">
+                      No data loaded for the selected dataset.
+                    </div>
+                  )}
+                </div>
+                {/* kept a single placeholder example card for UX */}
               </div>
-              {/* kept a single placeholder example card for UX */}
             </div>
           </div>
+        )}
+        <div style={scaledContainerStyle} className="flex flex-col gap-2">
+          <PumpButton
+            isActive={showPumps}
+            onClick={() => onTogglePumps()}
+            hidden={hidden}
+          />
+          <WaterLevelButton
+            isActive={showWaterLevels}
+            onClick={() => onToggleWaterLevels()}
+            hidden={hidden}
+          />
+          <RainRecorderButton
+            isActive={showRainRecorders}
+            onClick={() => onToggleRainRecorders()}
+            hidden={hidden}
+          />
+          <RiverBodyButton
+            isActive={showRivers}
+            onClick={() => onToggleRivers()}
+            hidden={hidden}
+          />
+          <CrossSectionButton
+            isActive={showCrossSections}
+            onClick={() => onToggleCrossSections()}
+            hidden={hidden}
+          />
         </div>
-      )}
-
-      <div
-        className={containerClass}
-        aria-hidden={hidden}
-        style={scaledContainerStyle}
-      >
-        <SearchButton onClick={toggleSearch} hidden={hidden} />
-        <PumpButton
-          isActive={showPumps}
-          onClick={() => onTogglePumps()}
-          hidden={hidden}
-        />
-        <WaterLevelButton
-          isActive={showWaterLevels}
-          onClick={() => onToggleWaterLevels()}
-          hidden={hidden}
-        />
-        <RainRecorderButton
-          isActive={showRainRecorders}
-          onClick={() => onToggleRainRecorders()}
-          hidden={hidden}
-        />
-        <RiverBodyButton
-          isActive={showRivers}
-          onClick={() => onToggleRivers()}
-          hidden={hidden}
-        />
-        <CrossSectionButton
-          isActive={showCrossSections}
-          onClick={() => onToggleCrossSections()}
-          hidden={hidden}
-        />
       </div>
     </>
   );

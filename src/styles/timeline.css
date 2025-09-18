@@ -1,0 +1,120 @@
+.timeline-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  pointer-events: none; /* allow clicks to pass except on inner elements */
+}
+
+.timeline-inner {
+  width: min(1080px, 94%);
+  background: rgba(20, 20, 20, 0.65);
+  color: #fff;
+  padding: 8px 12px 14px 12px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+.timeline-selected {
+  text-align: center;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.timeline-track {
+  position: relative;
+  height: 36px;
+}
+
+.timeline-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-50%);
+  border-radius: 2px;
+}
+
+.timeline-ticks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.timeline-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.tick-mark {
+  width: 2px;
+  height: 10px;
+  background: #fff;
+  opacity: 0.7;
+  margin-top: 10px;
+}
+
+.tick-label {
+  font-size: 11px;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.timeline-tick.active .tick-mark {
+  background: #ffdd57;
+  height: 12px;
+}
+
+.timeline-slider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  appearance: none;
+  background: transparent;
+  margin: 0;
+  pointer-events: auto;
+}
+
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.timeline-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #ff6b6b;
+  border-radius: 50%;
+}
+
+.timeline-slider:focus {
+  outline: none;
+}
+
+@media (max-width: 520px) {
+  .timeline-inner {
+    padding: 6px 8px 10px;
+  }
+  .tick-label {
+    font-size: 10px;
+  }
+}

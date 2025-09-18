@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo } from "react";
+import React, { useState, useCallback, useMemo, memo, useEffect } from "react";
 import { DateFilterProvider } from "../context/DateFilterContext.jsx";
 import Map from "../components/Map";
 import FloatingContainer from "../components/FloatingContainer";
@@ -63,6 +63,22 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
   );
 
   // Memoize map props to prevent unnecessary re-renders
+  // Raster overlay state (updated by Timeline via FloatingFlood)
+  const [rasterOverlay, setRasterOverlay] = useState({
+    path: null,
+    index: null,
+  });
+
+  const handleRasterChange = (path, index) => {
+    setRasterOverlay({ path, index });
+    // also dispatch a global event for backward compatibility
+    try {
+      window.dispatchEvent(
+        new CustomEvent("timelineRasterChange", { detail: { path, index } })
+      );
+    } catch (e) {}
+  };
+
   const mapProps = useMemo(
     () => ({
       showPumps,
@@ -75,6 +91,8 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
       onToggleRainRecorders: toggleRainRecorders,
       onToggleRivers: toggleRivers,
       onToggleCrossSections: toggleCrossSections,
+      // raster overlay passed to Map
+      rasterOverlay,
     }),
     [
       showPumps,
@@ -87,8 +105,39 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
       toggleRainRecorders,
       toggleRivers,
       toggleCrossSections,
+      rasterOverlay,
     ]
   );
+
+  // Hide pump controls when a simulation is running. Listen to global events
+  const [isSimulationRunning, setIsSimulationRunning] = useState(false);
+
+  useEffect(() => {
+    const handleSimulationState = (e) => {
+      const isActive = !!(e && e.detail && e.detail.isActive);
+      setIsSimulationRunning(isActive);
+    };
+
+    window.addEventListener("simulationStateChange", handleSimulationState);
+    // Listen for raster changes emitted by Timeline (via FloatingFlood)
+    const handleRasterEvent = (e) => {
+      if (e && e.detail) {
+        const { path, index } = e.detail;
+        setRasterOverlay({
+          path: path || null,
+          index: typeof index === "number" ? index : null,
+        });
+      }
+    };
+    window.addEventListener("timelineRasterChange", handleRasterEvent);
+    return () => {
+      window.removeEventListener(
+        "simulationStateChange",
+        handleSimulationState
+      );
+      window.removeEventListener("timelineRasterChange", handleRasterEvent);
+    };
+  }, []);
 
   return (
     <div className="w-full h-screen flex flex-col bg-blue-900">
@@ -96,7 +145,7 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
         <div className="flex-1 relative">
           <MemoizedMap mapProps={mapProps} />
 
-          <PumpControls {...controlsProps} />
+          {!isSimulationRunning && <PumpControls {...controlsProps} />}
           {/* Floating container positioned relative to the map */}
           <div
             className={`absolute left-8 ${
