@@ -2339,7 +2339,7 @@ const Map = ({
   }, [crossSectionData]);
 
   // Separate initialization functions for different popup types
-  const initializeCrossSectionPopup = (container, point) => {
+  const initializeCrossSectionPopup = (container, point, popupInstance) => {
     // Cross-section specific initialization
     const dots = container.querySelectorAll(".pagination-dot");
     const pages = container.querySelectorAll(".popup-page");
@@ -3021,6 +3021,30 @@ const Map = ({
           } catch (e) {}
         };
 
+        // If a popup instance is provided, ensure we cleanup when it closes
+        try {
+          if (
+            popupInstance &&
+            typeof popupInstance.on === "function" &&
+            !popupInstance.__csCloseHandlerAttached
+          ) {
+            // Attach once so multiple initializations don't add duplicate handlers
+            try {
+              popupInstance.on("close", () => {
+                try {
+                  cleanupChart &&
+                    typeof cleanupChart === "function" &&
+                    cleanupChart();
+                } catch (e) {}
+              });
+              // mark as attached to avoid duplicate handlers
+              try {
+                popupInstance.__csCloseHandlerAttached = true;
+              } catch (e) {}
+            } catch (e) {}
+          }
+        } catch (e) {}
+
         const removalObserver = new MutationObserver((mutations) => {
           for (const m of mutations) {
             if (m.removedNodes && m.removedNodes.length > 0) {
@@ -3575,7 +3599,7 @@ const Map = ({
             // re-initialize internals
             setTimeout(() => {
               if (point.type === "CrossSection")
-                initializeCrossSectionPopup(popupEl, point);
+                initializeCrossSectionPopup(popupEl, point, existing.popup);
               else initializeStandardPopup(popupEl, point);
             }, 50);
           }
@@ -3642,7 +3666,7 @@ const Map = ({
                   popupEl && popupEl.querySelector(".popup-content");
                 if (content) {
                   if (point.type === "CrossSection")
-                    initializeCrossSectionPopup(content, point);
+                    initializeCrossSectionPopup(content, point, popup);
                   else initializeStandardPopup(content, point);
                 }
               } catch (e) {
