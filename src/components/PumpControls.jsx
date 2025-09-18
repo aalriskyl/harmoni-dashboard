@@ -504,7 +504,7 @@ const PumpControls = ({
         </div>
         {dataExplorerVisible && (
           <div
-            className="fixed z-40 right-12 bg-white shadow-md max-w-[360px]"
+            className="fixed z-40 right-12 bg-white shadow-md max-w-[360px] max-h-[450px]"
             style={{
               borderRadius: 12,
               padding: "1rem",
@@ -553,7 +553,7 @@ const PumpControls = ({
                   </span>
                 </button>
                 {openDataset && (
-                  <div className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                  <div className="absolute z-10 mt-1 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm max-h-[100px]">
                     {datasets.map((d) => (
                       <div
                         key={d.key}
@@ -775,7 +775,7 @@ const PumpControls = ({
 
               <div
                 className="overflow-y-auto"
-                style={{ maxHeight: searchOpen ? "50vh" : "auto" }}
+                style={{ maxHeight: searchOpen ? "230px" : "auto" }}
               >
                 <div className="">
                   {/** render matching features from the loaded geojson */}
