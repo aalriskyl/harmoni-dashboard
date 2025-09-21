@@ -265,8 +265,8 @@ export default function Timeline({
                 aria-label={isPlaying ? "Pause timeline" : "Play timeline"}
                 className={`w-8 h-8 rounded flex items-center justify-center text-sm ${
                   isPlaying
-                    ? "bg-gray-800 text-white"
-                    : "bg-gray-800 text-white"
+                    ? "bg-[#636059] text-white"
+                    : "bg-[#636059] text-white"
                 } hover:opacity-90`}
               >
                 {isPlaying ? "❚❚" : "▶"}

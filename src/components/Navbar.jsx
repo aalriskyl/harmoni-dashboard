@@ -14,6 +14,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   );
   const [currentTime, setCurrentTime] = useState({ time: "", date: "" });
   const [showWeather, setShowWeather] = useState(false); // State for weather panel visibility
+  const [isSimulationRunning, setIsSimulationRunning] = useState(false);
   const dropdownButtonRef = useRef(null);
   const [portalPos, setPortalPos] = useState({ left: 0, top: 0, width: 288 });
 
@@ -55,10 +56,31 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   }, []);
 
   const toggleWeatherPanel = () => {
+    // prevent opening/toggling weather while simulation is running
+    if (isSimulationRunning) return;
+
     const newState = !showWeather;
     setShowWeather(newState);
     if (onWeatherToggle) onWeatherToggle(newState);
   };
+
+  // Listen for global simulation state changes so we can hide/disable weather button
+  useEffect(() => {
+    function handleSimState(e) {
+      const isActive = e?.detail?.isActive || false;
+      setIsSimulationRunning(isActive);
+
+      // If simulation just started, ensure weather panel is closed
+      if (isActive && showWeather) {
+        setShowWeather(false);
+        if (onWeatherToggle) onWeatherToggle(false);
+      }
+    }
+
+    window.addEventListener("simulationStateChange", handleSimState);
+    return () =>
+      window.removeEventListener("simulationStateChange", handleSimState);
+  }, [showWeather, onWeatherToggle]);
 
   // compute portal position based on button rect when dropdown opens
   useEffect(() => {
@@ -85,25 +107,28 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   }, [isSimulationDropdownOpen, dropdownButtonRef]);
 
   return (
-    <div className="fixed top-6 left-0 w-full z-20 px-8 flex flex-col">
+    <div className="fixed top-0 left-0 w-full z-20 flex flex-col">
       {/* Main Navbar */}
       <div className="flex">
-        <div className="w-full border bg-white/90 rounded-2xl shadow-lg px-6 py-3 flex justify-between items-center gap-[34rem]">
+        <div className="w-full bg-[#a49e92] py-2 flex justify-between items-center gap-[34rem]">
           {/* Left side - Title/Dropdown */}
           <div className="flex text-[#cfcfcd] items-center gap-2">
-            <div className="px-4 py-2 rounded-xl">
+            <div className="px-4 py-2 rounded-xl ml-5">
               <img
-                src="/assets/img/Logo.png"
+                src="/assets/img/Logo_white.png"
                 alt="logo"
-                className="w-20 h-auto"
+                className="w-40 h-auto"
               />
             </div>
-
             {/* Second Dropdown container */}
+          </div>
+
+          {/* Right side - Icons */}
+          <div className="flex items-center space-x-2 rounded-xl px-2 py-2">
             <div className="relative">
               <button
                 ref={dropdownButtonRef}
-                className="bg-[#cfcfcd] text-[#636059] border-[#636059] border px-4 py-2 rounded-xl flex items-center ml-2"
+                className="bg-[#cfcfcd] text-[#636059] font-bold px-2 py-4 rounded-xl flex items-center ml-2"
                 onClick={() => setIsSimulationDropdownOpen((s) => !s)}
               >
                 {selectedSimulation}
@@ -138,7 +163,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                       <div className="py-1">
                         <a
                           href="#"
-                          className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd] text-sm"
+                          className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd] text-sm font-medium"
                           onClick={(e) => {
                             e.preventDefault();
                             setSelectedSimulation("Realtime Flood Simulation");
@@ -205,62 +230,40 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                 </>
               )}
             </div>
-          </div>
-
-          {/* Right side - Icons */}
-          <div className="flex items-center space-x-2 bg-[#636059] border border-[#cfcfcd]/30 rounded-xl px-2 py-2">
             {/* Weather Icon - Now with toggle functionality */}
-            <button
-              className={`flex items-center cursor-pointer px-2 py-2 rounded-xl transition-colors text-white ${
-                showWeather ? "bg-[#636059]" : "bg-[#a49e92]"
-              }`}
-              onClick={toggleWeatherPanel}
-            >
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-              <span className="ml-1 text-white">28°C</span>
-            </button>
+            <div className="flex items-center bg-[#cfcfcd] rounded-xl px-2 py-2">
+              {/* Place weather button on the left */}
+              <div className="flex-shrink-0 justify-start">
+                <button
+                  className={`flex items-center cursor-pointer px-4 py-2 rounded-lg transition-colors text-white ${
+                    showWeather ? "bg-[#636059]" : "bg-[#636059]"
+                  }`}
+                  onClick={toggleWeatherPanel}
+                >
+                  <span className="ml-1 text-white font-bold">28°C</span>
+                </button>
+              </div>
 
-            {/* Timezone - Now with live updating clock */}
-            <div className="flex items-center px-3 py-2 rounded-xl">
-              <svg
-                className="w-5 h-5 text-white me-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <div className="flex items-center">
-                <span className="text-white text-md mr-2 hidden sm:inline">
-                  {currentTime.date}
-                </span>
-                <span className="ml-1 text-white">{currentTime.time}</span>
+              {/* Timezone - centered text */}
+              <div className="flex-1 text-center px-3 py-1">
+                <div className="inline-flex items-center justify-center">
+                  <div className="flex flex-col mx-4">
+                    <div className="flex-row flex">
+                      <span className="text-[#636059] text-md font-bold hidden sm:inline">
+                        {currentTime.date}
+                      </span>
+                      <span className="ml-1 font-bold text-[#636059]">
+                        {currentTime.time}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-
             {/* Notification Bell */}
-            <button className="relative bg-[#636059]/50 p-2 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
+            <button className="relative bg-[#636059]/50 p-4 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
               <svg
-                className="w-5 h-5"
+                className="w-6 h-6"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -277,9 +280,9 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
             </button>
 
             {/* User Avatar */}
-            <button className="flex items-center bg-[#636059]/50 p-2 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
+            <button className="flex items-center bg-[#636059]/50 p-4 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
               <svg
-                className="w-5 h-5 text-white"
+                className="w-6 h-6 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

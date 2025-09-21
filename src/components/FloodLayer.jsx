@@ -19,10 +19,10 @@ const FloodLayer = ({ map, show, rainfall = 0 }) => {
         type: "image",
         url: "/assets/img/Social_Vulnerability_8000px.png",
         coordinates: [
-          [106.5, -6.0], // top-left
-          [107.2, -6.0], // top-right
-          [107.2, -6.5], // bottom-right
-          [106.5, -6.5], // bottom-left
+          [106.6849284, -6.0790941], // top-left
+          [106.9742925, -6.0790941], // top-right
+          [106.9742925, -6.3729514], // bottom-right
+          [106.6849284, -6.3729514], // bottom-left
         ],
       });
 

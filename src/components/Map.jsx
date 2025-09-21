@@ -3610,8 +3610,16 @@ const Map = ({
         // Create element and popup as before
         try {
           const el = document.createElement("div");
-          el.className =
-            "w-8 h-8 rounded-md flex items-center justify-center cursor-pointer";
+          // Use explicit inline sizing and box-sizing so the marker is centered
+          // reliably even if Tailwind utility classes are missing due to purge.
+          el.style.width = "32px";
+          el.style.height = "32px";
+          el.style.boxSizing = "border-box";
+          el.style.borderRadius = "6px";
+          el.style.display = "flex";
+          el.style.alignItems = "center";
+          el.style.justifyContent = "center";
+          el.style.cursor = "pointer";
 
           const markerStyles = {
             Waterpump: { bgColor: "#636059", borderColor: "#636059" },
@@ -3628,9 +3636,11 @@ const Map = ({
 
           const icon = document.createElement("img");
           icon.src = getIconSrc(point.type);
-          icon.className = "w-8 h-8 p-1";
+          // Explicit icon sizing to avoid layout shift and dependency on Tailwind classes
+          icon.style.width = "20px";
+          icon.style.height = "20px";
           icon.style.display = "block";
-          icon.style.margin = "0";
+          icon.style.margin = "4px 4px 4px 5px";
           icon.style.filter = "brightness(0) invert(1)";
           el.appendChild(icon);
 
@@ -3652,7 +3662,8 @@ const Map = ({
             closeButton: false,
           }).setDOMContent(popupContent);
 
-          const marker = new mapboxgl.Marker(el)
+          // Use the Marker options form to explicitly set the element and anchor
+          const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
             .setLngLat([point.lng, point.lat])
             .setPopup(popup)
             .addTo(map.current);
@@ -3867,8 +3878,18 @@ const Map = ({
         </div>
       `);
 
-      // Create the marker
-      const marker = new mapboxgl.Marker(el)
+      // Ensure element has explicit sizing for consistent centering
+      try {
+        el.style.width = el.style.width || "32px";
+        el.style.height = el.style.height || "32px";
+        el.style.boxSizing = el.style.boxSizing || "border-box";
+        el.style.display = el.style.display || "flex";
+        el.style.alignItems = el.style.alignItems || "center";
+        el.style.justifyContent = el.style.justifyContent || "center";
+      } catch (e) {}
+
+      // Create the marker with explicit anchor to center the element on the coordinate
+      const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
         .setLngLat([incident.coordinates.lng, incident.coordinates.lat])
         .setPopup(popup)
         .addTo(map.current);
