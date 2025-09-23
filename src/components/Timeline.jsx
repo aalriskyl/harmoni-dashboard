@@ -148,7 +148,13 @@ export default function Timeline({
     return String(n).padStart(2, "0");
   }
 
-  function formatDateDisplay(date, hourLabel) {
+  function ordinalSuffix(n) {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  function formatDateDisplay(date) {
     const weekdays = [
       "Sunday",
       "Monday",
@@ -158,12 +164,25 @@ export default function Timeline({
       "Friday",
       "Saturday",
     ];
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
     const dayName = weekdays[date.getDay()];
-    const dd = pad(date.getDate());
-    const mm = pad(date.getMonth() + 1);
+    const dayNum = date.getDate();
+    const monthName = months[date.getMonth()];
     const yyyy = date.getFullYear();
-    const time = hourLabel || formatTimeFromMinutes(minutes);
-    return `${dayName}, ${dd}/${mm}/${yyyy}, ${time} WIB`;
+    return `${dayName}, ${ordinalSuffix(dayNum)} ${monthName} ${yyyy}`;
   }
 
   const dispatchDateChange = (date) => {
@@ -214,40 +233,50 @@ export default function Timeline({
             />
           </div>
         )}
-        <div className="flex flex-col mx-auto items-center mb-1 bg-white max-w-[480px] w-full px-3 py-2 rounded">
-          <div className="flex items-center gap-3 justify-center w-full">
+        <div className="flex flex-col mx-5 items-center bg-white max-w-[332px] w-full px-3 py-1 rounded mb-[20px]">
+          <div className="relative w-full">
+            {/* Prev button pinned to left */}
             <button
               type="button"
               onClick={prevDay}
               aria-label="Previous day"
-              className="px-2 py-1 bg-[#636059] rounded hover:bg-[#636059]/20 text-md text-white"
+              className="absolute left-2 top-1/2 -translate-y-1/2 px-2 bg-[#636059] rounded hover:bg-[#636059]/20 text-md text-white z-30 pointer-events-auto"
             >
               &lt;
             </button>
 
-            <input
-              type="date"
-              value={currentDate.toISOString().slice(0, 10)}
-              onChange={(e) => {
-                const v = e.target.value; // YYYY-MM-DD
-                if (!v) return;
-                // Construct a Date in local timezone
-                const parts = v.split("-").map((p) => Number(p));
-                const d = new Date(parts[0], parts[1] - 1, parts[2]);
-                changeDate(d);
-              }}
-              className="bg-transparent text-sm border border-gray-200 rounded px-2 py-1"
-            />
-
-            <div className="ml-2 text-sm font-semibold whitespace-nowrap">
-              {formatTimeFromMinutes(minutes)} WIB
+            {/* Center content */}
+            <div className="flex items-center justify-center w-full">
+              <div className="relative">
+                {/* shrink to content so the invisible input only covers the text */}
+                <div className="inline-block relative px-4">
+                  <div className="bg-transparent text-sm rounded px-2 py-1 text-left select-none">
+                    {formatDateDisplay(currentDate)}
+                  </div>
+                  <input
+                    id="hidden-date-input"
+                    type="date"
+                    value={currentDate.toISOString().slice(0, 10)}
+                    onChange={(e) => {
+                      const v = e.target.value; // YYYY-MM-DD
+                      if (!v) return;
+                      const parts = v.split("-").map((p) => Number(p));
+                      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                      changeDate(d);
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                    style={{ left: 0, right: 0 }}
+                  />
+                </div>
+              </div>
             </div>
 
+            {/* Next button pinned to right */}
             <button
               type="button"
               onClick={nextDay}
               aria-label="Next day"
-              className="px-2 py-1 bg-[#636059] rounded text-white hover:bg-[#636059]/20 text-md"
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-2 bg-[#636059] rounded text-white hover:bg-[#636059]/20 text-md z-30 pointer-events-auto"
             >
               &gt;
             </button>
@@ -255,10 +284,10 @@ export default function Timeline({
         </div>
 
         <div className="flex justify-center">
-          <div className="relative h-10 w-[90vw] mx-auto">
+          <div className="relative h-10 w-[88vw] mx-auto">
             {/* Play / Pause controls - positioned above the start (left) of the timeline */}
             {/* Left: single toggle play/pause button */}
-            <div className="absolute -left-14 top-6 -translate-y-6 ml-2 flex items-center gap-2 pointer-events-auto">
+            <div className="absolute -left-[79px] top-6 -translate-y-6 ml-2 flex items-center gap-2 pointer-events-auto">
               <button
                 type="button"
                 onClick={() => setPlayingState(!isPlaying)}
@@ -307,7 +336,7 @@ export default function Timeline({
                 <div
                   key={i}
                   style={{ left: `${leftPct}%` }}
-                  className="absolute top-0 transform -translate-x-1/2 flex flex-col items-center pointer-events-none"
+                  className="absolute -top-2 transform -translate-x-1/2 flex flex-col items-center pointer-events-none"
                 >
                   <div className="text-[12px] mb-2 text-black font-bold">
                     {formatHour(t)}

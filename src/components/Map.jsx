@@ -4501,14 +4501,14 @@ const Map = ({
       )}
       {/* dev helper removed */}
       <>
-        {/* <button
+        <button
           key={`control-btn-${forceUpdateKey}`}
           onClick={(e) => {
             e.stopPropagation();
             e.nativeEvent?.stopImmediatePropagation?.();
             setControlsVisible((prev) => !prev);
           }}
-          className="absolute bottom-16 right-9 bg-white p-2 rounded-lg shadow-md z-[20] hover:bg-gray-100 transition-colors cursor-pointer"
+          className="absolute bottom-16 right-9 bg-[#f2f1ef] p-2 rounded-lg shadow-md z-[20] hover:bg-gray-100 transition-colors cursor-pointer"
           style={{ transform: "scale(1)", transformOrigin: "bottom right" }}
           aria-label="Toggle controls"
         >
@@ -4526,12 +4526,12 @@ const Map = ({
               d="M4 6h16M4 12h16M4 18h16"
             />
           </svg>
-        </button> */}
+        </button>
 
         {controlsVisible && (
           <div
             key={`control-panel-${forceUpdateKey}`}
-            className="absolute bottom-16 right-20 bg-white p-4 rounded-lg shadow-md z-[1000] w-64"
+            className="absolute bottom-16 right-20 bg-[#f2f1ef] p-4 rounded-lg shadow-md z-[1000] w-64"
             style={{
               transform: "scale(1)",
               transformOrigin: "bottom right",

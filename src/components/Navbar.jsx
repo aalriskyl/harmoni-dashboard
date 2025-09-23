@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import FloatingAlerts from "./FloatingAlerts";
 
 const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -16,7 +17,14 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   const [showWeather, setShowWeather] = useState(false); // State for weather panel visibility
   const [isSimulationRunning, setIsSimulationRunning] = useState(false);
   const dropdownButtonRef = useRef(null);
+  const bellButtonRef = useRef(null);
   const [portalPos, setPortalPos] = useState({ left: 0, top: 0, width: 288 });
+  const [alertsPortalPos, setAlertsPortalPos] = useState({
+    left: 0,
+    top: 0,
+    width: 280,
+  });
+  const [showAlerts, setShowAlerts] = useState(false);
 
   useEffect(() => {
     // Function to update Jakarta time (GMT+7)
@@ -106,18 +114,38 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
     };
   }, [isSimulationDropdownOpen, dropdownButtonRef]);
 
+  // compute portal position based on bell button rect when alerts opens
+  useEffect(() => {
+    if (!showAlerts || !bellButtonRef.current) return;
+
+    function updatePos() {
+      const rect = bellButtonRef.current.getBoundingClientRect();
+      // place dropdown below the bell button
+      setAlertsPortalPos({ left: rect.left, top: rect.bottom + 8, width: 320 });
+    }
+
+    updatePos();
+    window.addEventListener("resize", updatePos);
+    window.addEventListener("scroll", updatePos, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePos);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+  }, [showAlerts, bellButtonRef]);
+
   return (
     <div className="fixed top-0 left-0 w-full z-20 flex flex-col">
       {/* Main Navbar */}
       <div className="flex">
-        <div className="w-full bg-[#a49e92] py-2 flex justify-between items-center gap-[34rem]">
+        <div className="w-full flex justify-between items-center gap-[34rem]">
           {/* Left side - Title/Dropdown */}
-          <div className="flex text-[#cfcfcd] items-center gap-2">
-            <div className="px-4 py-2 rounded-xl ml-5">
+          <div className="flex text-[#cfcfcd]  items-center gap-2">
+            <div className="px-20 py-2 bg-[#636059] rounded-br-full">
               <img
                 src="/assets/img/Logo_white.png"
                 alt="logo"
-                className="w-40 h-auto"
+                className="w-50 h-auto"
               />
             </div>
             {/* Second Dropdown container */}
@@ -261,7 +289,11 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
               </div>
             </div>
             {/* Notification Bell */}
-            <button className="relative bg-[#636059]/50 p-4 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
+            <button
+              ref={bellButtonRef}
+              onClick={() => setShowAlerts((s) => !s)}
+              className="relative bg-[#636059] p-4 rounded-xl text-white hover:bg-[#555149] transition-colors"
+            >
               <svg
                 className="w-6 h-6"
                 fill="none"
@@ -278,9 +310,23 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
               </svg>
               <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
+            {showAlerts &&
+              createPortal(
+                <DropdownPortal
+                  left={alertsPortalPos.left}
+                  top={alertsPortalPos.top}
+                  width={alertsPortalPos.width}
+                  onClose={() => setShowAlerts(false)}
+                  wrapperClassName="rounded-2xl shadow-lg"
+                >
+                  {/* FloatingAlerts now provides its own white background and sizing */}
+                  <FloatingAlerts />
+                </DropdownPortal>,
+                document.body
+              )}
 
             {/* User Avatar */}
-            <button className="flex items-center bg-[#636059]/50 p-4 rounded-xl text-white hover:bg-[#636059]/70 transition-colors">
+            <button className="flex items-center bg-[#636059] p-4 rounded-xl text-white hover:bg-[#555149] transition-colors">
               <svg
                 className="w-6 h-6 text-white"
                 fill="none"
@@ -296,6 +342,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                 />
               </svg>
             </button>
+            {/* Floating Alerts - rendered via portal when `showAlerts` is true (no runtime require) */}
           </div>
         </div>
       </div>
@@ -622,7 +669,14 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
 export default Navbar;
 
 // DropdownPortal - small helper component to render dropdown at fixed position
-function DropdownPortal({ left, top, width = 288, children, onClose }) {
+function DropdownPortal({
+  left = 23,
+  top,
+  width = 288,
+  children,
+  onClose,
+  wrapperClassName = "",
+}) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -651,7 +705,7 @@ function DropdownPortal({ left, top, width = 288, children, onClose }) {
     <div
       ref={ref}
       style={{ position: "fixed", left, top, width, zIndex: 99999 }}
-      className="bg-[#636059] rounded-xl shadow-lg"
+      className={wrapperClassName}
     >
       {children}
     </div>,

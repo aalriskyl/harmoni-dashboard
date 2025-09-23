@@ -12,37 +12,37 @@ const FloatingFlood = ({ setShowWeather }) => {
           return {
             title: "Flood Depth (m)",
             gradient:
-              "bg-gradient-to-t from-green-500 via-yellow-400 to-red-600", // vertical
+              "bg-gradient-to-r from-green-500 via-yellow-400 to-red-600", // horizontal
             labels: ["0", "0.76", "1.5", "3.0+"],
-            categories: ["Tinggi", "Sedang", "Rendah"], // Inverted order
-            colors: ["bg-red-600", "bg-yellow-600", "bg-green-600"], // Changed to background colors
+            categories: ["Rendah", "Sedang", "Tinggi"], // Reordered for horizontal
+            colors: ["bg-green-600", "bg-yellow-600", "bg-red-600"], // Reordered for horizontal
           };
         case "vulnerability":
           return {
             title: "Vulnerability Level",
             gradient:
-              "bg-gradient-to-t from-green-500 via-yellow-400 to-red-600",
+              "bg-gradient-to-r from-green-500 via-yellow-400 to-red-600",
             labels: ["0", "0.3", "0.6", "1.0"],
-            categories: ["Tinggi", "Sedang", "Rendah"], // Inverted order
-            colors: ["bg-red-600", "bg-yellow-600", "bg-green-600"], // Changed to background colors
+            categories: ["Rendah", "Sedang", "Tinggi"], // Reordered for horizontal
+            colors: ["bg-green-600", "bg-yellow-600", "bg-red-600"], // Reordered for horizontal
           };
         case "risk":
           return {
             title: "Risk Level",
             gradient:
-              "bg-gradient-to-t from-green-500 via-yellow-400 to-red-600",
+              "bg-gradient-to-r from-green-500 via-yellow-400 to-red-600",
             labels: ["0", "0.3", "0.6", "1.0"],
-            categories: ["Tinggi", "Sedang", "Rendah"], // Inverted order
-            colors: ["bg-red-600", "bg-yellow-600", "bg-green-600"], // Changed to background colors
+            categories: ["Rendah", "Sedang", "Tinggi"], // Reordered for horizontal
+            colors: ["bg-green-600", "bg-yellow-600", "bg-red-600"], // Reordered for horizontal
           };
         default:
           return {
             title: "Flood Depth (m)",
             gradient:
-              "bg-gradient-to-t from-green-500 via-yellow-400 to-red-600",
+              "bg-gradient-to-r from-green-500 via-yellow-400 to-red-600",
             labels: ["0", "0.5", "1.0", "1.5+"],
-            categories: ["Tinggi", "Sedang", "Rendah"], // Inverted order
-            colors: ["bg-red-600", "bg-yellow-600", "bg-green-600"], // Changed to background colors
+            categories: ["Rendah", "Sedang", "Tinggi"], // Reordered for horizontal
+            colors: ["bg-green-600", "bg-yellow-600", "bg-red-600"], // Reordered for horizontal
           };
       }
     };
@@ -51,40 +51,25 @@ const FloatingFlood = ({ setShowWeather }) => {
 
     return (
       <div
-        className={`absolute bottom-12  right-20 bg-white/90 p-3 rounded-md shadow-md z-20 border border-gray-200 ${className}`}
+        className={`absolute bottom-16 right-20 z-20 ${className}`}
+        aria-hidden={false}
       >
-        <div className="text-sm font-medium text-gray-700 mb-2">{title}</div>
-
-        <div className="flex gap-4">
-          {/* Left side - Categories with color indicators */}
-          <div className="flex flex-col justify-between h-40 py-1">
-            {categories.map((category, index) => {
-              // Use the provided background color classes directly
-              const colorClass = colors[index] || "bg-gray-400";
-              return (
-                <div key={index} className="flex items-center h-1/3">
-                  <div
-                    className={`w-4 h-4 rounded-sm mr-2 ${colorClass}`}
-                  ></div>
-                  <span className="text-xs font-medium text-gray-700 whitespace-nowrap">
-                    {category}
-                  </span>
-                </div>
-              );
-            })}
+        <div className="flex items-center gap-3 bg-white/0 p-1 rounded flex-nowrap">
+          {/* Title: prevent wrapping/shrinking */}
+          <div className="text-sm bg-white rounded-md  px-3 py-2 font-semibold text-gray-800 flex-shrink-0 whitespace-nowrap items-center">
+            {title}
           </div>
 
-          {/* Right side - Gradient bar with labels */}
-          <div className="flex items-center gap-2">
-            {/* Gradient Vertical Bar */}
-            <div className="relative w-6 h-40 rounded overflow-hidden">
-              <div className={`w-full h-full ${gradient}`}></div>
+          {/* Gradient block with absolutely positioned labels so title centers with gradient */}
+          <div className="relative flex-shrink-0">
+            <div className="relative w-40 h-8 rounded overflow-hidden">
+              <div className={`${gradient} w-full h-full`}></div>
             </div>
 
-            {/* Scale Labels - Ensure we have the correct number of labels */}
-            <div className="flex flex-col justify-between h-40 text-xs text-gray-600 py-1">
+            {/* Scale Labels positioned absolutely under the gradient */}
+            <div className="absolute left-0 right-0 top-full mt-1 flex justify-between text-xs text-gray-800 w-40">
               {labels.slice(0, 4).map((label, index) => (
-                <span key={index} className="h-1/3 flex items-end">
+                <span className="text-gray-800" key={index}>
                   {label}
                 </span>
               ))}

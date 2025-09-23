@@ -6,6 +6,7 @@ import FloatingFlood from "../components/FloatingFlood";
 import FloatingCrowdsourced from "../components/FloatingCrowdSourced";
 import FloatingTweets from "../components/FloatingTweets";
 import PumpControls from "../components/PumpControls.jsx";
+import ModelAccuracy from "../components/ModelAccuracy";
 
 // Memoize the Map component to prevent unnecessary re-renders
 const MemoizedMap = memo(({ mapProps }) => <Map {...mapProps} />);
@@ -143,9 +144,11 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
     <div className="w-full h-screen flex flex-col bg-blue-900">
       <DateFilterProvider>
         <div className="flex-1 relative">
+          {/* Model accuracy panel centered below navbar - show only during simulation */}
+          {isSimulationRunning && <ModelAccuracy initialAccuracy={0.87} />}
           <MemoizedMap mapProps={mapProps} />
 
-          {!isSimulationRunning && <PumpControls {...controlsProps} />}
+          <PumpControls {...controlsProps} />
           {/* Floating container positioned relative to the map */}
           <div
             className={`absolute left-8 ${
