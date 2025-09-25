@@ -3212,8 +3212,6 @@ const Map = ({
                     : "N/A"
                 }</span>
                 
-                <span class="font-medium">Water Depth</span>
-                <span>:</span>
                 <span class="${props.Water_Depth_m ? "font-medium" : ""}">${
         props.Water_Depth_m ? `${props.Water_Depth_m} m` : "N/A"
       }</span>
@@ -3831,8 +3829,9 @@ const Map = ({
         className: "flood-popup",
         closeButton: false,
         closeOnClick: false,
+        maxWidth: "920px",
       }).setHTML(`
-        <div class="p-4">
+        <div class="p-4 max-w-[760px]">
           <div class="flex justify-between items-start mb-3">
             <h3 class="text-lg font-semibold text-gray-900">
               ${incident.type} - ${incident.severity}
@@ -3845,31 +3844,41 @@ const Map = ({
           </div>
           
           <div class="space-y-2 text-sm text-gray-700">
-            <div class="flex justify-between">
-              <span class="font-medium">Date:</span>
-              <span>${incident.timestamp || "N/A"}</span>
+            <div class="flex items-start">
+              <span class="font-medium w-28">Date:</span>
+              <span class="ml-2 break-words">${
+                incident.timestamp || "N/A"
+              }</span>
             </div>
-            <div class="flex justify-between">
-              <span class="font-medium">Kecamatan:</span>
-              <span>${incident.properties?.Kecamatan || "N/A"}</span>
+            <div class="flex items-start">
+              <span class="font-medium w-28">Kecamatan:</span>
+              <span class="ml-2 break-words">${
+                incident.properties?.Kecamatan || "N/A"
+              }</span>
             </div>
-            <div class="flex justify-between">
-              <span class="font-medium">Kelurahan:</span>
-              <span>${incident.properties?.Kelurahan || "N/A"}</span>
+            <div class="flex items-start">
+              <span class="font-medium w-28">Kelurahan:</span>
+              <span class="ml-2 break-words">${
+                incident.properties?.Kelurahan || "N/A"
+              }</span>
             </div>
-            <div class="flex justify-between">
-              <span class="font-medium">Location:</span>
-              <span class="text-right">${incident.location || "N/A"}</span>
+            <div class="flex items-start">
+              <span class="font-medium w-28">Location:</span>
+              <span class="ml-2 break-words text-left">${
+                incident.location || "N/A"
+              }</span>
             </div>
-            <div class="flex justify-between">
-              <span class="font-medium">Water Depth:</span>
-              <span>${incident.description || "N/A"}</span>
+            <div class="flex items-start">
+              <span class="font-medium w-28">:</span>
+              <span class="ml-2 break-words">${
+                incident.description || "N/A"
+              }</span>
             </div>
           </div>
           
-          <div class="mt-4 flex justify-end">
+          <div class="mt-4 flex justify-start">
             <button 
-              class="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              class="px-3 py-1.5 text-sm rounded-md bg-[#636059] text-white hover:bg-[#636059] focus:outline-none focus:ring-2 focus:bg-[#636059] focus:ring-offset-2"
               onclick="this.closest('.mapboxgl-popup').remove();"
             >
               Close

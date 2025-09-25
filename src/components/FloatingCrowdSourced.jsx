@@ -164,16 +164,29 @@ const FloatingCrowdsourced = ({ setShowWeather }) => {
   const formatTime = (hour) => {
     return `${hour.toString().padStart(2, "0")}:00`;
   };
-
   const goBack = () => {
-    setShowWeather(true);
+    // Safely call parent setter if provided
+    if (typeof setShowWeather === "function") {
+      try {
+        setShowWeather(true);
+      } catch (e) {
+        console.warn("setShowWeather threw:", e);
+      }
+    }
+
+    // Clear the displayed incidents so the container shows the "No incidents found" message
+    setFilteredIncidents([]);
+    setKelurahanCounts({});
+
+    // Tell map to hide incidents layer and emit a UI hide event
     window.dispatchEvent(new CustomEvent("hideIncidentsLayer"));
+    window.dispatchEvent(new CustomEvent("hideFloatingCrowdsourced"));
   };
 
   return (
     <div className="floating-crowdsourced">
       <div
-        className={`hidden sm:flex flex-col z-10 absolute w-[350px] bg-white/90 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden transition-all duration-300 left-1 h-[100vh] max-h-[400px] border border-gray-200`}
+        className={`hidden sm:flex flex-col z-10 absolute w-[350px] bg-white/90 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden transition-all duration-300 left-1 h-[100vh] max-h-[700px] border border-gray-200`}
       >
         <header className="px-3 pt-2 pb-2">
           <p className="text-grey-950 font-medium">

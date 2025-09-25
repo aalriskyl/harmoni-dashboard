@@ -188,7 +188,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                       width={portalPos.width}
                       onClose={() => setIsSimulationDropdownOpen(false)}
                     >
-                      <div className="py-1">
+                      <div className="py-1 bg-[#a49e92] rounded-lg">
                         <a
                           href="#"
                           className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd] text-sm font-medium"

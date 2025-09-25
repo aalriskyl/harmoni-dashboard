@@ -95,10 +95,10 @@ const FloatingTweets = ({ showWeather = false }) => {
 
   return (
     <div
-      className="fixed bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden z-9999 transition-all duration-300 right-8"
+      className="fixed bg-white/90 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden z-9999 transition-all duration-300 right-8 top-[34vh]"
       style={{
-        width: isExpanded ? "350px" : "48px",
-        height: isExpanded ? "60vh" : "48px",
+        width: isExpanded ? "350px" : "35px",
+        height: isExpanded ? "60vh" : "35px",
         maxHeight: "400px",
         overflow: "hidden",
         // display: showWeather ? "hidden" : "fixed",
@@ -107,30 +107,13 @@ const FloatingTweets = ({ showWeather = false }) => {
     >
       {/* Header */}
       <div
-        className="flex items-center justify-between p-3 bg-[#636059] text-white cursor-pointer"
+        className="flex items-center justify-between p-2 bg-[#636059] text-white cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-sm font-semibold ml-[2px]">
           {isExpanded ? "Social Media Reports" : "X"}
         </h2>
-        <svg
-          className={`w-5 h-5 transform transition-transform ${
-            isExpanded ? "rotate-180" : ""
-          }`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
       </div>
-
       {isExpanded && (
         <div
           className="p-4 overflow-y-auto"
