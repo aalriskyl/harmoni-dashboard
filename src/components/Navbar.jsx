@@ -20,7 +20,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   const bellButtonRef = useRef(null);
   const [portalPos, setPortalPos] = useState({ left: 0, top: 0, width: 288 });
   const [alertsPortalPos, setAlertsPortalPos] = useState({
-    left: 0,
+    left: 20,
     top: 0,
     width: 280,
   });
@@ -121,7 +121,11 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
     function updatePos() {
       const rect = bellButtonRef.current.getBoundingClientRect();
       // place dropdown below the bell button
-      setAlertsPortalPos({ left: rect.left, top: rect.bottom + 8, width: 320 });
+      setAlertsPortalPos({
+        left: rect.left - 230,
+        top: rect.bottom + 8,
+        width: 320,
+      });
     }
 
     updatePos();
@@ -138,14 +142,14 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
     <div className="fixed top-0 left-0 w-full z-20 flex flex-col">
       {/* Main Navbar */}
       <div className="flex">
-        <div className="w-full flex justify-between items-center gap-[34rem]">
+        <div className="w-full flex justify-between items-center">
           {/* Left side - Title/Dropdown */}
           <div className="flex text-[#cfcfcd]  items-center gap-2">
-            <div className="px-20 py-2 bg-[#636059] rounded-br-full">
+            <div className="px-24 py-2 bg-[#636059] rounded-br-full">
               <img
                 src="/assets/img/Logo_white.png"
                 alt="logo"
-                className="w-50 h-auto"
+                className="w-40 h-auto"
               />
             </div>
             {/* Second Dropdown container */}
@@ -292,7 +296,11 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
             <button
               ref={bellButtonRef}
               onClick={() => setShowAlerts((s) => !s)}
-              className="relative bg-[#636059] p-4 rounded-xl text-white hover:bg-[#555149] transition-colors"
+              className={`relative p-4 rounded-xl text-white transition-colors ${
+                showAlerts ? "bg-[#555149]" : "bg-[#636059] hover:bg-[#555149]"
+              }`}
+              aria-expanded={showAlerts}
+              aria-label="Toggle notifications"
             >
               <svg
                 className="w-6 h-6"
@@ -308,7 +316,12 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                   d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                 />
               </svg>
-              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+              <span
+                className="absolute top-2 right-2 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[12px] font-bold text-white"
+                aria-hidden
+              >
+                !
+              </span>
             </button>
             {showAlerts &&
               createPortal(
@@ -317,10 +330,12 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                   top={alertsPortalPos.top}
                   width={alertsPortalPos.width}
                   onClose={() => setShowAlerts(false)}
-                  wrapperClassName="rounded-2xl shadow-lg"
+                  wrapperClassName="rounded-2xl"
+                  excludeRefs={[bellButtonRef]}
                 >
-                  {/* FloatingAlerts now provides its own white background and sizing */}
-                  <FloatingAlerts />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <FloatingAlerts />
+                  </div>
                 </DropdownPortal>,
                 document.body
               )}
@@ -676,14 +691,24 @@ function DropdownPortal({
   children,
   onClose,
   wrapperClassName = "",
+  excludeRefs = [],
 }) {
   const ref = useRef(null);
 
   useEffect(() => {
+    function isInsideExcluded(target) {
+      if (!excludeRefs || !excludeRefs.length) return false;
+      return excludeRefs.some(
+        (r) => r && r.current && r.current.contains(target)
+      );
+    }
+
     function onDocClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) {
-        if (onClose) onClose();
-      }
+      // if click is inside the portal itself, ignore
+      if (ref.current && ref.current.contains(e.target)) return;
+      // if click is inside any excluded refs (like the button that toggles the portal), ignore
+      if (isInsideExcluded(e.target)) return;
+      if (onClose) onClose();
     }
 
     function onEscape(e) {
@@ -699,7 +724,7 @@ function DropdownPortal({
       window.removeEventListener("touchstart", onDocClick);
       window.removeEventListener("keydown", onEscape);
     };
-  }, [onClose]);
+  }, [onClose, excludeRefs]);
 
   return createPortal(
     <div

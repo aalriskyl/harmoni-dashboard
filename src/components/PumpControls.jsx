@@ -15,7 +15,7 @@ const CrossSectionButton = ({ isActive, onClick, hidden }) => (
         ? "bg-[#636059] border-2 border-[#636059]"
         : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
     } hover:shadow-md`}
-    title="Cross Sections"
+    title="Toggle Cross Sections"
     aria-label="Toggle Cross Sections"
   >
     <div className="w-8 h-8 flex items-center justify-center">
@@ -50,7 +50,7 @@ const RiverBodyButton = ({ isActive, onClick, hidden }) => (
         ? "bg-[#636059] border-2 border-[#636059]"
         : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
     } hover:shadow-md`}
-    title="Rivers"
+    title="Toggle Rivers"
     aria-label="Toggle Rivers"
   >
     <div className="w-8 h-8 flex items-center justify-center">
@@ -85,7 +85,7 @@ const PumpButton = ({ isActive, onClick, hidden }) => (
         ? "bg-[#636059] border-2 border-[#636059]"
         : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
     } hover:shadow-md`}
-    title="Pumps"
+    title="Toggle Pumps"
     aria-label="Toggle Pumps"
   >
     <div className="w-8 h-8 flex items-center justify-center">
@@ -120,7 +120,7 @@ const WaterLevelButton = ({ isActive, onClick, hidden }) => (
         ? "bg-[#636059] border-2 border-[#636059] "
         : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
     } hover:shadow-md`}
-    title="Water Levels"
+    title="Toggle Water Levels"
     aria-label="Toggle Water Levels"
   >
     <div className="w-8 h-8 flex items-center justify-center">
@@ -155,7 +155,7 @@ const RainRecorderButton = ({ isActive, onClick, hidden }) => (
         ? "bg-[#636059] border-2 border-[#636059]"
         : "bg-[#f2f1ef] border-2 border-[#f2f1ef]"
     } hover:shadow-md`}
-    title="Rain Recorders"
+    title="Toggle Rain Recorders"
     aria-label="Toggle Rain Recorders"
   >
     <div className="w-8 h-8 flex items-center justify-center">

@@ -3869,7 +3869,7 @@ const Map = ({
               }</span>
             </div>
             <div class="flex items-start">
-              <span class="font-medium w-28">:</span>
+              <span class="font-medium w-28">Water Report:</span>
               <span class="ml-2 break-words">${
                 incident.description || "N/A"
               }</span>

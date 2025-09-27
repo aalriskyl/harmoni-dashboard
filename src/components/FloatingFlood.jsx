@@ -292,8 +292,8 @@ const FloatingFlood = ({ setShowWeather }) => {
           detail: {
             isActive: true,
             rainfall: rainfallAmount,
-            showVulnerability:
-              shouldShowVulnerability || viewMode === "simulation",
+            // Only request vulnerability layer when we're in vulnerability or risk view
+            showVulnerability: shouldShowVulnerability,
             hideFloodLayer: viewMode === "risk",
           },
         })

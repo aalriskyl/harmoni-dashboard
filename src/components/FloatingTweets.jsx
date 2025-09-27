@@ -18,7 +18,6 @@ const FloatingTweets = ({ showWeather = false }) => {
         setFilteredTweets(response.data);
         setIsLoading(false);
       } catch (err) {
-        console.error("Error fetching tweets:", err);
         setError("Failed to load tweet data");
         setIsLoading(false);
       }

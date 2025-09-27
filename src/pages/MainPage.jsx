@@ -113,6 +113,54 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
   // Hide pump controls when a simulation is running. Listen to global events
   const [isSimulationRunning, setIsSimulationRunning] = useState(false);
 
+  // When the selected menu changes away from 'simulations', clear any
+  // raster/flood layers that might have been added by FloatingFlood (or
+  // Timeline). This mirrors the behavior when stopping a simulation so the
+  // map doesn't keep showing raster images when a different menu is active.
+  useEffect(() => {
+    if (selectedMenu !== "simulations") {
+      // clear raster overlay state
+      setRasterOverlay({ path: null, index: null });
+
+      // notify other components (Map, FloatingFlood, etc.) to remove layers
+      try {
+        window.dispatchEvent(
+          new CustomEvent("timelineRasterChange", {
+            detail: { path: null, index: null },
+          })
+        );
+      } catch (e) {}
+
+      try {
+        // remove any flood/raster image used by FloatingFlood
+        window.dispatchEvent(
+          new CustomEvent("updateFloodImage", { detail: { imagePath: null } })
+        );
+      } catch (e) {}
+
+      try {
+        // hide vulnerability layer if visible
+        window.dispatchEvent(
+          new CustomEvent("showVulnerabilityLayer", { detail: { show: false } })
+        );
+      } catch (e) {}
+
+      try {
+        // inform listeners that simulation is no longer active
+        window.dispatchEvent(
+          new CustomEvent("simulationStateChange", {
+            detail: {
+              isActive: false,
+              rainfall: 0,
+              showVulnerability: false,
+              hideFloodLayer: false,
+            },
+          })
+        );
+      } catch (e) {}
+    }
+  }, [selectedMenu]);
+
   useEffect(() => {
     const handleSimulationState = (e) => {
       const isActive = !!(e && e.detail && e.detail.isActive);

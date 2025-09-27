@@ -16,10 +16,10 @@ export default function FloatingAlerts({ className = "", style = {} }) {
 
   return (
     <div className={className} style={style} aria-live="polite">
-      <div className="w-72 bg-white rounded-2xl shadow-lg p-3">
+      <div className="w-72 bg-white rounded-2xl p-3">
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-sm font-semibold text-gray-800">Alerts</h4>
-          <button className="text-xs text-gray-500">View all</button>
+          {/* <button className="text-xs text-gray-500">View all</button> */}
         </div>
 
         <div className="space-y-2 max-h-64 overflow-auto">
