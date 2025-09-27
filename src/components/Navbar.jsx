@@ -192,10 +192,10 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                       width={portalPos.width}
                       onClose={() => setIsSimulationDropdownOpen(false)}
                     >
-                      <div className="py-1 bg-[#a49e92] rounded-lg">
+                      <div className=" bg-[#cfcfcd] rounded-lg">
                         <a
                           href="#"
-                          className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#cfcfcd] text-sm font-medium"
+                          className="block px-4 py-2 hover:bg-[#a49e92] rounded-t-xl text-[#636059] text-sm font-medium"
                           onClick={(e) => {
                             e.preventDefault();
                             setSelectedSimulation("Realtime Flood Simulation");
@@ -213,7 +213,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                         </a>
                         <a
                           href="#"
-                          className="block px-4 py-2 hover:bg-[#a49e92] text-[#cfcfcd] text-sm"
+                          className="block px-4 py-2 hover:bg-[#a49e92] text-[#636059] font-medium text-sm"
                           onClick={(e) => {
                             e.preventDefault();
                             setSelectedSimulation(
@@ -235,7 +235,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                         </a>
                         <a
                           href="#"
-                          className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-xl text-[#cfcfcd] text-sm"
+                          className="block px-4  hover:bg-[#a49e92] rounded-b-lg text-[#636059] font-medium"
                           onClick={(e) => {
                             e.preventDefault();
                             setSelectedSimulation(
@@ -364,8 +364,8 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
 
       {/* Weather Panel - Conditionally rendered based on showWeather */}
       {showWeather && (
-        <div className="mt-2 z-40">
-          <div className="w-full border border-white/30 bg-[#636059]/30 backdrop-blur-md rounded-2xl px-6 py-2">
+        <div className="mt-2 z-40 ml-8 mr-9">
+          <div className="w-full bg-[#636059]/30 backdrop-blur-md rounded-2xl px-6 py-2 ">
             <div className="w-full h-full p-2 flex items-center gap-2">
               <div className="flex flex-col justify-around gap-1 pr-2 border-r border-white h-full">
                 <div className="relative" data-headlessui-state="">

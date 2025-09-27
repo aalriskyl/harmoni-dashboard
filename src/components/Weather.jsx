@@ -3,7 +3,7 @@ import React from "react";
 const Weather = () => {
   return (
     <div
-      className="fixed left-8 right-8 top-24 z-20 bg-white/90 rounded-2xl shadow-lg p-4"
+      className="fixed left-8 right-8 top-24 z-20 bg-white/90 rounded-2xl shadow-lg p-4 ml-4 mr-12"
       style={{
         backdropFilter: "blur(6px)",
       }}

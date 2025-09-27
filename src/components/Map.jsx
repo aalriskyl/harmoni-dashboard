@@ -4025,39 +4025,71 @@ const Map = ({
       }
 
       if (map.current) {
-        const layerId = "flood-vulnerability-layer";
-        const sourceId = "flood-vulnerability";
+        const newLayerId = "flood-vulnerability-layer";
+        const newSourceId = "flood-vulnerability";
+        const legacyLayerId = "vulnerability-layer";
+        const legacySourceId = "vulnerability-source";
 
-        // Add source if it doesn't exist
-        if (!map.current.getSource(sourceId)) {
-          console.log("Adding vulnerability source from button");
-          map.current.addSource(sourceId, {
-            type: "image",
-            url: "/assets/img/Social_Vulnerability_8000px.png",
-            coordinates: [
-              [106.6849284, -6.0790941], // Upper Left
-              [106.9742925, -6.0790941], // Upper Right
-              [106.9742925, -6.3729514], // Lower Right
-              [106.6849284, -6.3729514], // Lower Left
-            ],
-          });
+        // Show requested: ensure a vulnerability raster exists and is visible
+        if (event.detail && event.detail.show) {
+          // Prefer the newer flood-vulnerability ids (used by simulation handlers)
+          if (!map.current.getSource(newSourceId)) {
+            console.log("Adding vulnerability source from button");
+            map.current.addSource(newSourceId, {
+              type: "image",
+              url: "/assets/img/Social_Vulnerability_8000px.png",
+              coordinates: [
+                [106.6849284, -6.0790941], // Upper Left
+                [106.9742925, -6.0790941], // Upper Right
+                [106.9742925, -6.3729514], // Lower Right
+                [106.6849284, -6.3729514], // Lower Left
+              ],
+            });
+          }
+
+          if (!map.current.getLayer(newLayerId)) {
+            console.log("Adding vulnerability layer from button");
+            map.current.addLayer({
+              id: newLayerId,
+              type: "raster",
+              source: newSourceId,
+              paint: {
+                "raster-opacity": 0.4,
+              },
+            });
+          }
+
+          // Make sure it's visible
+          try {
+            map.current.setLayoutProperty(newLayerId, "visibility", "visible");
+          } catch (e) {
+            // ignore if layer not ready
+          }
+        } else {
+          // Hide/remove both newer and legacy vulnerability layers/sources to
+          // ensure no stale raster remains visible after menu switches.
+          try {
+            if (map.current.getLayer(newLayerId)) {
+              map.current.removeLayer(newLayerId);
+            }
+          } catch (e) {}
+          try {
+            if (map.current.getSource(newSourceId)) {
+              map.current.removeSource(newSourceId);
+            }
+          } catch (e) {}
+
+          try {
+            if (map.current.getLayer(legacyLayerId)) {
+              map.current.removeLayer(legacyLayerId);
+            }
+          } catch (e) {}
+          try {
+            if (map.current.getSource(legacySourceId)) {
+              map.current.removeSource(legacySourceId);
+            }
+          } catch (e) {}
         }
-
-        // Add layer if it doesn't exist
-        if (!map.current.getLayer(layerId)) {
-          console.log("Adding vulnerability layer from button");
-          map.current.addLayer({
-            id: layerId,
-            type: "raster",
-            source: sourceId,
-            paint: {
-              "raster-opacity": 0.4,
-            },
-          });
-        }
-
-        // Make sure it's visible
-        map.current.setLayoutProperty(layerId, "visibility", "visible");
       }
     };
 

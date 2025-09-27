@@ -220,7 +220,7 @@ const PumpControls = ({
       window.removeEventListener("ensureControlsVisible", onEnsure);
     };
   }, []);
-  const containerClass = `fixed right-[35px] top-[57%] transform -translate-y-1/2 z-10 flex flex-col transition-all duration-200 ${
+  const containerClass = `fixed right-[35px] top-[52%] transform -translate-y-1/2 z-10 flex flex-col transition-all duration-200 ${
     hidden
       ? "opacity-0 pointer-events-none scale-95 translate-x-2"
       : "opacity-100 pointer-events-auto scale-100"
