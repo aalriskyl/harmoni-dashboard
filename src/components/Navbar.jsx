@@ -16,6 +16,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   const [currentTime, setCurrentTime] = useState({ time: "", date: "" });
   const [showWeather, setShowWeather] = useState(false); // State for weather panel visibility
   const [isSimulationRunning, setIsSimulationRunning] = useState(false);
+  const [isCrowdsourcedRunning, setIsCrowdsourcedRunning] = useState(false);
   const dropdownButtonRef = useRef(null);
   const bellButtonRef = useRef(null);
   const [portalPos, setPortalPos] = useState({ left: 0, top: 0, width: 288 });
@@ -64,8 +65,8 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
   }, []);
 
   const toggleWeatherPanel = () => {
-    // prevent opening/toggling weather while simulation is running
-    if (isSimulationRunning) return;
+    // prevent opening/toggling weather while simulation or crowdsourced panel is running
+    if (isSimulationRunning || isCrowdsourcedRunning) return;
 
     const newState = !showWeather;
     setShowWeather(newState);
@@ -86,8 +87,20 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
     }
 
     window.addEventListener("simulationStateChange", handleSimState);
+    // Listen for crowdsourced active state so we can similarly block/close weather
+    function handleCrowdState(e) {
+      const isActive = e?.detail?.isActive || false;
+      setIsCrowdsourcedRunning(isActive);
+
+      if (isActive && showWeather) {
+        setShowWeather(false);
+        if (onWeatherToggle) onWeatherToggle(false);
+      }
+    }
+    window.addEventListener("crowdsourcedStateChange", handleCrowdState);
     return () =>
       window.removeEventListener("simulationStateChange", handleSimState);
+    window.removeEventListener("crowdsourcedStateChange", handleCrowdState);
   }, [showWeather, onWeatherToggle]);
 
   // compute portal position based on button rect when dropdown opens
@@ -235,7 +248,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                         </a>
                         <a
                           href="#"
-                          className="block px-4  hover:bg-[#a49e92] rounded-b-lg text-[#636059] font-medium"
+                          className="block px-4 py-2 hover:bg-[#a49e92] rounded-b-lg text-[#636059] font-medium text-sm"
                           onClick={(e) => {
                             e.preventDefault();
                             setSelectedSimulation(

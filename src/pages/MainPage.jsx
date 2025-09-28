@@ -114,50 +114,66 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
   const [isSimulationRunning, setIsSimulationRunning] = useState(false);
 
   // When the selected menu changes away from 'simulations', clear any
+  // Helper: clear raster/flood overlays and notify listeners
+  const clearAllRasterLayers = () => {
+    // clear raster overlay state
+    setRasterOverlay({ path: null, index: null });
+
+    // notify other components (Map, FloatingFlood, etc.) to remove layers
+    try {
+      window.dispatchEvent(
+        new CustomEvent("timelineRasterChange", {
+          detail: { path: null, index: null },
+        })
+      );
+    } catch (e) {}
+
+    try {
+      // remove any flood/raster image used by FloatingFlood
+      window.dispatchEvent(
+        new CustomEvent("updateFloodImage", { detail: { imagePath: null } })
+      );
+    } catch (e) {}
+
+    try {
+      // hide vulnerability layer if visible
+      window.dispatchEvent(
+        new CustomEvent("showVulnerabilityLayer", { detail: { show: false } })
+      );
+    } catch (e) {}
+
+    try {
+      // inform listeners that simulation is no longer active
+      window.dispatchEvent(
+        new CustomEvent("simulationStateChange", {
+          detail: {
+            isActive: false,
+            rainfall: 0,
+            showVulnerability: false,
+            hideFloodLayer: false,
+          },
+        })
+      );
+    } catch (e) {}
+  };
+
+  // When the selected menu changes away from 'simulations', clear any
   // raster/flood layers that might have been added by FloatingFlood (or
   // Timeline). This mirrors the behavior when stopping a simulation so the
   // map doesn't keep showing raster images when a different menu is active.
   useEffect(() => {
     if (selectedMenu !== "simulations") {
-      // clear raster overlay state
-      setRasterOverlay({ path: null, index: null });
+      clearAllRasterLayers();
+    }
+  }, [selectedMenu]);
 
-      // notify other components (Map, FloatingFlood, etc.) to remove layers
-      try {
-        window.dispatchEvent(
-          new CustomEvent("timelineRasterChange", {
-            detail: { path: null, index: null },
-          })
-        );
-      } catch (e) {}
-
-      try {
-        // remove any flood/raster image used by FloatingFlood
-        window.dispatchEvent(
-          new CustomEvent("updateFloodImage", { detail: { imagePath: null } })
-        );
-      } catch (e) {}
-
-      try {
-        // hide vulnerability layer if visible
-        window.dispatchEvent(
-          new CustomEvent("showVulnerabilityLayer", { detail: { show: false } })
-        );
-      } catch (e) {}
-
-      try {
-        // inform listeners that simulation is no longer active
-        window.dispatchEvent(
-          new CustomEvent("simulationStateChange", {
-            detail: {
-              isActive: false,
-              rainfall: 0,
-              showVulnerability: false,
-              hideFloodLayer: false,
-            },
-          })
-        );
-      } catch (e) {}
+  // Also ensure that raster overlays are removed when leaving the
+  // Return Period FloatingContainer (rendered under the 'warnings' menu).
+  // The user expects all rasters to be cleared whenever they navigate away
+  // from that floating container as well.
+  useEffect(() => {
+    if (selectedMenu !== "warnings") {
+      clearAllRasterLayers();
     }
   }, [selectedMenu]);
 
@@ -193,14 +209,14 @@ const MainPage = ({ selectedMenu = "simulations", showWeather = true }) => {
       <DateFilterProvider>
         <div className="flex-1 relative">
           {/* Model accuracy panel centered below navbar - show only during simulation */}
-          {isSimulationRunning && <ModelAccuracy initialAccuracy={0.87} />}
+          {/* {isSimulationRunning && <ModelAccuracy initialAccuracy={0.87} />} */}
           <MemoizedMap mapProps={mapProps} />
 
           <PumpControls {...controlsProps} />
           {/* Floating container positioned relative to the map */}
           <div
             className={`absolute left-8 ${
-              showWeather ? "top-76" : "top-32"
+              showWeather ? "top-59" : "top-32"
             } z-30 transition-all duration-300`}
           >
             <div className="flex flex-col gap-4">

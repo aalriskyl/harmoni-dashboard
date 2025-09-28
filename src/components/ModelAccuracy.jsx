@@ -34,7 +34,7 @@ export default function ModelAccuracy({ initialAccuracy = 0.87 }) {
     <div
       role="region"
       aria-label="Model Accuracy"
-      className="fixed bottom-20 left-[24rem] z-50 pointer-events-none flex justify-center items-start"
+      className="flex justify-center items-start"
     >
       <div className="pointer-events-auto gap-4 flex flex-row text-center">
         <div className="text-sm bg-white rounded-md  px-2 py-2 font-semibold text-gray-800">

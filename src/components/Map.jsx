@@ -3414,37 +3414,46 @@ const Map = ({
         <h3 class="text-xl font-bold mb-4">Station Information</h3>
         <div class="space-y-2 text-sm text-gray-700">
           <div class="flex items-start">
-            <span class="font-medium w-36">Device ID:</span>
+            <span class="font-medium w-36">Device ID</span>
+            <span class="px-2">:</span>
             <span>${
               point.properties?.Device_ID || point.deviceId || "N/A"
             }</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Catchment Name:</span>
+            <span class="font-medium w-36">Catchment Name</span>
+            <span class="px-2">:</span>
             <span>${
               point.properties?.Catchment_Name || point.catchmentName || "N/A"
             }</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Manager:</span>
-            <span>${point.properties?.Manager || point.manager || "N/A"}</span>
+            <span class="font-medium w-36">Manager</span>
+            <span class="px-2">:</span>
+            <span class="flex-1 break-words text-left">${
+              point.properties?.Manager || point.manager || "N/A"
+            }</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Type:</span>
+            <span class="font-medium w-36">Type</span>
+            <span class="px-2">:</span>
             <span>${point.properties?.Type || point.type || "N/A"}</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Brand:</span>
+            <span class="font-medium w-36">Brand</span>
+            <span class="px-2">:</span>
             <span>${point.properties?.Brand || point.brand || "N/A"}</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Data Frequency:</span>
+            <span class="font-medium w-36">Data Frequency</span>
+            <span class="px-2">:</span>
             <span>${
               point.properties?.Data_Frequency || point.dataFrequency || "N/A"
             }</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Latitude:</span>
+            <span class="font-medium w-36">Latitude</span>
+            <span class="px-2">:</span>
             <span>${
               point.lat?.toFixed(6) ||
               point.geometry?.coordinates?.[1]?.toFixed(6) ||
@@ -3452,7 +3461,8 @@ const Map = ({
             }</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Longitude:</span>
+            <span class="font-medium w-36">Longitude</span>
+            <span class="px-2">:</span>
             <span>${
               point.lng?.toFixed(6) ||
               point.geometry?.coordinates?.[0]?.toFixed(6) ||
@@ -3460,19 +3470,22 @@ const Map = ({
             }</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Elevation:</span>
+            <span class="font-medium w-36">Elevation</span>
+            <span class="px-2">:</span>
             <span>${
               point.properties?.Elevation || point.elevation || "N/A"
             }</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Built Year:</span>
+            <span class="font-medium w-36">Built Year</span>
+            <span class="px-2">:</span>
             <span>${
               point.properties?.Built_Year || point.builtYear || "N/A"
             }</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Device Condition:</span>
+            <span class="font-medium w-36">Device Condition</span>
+            <span class="px-2">:</span>
             <span class="${
               point.properties?.Device_Condition === "Good"
                 ? "text-green-600 font-medium"
@@ -3486,7 +3499,8 @@ const Map = ({
             </span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Station Condition:</span>
+            <span class="font-medium w-36">Station Condition</span>
+            <span class="px-2">:</span>
             <span class="${
               point.properties?.Station_Condition === "Poor" ||
               point.stationCondition === "Poor"
@@ -3501,7 +3515,8 @@ const Map = ({
             </span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Last Maintenance:</span>
+            <span class="font-medium w-36">Last Maintenance</span>
+            <span class="px-2">:</span>
             <span>${
               point.properties?.Last_Maintenance ||
               point.lastMaintenance ||
@@ -3509,7 +3524,8 @@ const Map = ({
             }</span>
           </div>
           <div class="flex items-start">
-            <span class="font-medium w-36">Data Completeness:</span>
+            <span class="font-medium w-36">Data Completeness</span>
+            <span class="px-2">:</span>
             <span>${
               point.properties?.Data_Completeness ||
               point.dataCompleteness ||

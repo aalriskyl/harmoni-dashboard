@@ -35,6 +35,17 @@ const FloatingCrowdsourced = ({ setShowWeather }) => {
 
   // Load GeoJSON data on component mount
   useEffect(() => {
+    // Notify app that crowdsourced panel is active while this component is mounted
+    try {
+      window.dispatchEvent(
+        new CustomEvent("crowdsourcedStateChange", {
+          detail: { isActive: true },
+        })
+      );
+    } catch (e) {
+      // ignore
+    }
+
     const loadData = async () => {
       try {
         setIsLoading(true);
@@ -105,6 +116,19 @@ const FloatingCrowdsourced = ({ setShowWeather }) => {
     };
 
     loadData();
+
+    return () => {
+      // Notify app that crowdsourced panel is no longer active when unmounted
+      try {
+        window.dispatchEvent(
+          new CustomEvent("crowdsourcedStateChange", {
+            detail: { isActive: false },
+          })
+        );
+      } catch (e) {
+        // ignore
+      }
+    };
   }, []);
 
   // Helper function to determine severity based on flood depth
@@ -181,6 +205,16 @@ const FloatingCrowdsourced = ({ setShowWeather }) => {
     // Tell map to hide incidents layer and emit a UI hide event
     window.dispatchEvent(new CustomEvent("hideIncidentsLayer"));
     window.dispatchEvent(new CustomEvent("hideFloatingCrowdsourced"));
+    // Also notify that crowdsourced panel is no longer active
+    try {
+      window.dispatchEvent(
+        new CustomEvent("crowdsourcedStateChange", {
+          detail: { isActive: false },
+        })
+      );
+    } catch (e) {
+      // ignore
+    }
   };
 
   return (

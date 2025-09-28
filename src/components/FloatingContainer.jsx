@@ -1,6 +1,82 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Timeline from "../components/Timeline";
+import ModelAccuracy from "../components/ModelAccuracy";
 
 const FloatingContainer = ({ onRun }) => {
+  // Legend component reused from FloatingFlood to keep consistent look
+  const Legend = ({ viewMode, className = "" }) => {
+    const getLegendConfig = () => {
+      switch (viewMode) {
+        case "simulation":
+          return {
+            title: "Flood Depth (m)",
+            gradient:
+              "bg-gradient-to-r from-green-500 via-yellow-400 to-red-600",
+            labels: ["0", "0.76", "1.5", "3.0+"],
+            categories: ["Rendah", "Sedang", "Tinggi"],
+            colors: ["bg-green-600", "bg-yellow-600", "bg-red-600"],
+          };
+        case "vulnerability":
+          return {
+            title: "Vulnerability Level",
+            gradient:
+              "bg-gradient-to-r from-green-500 via-yellow-400 to-red-600",
+            labels: ["0", "0.3", "0.6", "1.0"],
+            categories: ["Rendah", "Sedang", "Tinggi"],
+            colors: ["bg-green-600", "bg-yellow-600", "bg-red-600"],
+          };
+        case "risk":
+          return {
+            title: "Risk Level",
+            gradient:
+              "bg-gradient-to-r from-green-500 via-yellow-400 to-red-600",
+            labels: ["0", "0.3", "0.6", "1.0"],
+            categories: ["Rendah", "Sedang", "Tinggi"],
+            colors: ["bg-green-600", "bg-yellow-600", "bg-red-600"],
+          };
+        default:
+          return {
+            title: "Flood Depth (m)",
+            gradient:
+              "bg-gradient-to-r from-green-500 via-yellow-400 to-red-600",
+            labels: ["0", "0.5", "1.0", "1.5+"],
+            categories: ["Rendah", "Sedang", "Tinggi"],
+            colors: ["bg-green-600", "bg-yellow-600", "bg-red-600"],
+          };
+      }
+    };
+
+    const { title, gradient, labels } = getLegendConfig();
+
+    return (
+      <div
+        className={`fixed bottom-[11.2vh] right-24 z-40 ${className}`}
+        aria-hidden={false}
+      >
+        <div className="flex items-center gap-3 bg-white/0 p-1 rounded flex-nowrap">
+          <div className="text-sm bg-white rounded-md  px-3 py-2 font-semibold text-gray-800 flex-shrink-0 whitespace-nowrap items-center">
+            {title}
+          </div>
+
+          <div className="relative flex-shrink-0">
+            <div className="relative w-40 h-8 rounded overflow-hidden">
+              <div className={`${gradient} w-full h-full`}></div>
+            </div>
+            <div className="absolute left-0 right-0 top-full mt-1 flex justify-between text-xs text-gray-800 w-40">
+              {labels.slice(0, 4).map((label, index) => (
+                <span className="text-gray-800" key={index}>
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // mode for legend styling: 'simulation' | 'vulnerability' | 'risk'
+  const [viewMode, setViewMode] = useState("simulation");
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedReturnPeriod, setSelectedReturnPeriod] = useState(
@@ -31,8 +107,107 @@ const FloatingContainer = ({ onRun }) => {
     if (onRun) onRun({ location: selectedLocation, rainfall: rainfallAmount });
   };
 
+  // Run and also dispatch the raster overlay event so Map shows the return-period raster
+  const runAndShowRaster = (mode = "hazard") => {
+    // call external handler if provided
+    if (onRun) onRun({ location: selectedLocation, rainfall: rainfallAmount });
+
+    // map return period to available raster levels (only 4 rasters, last two share)
+    const rpToRaster = {
+      5: "25",
+      10: "50",
+      20: "75",
+      50: "150",
+      100: "150",
+    };
+
+    const rpKey =
+      returnPeriods.find((rp) => rp.label === selectedReturnPeriod)?.id || "5";
+    const rainfallLevel = rpToRaster[rpKey] || "25";
+
+    const prefix = mode === "risk" ? "Risk" : "Hazzard"; // match FloatingFlood naming
+    // set view mode for legend display
+    setViewMode(mode === "risk" ? "risk" : "simulation");
+    const imagePath = `/assets/img/Flood_${prefix}_-_${rainfallLevel}_mm.png`;
+
+    console.log("[FloatingContainer] dispatching updateFloodImage", {
+      imagePath,
+      mode,
+      selectedReturnPeriod,
+    });
+
+    window.dispatchEvent(
+      new CustomEvent("updateFloodImage", { detail: { imagePath } })
+    );
+    // mark simulation active so other components (MainPage) can show model accuracy
+    try {
+      window.dispatchEvent(
+        new CustomEvent("simulationStateChange", {
+          detail: {
+            isActive: true,
+            rainfall: Number(rainfallLevel),
+            showVulnerability: false,
+            hideFloodLayer: false,
+          },
+        })
+      );
+    } catch (e) {}
+    // track local running state
+    setSimulationRunning(true);
+  };
+
+  // local simulation state for UI
+  const [simulationRunning, setSimulationRunning] = useState(false);
+
+  const stopSimulation = () => {
+    setSimulationRunning(false);
+    try {
+      window.dispatchEvent(
+        new CustomEvent("updateFloodImage", { detail: { imagePath: null } })
+      );
+    } catch (e) {}
+    try {
+      window.dispatchEvent(
+        new CustomEvent("timelineRasterChange", {
+          detail: { path: null, index: null },
+        })
+      );
+    } catch (e) {}
+    try {
+      window.dispatchEvent(
+        new CustomEvent("simulationStateChange", {
+          detail: {
+            isActive: false,
+            rainfall: 0,
+            showVulnerability: false,
+            hideFloodLayer: false,
+          },
+        })
+      );
+    } catch (e) {}
+  };
+
+  // Timeline -> raster handler
+  const handleTimelineRasterChange = (raster) => {
+    // raster is expected to be an object { path, index }
+    try {
+      window.dispatchEvent(
+        new CustomEvent("timelineRasterChange", { detail: raster })
+      );
+    } catch (e) {}
+    if (raster && raster.path) {
+      try {
+        window.dispatchEvent(
+          new CustomEvent("updateFloodImage", {
+            detail: { imagePath: raster.path },
+          })
+        );
+      } catch (e) {}
+    }
+  };
+
   return (
-    <div className="w-80 bg-white/90 rounded-2xl shadow-lg">
+    <div className="w-[332px] bg-white/90 rounded-2xl shadow-lg">
       <div className="flex flex-col p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -146,23 +321,45 @@ const FloatingContainer = ({ onRun }) => {
         {/* Rainfall slider */}
 
         <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={handleRun}
-            className={`w-full text-center rounded-md bg-[#636059] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700`}
-            disabled={!selectedLocation}
-          >
-            AI-Based Flood Simulation
-          </button>
-          <button
-            type="button"
-            onClick={handleRun}
-            className={`w-full text-center rounded-md bg-[#a49d93] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700`}
-            disabled={!selectedLocation}
-          >
-            Hydrodinamic-Based Flood Simulation
-          </button>
+          {!simulationRunning ? (
+            <>
+              <button
+                type="button"
+                onClick={() => runAndShowRaster("hazard")}
+                className={`w-full text-center rounded-md bg-[#636059] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700`}
+                disabled={!selectedLocation}
+              >
+                AI-Based Flood Simulation
+              </button>
+              <button
+                type="button"
+                onClick={() => runAndShowRaster("risk")}
+                className={`w-full text-center rounded-md bg-[#a49d93] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-700`}
+                disabled={!selectedLocation}
+              >
+                Hydrodynamic-Based Flood Simulation
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={stopSimulation}
+              className={`w-full text-center rounded-md bg-[#636059] px-3 py-2 text-sm font-semibold text-white shadow-sm`}
+            >
+              Stop Simulation
+            </button>
+          )}
         </div>
+
+        {/* Timeline - shown regardless; it will be interactive when simulation starts */}
+        {simulationRunning && (
+          <Timeline onRasterChange={handleTimelineRasterChange} />
+        )}
+
+        {/* Legend matching Flood Simulation */}
+        {simulationRunning && <Legend viewMode={viewMode} />}
+
+        {/* ModelAccuracy is rendered by MainPage when a simulation is active; avoid duplicating here */}
       </div>
     </div>
   );

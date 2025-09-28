@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import ModelAccuracy from "./ModelAccuracy";
 import "../styles/timeline-datepicker.css";
 
 // ticks every 2 hours from 0..24 (inclusive): 0,2,4,...,24
@@ -233,100 +234,81 @@ export default function Timeline({
             />
           </div>
         )}
-        <div className="flex flex-col mx-5 items-center bg-white max-w-[332px] w-full px-3 py-1 rounded mb-[20px]">
-          <div className="relative w-full">
-            {/* Prev button pinned to left */}
-            <button
-              type="button"
-              onClick={prevDay}
-              aria-label="Previous day"
-              className="absolute left-2 top-1/2 -translate-y-1/2 px-2 bg-[#636059] rounded hover:bg-[#636059]/20 text-md text-white z-30 pointer-events-auto"
-            >
-              &lt;
-            </button>
 
-            {/* Center content */}
-            <div className="flex items-center justify-center w-full">
-              <div className="relative">
-                {/* shrink to content so the invisible input only covers the text */}
-                <div className="inline-block relative px-4">
-                  <div className="bg-transparent text-sm rounded px-2 py-1 text-left select-none">
-                    {formatDateDisplay(currentDate)}
+        {/* Date picker and ModelAccuracy row */}
+        <div className="flex flex-row items-center gap-4 mb-[20px] ml-5">
+          {/* Date picker container */}
+          <div className="flex flex-col items-center bg-white max-w-[332px] w-full px-3 py-1 rounded">
+            <div className="relative w-full">
+              {/* Prev button pinned to left */}
+              <button
+                type="button"
+                onClick={prevDay}
+                aria-label="Previous day"
+                className="absolute left-2 top-1/2 -translate-y-1/2 px-2 bg-[#636059] rounded hover:bg-[#636059]/20 text-md text-white z-30 pointer-events-auto"
+              >
+                &lt;
+              </button>
+
+              {/* Center content */}
+              <div className="flex items-center justify-center w-full">
+                <div className="relative">
+                  <div className="inline-block relative px-4">
+                    <div className="bg-transparent text-sm rounded px-2 py-1 text-left select-none">
+                      {formatDateDisplay(currentDate)}
+                    </div>
+                    <input
+                      id="hidden-date-input"
+                      type="date"
+                      value={currentDate.toISOString().slice(0, 10)}
+                      onChange={(e) => {
+                        const v = e.target.value; // YYYY-MM-DD
+                        if (!v) return;
+                        const parts = v.split("-").map((p) => Number(p));
+                        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                        changeDate(d);
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                      style={{ left: 0, right: 0 }}
+                    />
                   </div>
-                  <input
-                    id="hidden-date-input"
-                    type="date"
-                    value={currentDate.toISOString().slice(0, 10)}
-                    onChange={(e) => {
-                      const v = e.target.value; // YYYY-MM-DD
-                      if (!v) return;
-                      const parts = v.split("-").map((p) => Number(p));
-                      const d = new Date(parts[0], parts[1] - 1, parts[2]);
-                      changeDate(d);
-                    }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                    style={{ left: 0, right: 0 }}
-                  />
                 </div>
               </div>
-            </div>
 
-            {/* Next button pinned to right */}
-            <button
-              type="button"
-              onClick={nextDay}
-              aria-label="Next day"
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-2 bg-[#636059] rounded text-white hover:bg-[#636059]/20 text-md z-30 pointer-events-auto"
-            >
-              &gt;
-            </button>
+              {/* Next button pinned to right */}
+              <button
+                type="button"
+                onClick={nextDay}
+                aria-label="Next day"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 bg-[#636059] rounded text-white hover:bg-[#636059]/20 text-md z-30 pointer-events-auto"
+              >
+                &gt;
+              </button>
+            </div>
           </div>
+
+          {/* ModelAccuracy positioned next to the date picker */}
+          <ModelAccuracy initialAccuracy={0.82} />
         </div>
 
-        <div className="flex justify-center">
-          <div className="relative h-10 w-[88vw] mx-auto">
-            {/* Play / Pause controls - positioned above the start (left) of the timeline */}
-            {/* Left: single toggle play/pause button */}
-            <div className="absolute -left-[79px] top-6 -translate-y-6 ml-2 flex items-center gap-2 pointer-events-auto">
-              <button
-                type="button"
-                onClick={() => setPlayingState(!isPlaying)}
-                aria-label={isPlaying ? "Pause timeline" : "Play timeline"}
-                className={`w-8 h-8 rounded flex items-center justify-center text-sm ${
-                  isPlaying
-                    ? "bg-[#636059] text-white"
-                    : "bg-[#636059] text-white"
-                } hover:opacity-90`}
-              >
-                {isPlaying ? "❚❚" : "▶"}
-              </button>
-            </div>
+        {/* Timeline slider row with play and jump-to-end buttons */}
+        <div className="flex flex-row items-center justify-end gap-2">
+          {/* Play button - now in flex row with the slider */}
+          <button
+            type="button"
+            onClick={() => setPlayingState(!isPlaying)}
+            aria-label={isPlaying ? "Pause timeline" : "Play timeline"}
+            className={`w-8 h-8 rounded flex items-center justify-center text-sm ${
+              isPlaying ? "bg-[#636059] text-white" : "bg-[#636059] text-white"
+            } hover:opacity-90 pointer-events-auto`}
+          >
+            {isPlaying ? "❚❚" : "▶"}
+          </button>
+
+          {/* Timeline slider container */}
+          <div className="relative h-10 w-[90vw] mr-22">
             {/* line */}
             <div className="absolute inset-x-0 top-1/2 h-[6px] bg-white -translate-y-1/2 rounded" />
-
-            {/* Right: jump-to-end button */}
-            <div className="absolute right-0 top-0 -translate-y-6 mr-2 pointer-events-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  setMinutes(MAX_MINUTES);
-                  setPlayingState(false);
-                  try {
-                    const hh = Math.floor(MAX_MINUTES / 60);
-                    const mm = MAX_MINUTES % 60;
-                    window.dispatchEvent(
-                      new CustomEvent("timelineChange", {
-                        detail: { minutes: MAX_MINUTES, hh, mm },
-                      })
-                    );
-                  } catch (e) {}
-                }}
-                aria-label="Jump to end"
-                className="w-8 h-8 rounded flex items-center justify-center bg-white/10 text-white hover:bg-white/20 text-sm"
-              >
-                »
-              </button>
-            </div>
 
             {/* ticks - positioned according to minutes within 00:00..22:00 */}
             {TIMES.map((t, i) => {

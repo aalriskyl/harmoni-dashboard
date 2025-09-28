@@ -747,7 +747,7 @@ const FloatingFlood = ({ setShowWeather }) => {
   }
 
   return (
-    <div className="w-80 bg-white/90 rounded-2xl shadow-lg">
+    <div className="w-[332px] bg-white/90 rounded-2xl shadow-lg">
       <div className="flex flex-col p-4 space-y-3">
         <div className="flex items-center gap-2">
           <p className="text-[#161414] text-xl font-semibold">
