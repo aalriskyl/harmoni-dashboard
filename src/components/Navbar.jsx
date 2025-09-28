@@ -378,9 +378,9 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
       {/* Weather Panel - Conditionally rendered based on showWeather */}
       {showWeather && (
         <div className="mt-2 z-40 ml-8 mr-9">
-          <div className="w-full bg-[#636059]/30 backdrop-blur-md rounded-2xl px-6 py-2 ">
+          <div className="w-full bg-white/90 rounded-2xl shadow-lg px-6 py-2 text-[#636059]">
             <div className="w-full h-full p-2 flex items-center gap-2">
-              <div className="flex flex-col justify-around gap-1 pr-2 border-r border-white h-full">
+              <div className="flex flex-col justify-around gap-1 pr-2 border-r border-[#636059] h-full">
                 <div className="relative" data-headlessui-state="">
                   <div
                     id="headlessui-listbox-button-v-0-0-16"
@@ -391,13 +391,13 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                     className="flex items-center w-full"
                   >
                     <button
-                      className="relative disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 h-7 w-full font-medium inline-flex items-center text-left cursor-default text-xs gap-x-1.5 px-2.5 py-1.5 shadow-sm bg-[#636059]/30 text-white ring-1 ring-inset ring-white focus:ring-1 focus:ring-[#636059] pe-8 rounded-lg"
+                      className="relative disabled:cursor-not-allowed disabled:opacity-75 focus:outline-none border-0 h-7 w-full font-medium inline-flex items-center text-left cursor-default text-xs gap-x-1.5 px-2.5 py-1.5 shadow-sm bg-[#636059]/30 text-[#636059] ring-1 ring-inset ring-[#636059] focus:ring-1 focus:ring-[#636059] pe-8 rounded-lg"
                       type="button"
                     >
                       <span className="block truncate">Kulon Progo</span>
                       <span className="absolute inset-y-0 end-0 flex items-center pointer-events-none px-2.5">
                         <span
-                          className="iconify i-heroicons:chevron-down-20-solid flex-shrink-0 text-white h-4 w-4"
+                          className="iconify i-heroicons:chevron-down-20-solid flex-shrink-0 text-[#636059] h-4 w-4"
                           aria-hidden="true"
                         ></span>
                       </span>
@@ -458,13 +458,13 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                 </div>
 
                 <div className="flex gap-1 justify-between">
-                  <button className="text-white border-[#a49e92] bg-[#a49e92] w-[70px] border rounded-lg text-xs font-medium p-1">
+                  <button className="text-white border-[#636059] bg-[#636059] w-[70px] border rounded-lg text-xs font-medium p-1">
                     6 Agu
                   </button>
-                  <button className="text-white border-[#636059] bg-transparent w-[70px] border rounded-lg text-xs font-medium p-1">
+                  <button className="text-[#636059] border-[#636059] bg-white w-[70px] border rounded-lg text-xs font-medium p-1">
                     7 Agu
                   </button>
-                  <button className="text-white border-[#636059] bg-transparent w-[70px] border rounded-lg text-xs font-medium p-1">
+                  <button className="text-[#636059] border-[#636059] bg-white w-[70px] border rounded-lg text-xs font-medium p-1">
                     8 Agu
                   </button>
                 </div>
@@ -472,32 +472,28 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
 
               <div className="flex-1 w-full h-full flex gap-1 overflow-x-auto">
                 {/* Weather time blocks */}
-                <div className="w-48 min-w-48 h-full rounded-2xl py-2 px-4 divine-y-2 text-2xs bg-[#ece4e4]">
+                <div className="w-48 min-w-48 h-full rounded-2xl py-2 px-4 divine-y-2 text-2xs bg-[#b4afa6] text-black">
                   <div>
-                    <p className="text-xs">20.00 WIB</p>
+                    <p className="text-xs text-white">20.00 WIB</p>
                     <div className="flex items-center justify-between">
-                      <p className="text-md font-medium text-black">
+                      <p className="text-md font-medium text-white">
                         21 ºC{" "}
-                        <span className="text-xs text-black font-normal">
+                        <span className="text-xs text-white font-normal">
                           Sunny
                         </span>
                       </p>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 16 16"
-                        className="nuxt-icon--fill #F36A1D w-4 h-4"
-                        style={{ color: "rgb(243, 106, 29)" }}
+                        className="w-4 h-4 text-white"
                       >
                         <g clipPath="url(#i1614757057__a)">
-                          <path
-                            fill="#F36A1D"
-                            d="M8 11.333a3.335 3.335 0 0 1 0-6.666 3.335 3.335 0 0 1 0 6.666ZM8 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm.667-6H7.333v3.333h1.334V0Zm0 12.667H7.333V16h1.334v-3.333ZM3.333 7.333H0v1.334h3.333V7.333Zm12.667 0h-3.333v1.334H16V7.333Zm-1.873-4.52-.94-.94-2.36 2.36.94.94 2.36-2.36Zm-8.954 8.96-.94-.94-2.36 2.36.94.94 2.36-2.36Zm0-7.54-2.36-2.36-.94.94 2.36 2.36.94-.94Zm8.96 8.96-2.36-2.36-.94.94 2.36 2.36.94-.94Z"
-                          ></path>
+                          <path d="M8 11.333a3.335 3.335 0 0 1 0-6.666 3.335 3.335 0 0 1 0 6.666ZM8 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm.667-6H7.333v3.333h1.334V0Zm0 12.667H7.333V16h1.334v-3.333ZM3.333 7.333H0v1.334h3.333V7.333Zm12.667 0h-3.333v1.334H16V7.333Zm-1.873-4.52-.94-.94-2.36 2.36.94.94 2.36-2.36Zm-8.954 8.96-.94-.94-2.36 2.36.94.94 2.36-2.36Zm0-7.54-2.36-2.36-.94.94 2.36 2.36.94-.94Zm8.96 8.96-2.36-2.36-.94.94 2.36 2.36.94-.94Z"></path>
                         </g>
                         <defs>
                           <clipPath id="i1614757057__a">
-                            <path fill="#fff" d="M0 0h16v16H0z"></path>
+                            <path d="M0 0h16v16H0z"></path>
                           </clipPath>
                         </defs>
                       </svg>
@@ -508,103 +504,81 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                     <div className="flex items-center gap-1">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 12 12"
-                        className="nuxt-icon--fill w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-[#636059]/30"
                       >
                         <g clipPath="url(#i-568641931__a)">
-                          <path
-                            fill="#636059"
-                            d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.160 4.968 4.968 0 0 1-1.914.380ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"
-                          ></path>
+                          <path d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.160 4.968 4.968 0 0 1-1.914.380ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"></path>
                         </g>
                         <defs>
                           <clipPath id="i-568641931__a">
-                            <path fill="#fff" d="M0 0h12v12H0z"></path>
+                            <path d="M0 0h12v12H0z"></path>
                           </clipPath>
                         </defs>
                       </svg>
-                      <p className="text-sm">95</p>
+                      <p className="text-sm text-white">95</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 13 12"
-                        className="nuxt-icon--fill w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-[#636059]/30"
                       >
-                        <path
-                          fill="#636059"
-                          d="M9.68 5.293 7.034 2.646l-.706.707L8.974 6 6.329 8.646l.708.707 2.642-2.646a1 1 0 0 0 0-1.414Z"
-                        ></path>
-                        <path
-                          fill="#636059"
-                          d="m6.535 5.646-3-3-.706.707L5.474 6 2.829 8.646l.708.707 3-3a.5.5 0 0 0-.002-.707Z"
-                        ></path>
+                        <path d="M9.68 5.293 7.034 2.646l-.706.707L8.974 6 6.329 8.646l.708.707 2.642-2.646a1 1 0 0 0 0-1.414Z"></path>
+                        <path d="m6.535 5.646-3-3-.706.707L5.474 6 2.829 8.646l.708.707 3-3a.5.5 0 0 0-.002-.707Z"></path>
                       </svg>
-                      <p className="text-sm">W</p>
+                      <p className="text-sm text-white">W</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 12 12"
-                        className="nuxt-icon--fill w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-[#636059]/30"
                       >
-                        <path
-                          fill="#636059"
-                          d="M12 1v1H0V1h12ZM0 11h4v-1H0v1Zm0-4.5h8v-1H0v1Z"
-                        ></path>
+                        <path d="M12 1v1H0V1h12ZM0 11h4v-1H0v1Zm0-4.5h8v-1H0v1Z"></path>
                       </svg>
-                      <p className="text-sm">0.9km/hour</p>
+                      <p className="text-sm text-white">0.9km/hour</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 12 12"
-                        className="nuxt-icon--fill w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-[#636059]/30"
                       >
-                        <path
-                          fill="#a49e92"
-                          d="M11.91 5.59C11.471 4.63 9.75 1.5 6 1.5S.528 4.63.09 5.59a.984.984 0 0 0 0 .82C.527 7.37 2.25 10.5 6 10.5s5.471-3.13 5.91-4.09a.984.984 0 0 0 0-.82ZM6 9.5c-3.154 0-4.625-2.683-5-3.495C1.375 5.183 2.846 2.5 6 2.5c3.146 0 4.618 2.671 5 3.5-.382.829-1.854 3.5-5 3.5Z"
-                        ></path>
-                        <path
-                          fill="#a49e92"
-                          d="M6 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Zm0 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
-                        ></path>
+                        <path d="M11.91 5.59C11.471 4.63 9.75 1.5 6 1.5S.528 4.63.09 5.59a.984.984 0 0 0 0 .82C.527 7.37 2.25 10.5 6 10.5s5.471-3.13 5.91-4.09a.984.984 0 0 0 0-.82ZM6 9.5c-3.154 0-4.625-2.683-5-3.495C1.375 5.183 2.846 2.5 6 2.5c3.146 0 4.618 2.671 5 3.5-.382.829-1.854 3.5-5 3.5Z"></path>
+                        <path d="M6 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Zm0 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"></path>
                       </svg>
-                      <p className="text-xs">&lt; 9 km</p>
+                      <p className="text-xs text-white">&lt; 9 km</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="w-48 min-w-48 h-full rounded-2xl py-2 px-4 divine-y-2 text-2xs bg-[#ece4e4]">
-                  <div>
-                    <p className="text-xs">20.00 WIB</p>
+                <div className="w-48 min-w-48 h-full rounded-2xl py-2 px-4 divine-y-2 text-2xs bg-[#b4afa6] text-black">
+                  <div className="">
+                    <p className="text-xs text-white">20.00 WIB</p>
                     <div className="flex items-center justify-between">
-                      <p className="text-md font-medium text-black">
+                      <p className="text-md font-medium text-white">
                         21 ºC{" "}
-                        <span className="text-xs text-black font-normal">
+                        <span className="text-xs text-white font-normal">
                           Sunny
                         </span>
                       </p>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 16 16"
-                        className="nuxt-icon--fill #F36A1D w-4 h-4"
-                        style={{ color: "rgb(243, 106, 29)" }}
+                        className="w-4 h-4 text-white"
                       >
                         <g clipPath="url(#i1614757057__a)">
-                          <path
-                            fill="#F36A1D"
-                            d="M8 11.333a3.335 3.335 0 0 1 0-6.666 3.335 3.335 0 0 1 0 6.666ZM8 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm.667-6H7.333v3.333h1.334V0Zm0 12.667H7.333V16h1.334v-3.333ZM3.333 7.333H0v1.334h3.333V7.333Zm12.667 0h-3.333v1.334H16V7.333Zm-1.873-4.52-.94-.94-2.36 2.36.94.94 2.36-2.36Zm-8.954 8.96-.94-.94-2.36 2.36.94.94 2.36-2.36Zm0-7.54-2.36-2.36-.94.94 2.36 2.36.94-.94Zm8.96 8.96-2.36-2.36-.94.94 2.36 2.36.94-.94Z"
-                          ></path>
+                          <path d="M8 11.333a3.335 3.335 0 0 1 0-6.666 3.335 3.335 0 0 1 0 6.666ZM8 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2Zm.667-6H7.333v3.333h1.334V0Zm0 12.667H7.333V16h1.334v-3.333ZM3.333 7.333H0v1.334h3.333V7.333Zm12.667 0h-3.333v1.334H16V7.333Zm-1.873-4.52-.94-.94-2.36 2.36.94.94 2.36-2.36Zm-8.954 8.96-.94-.94-2.36 2.36.94.94 2.36-2.36Zm0-7.54-2.36-2.36-.94.94 2.36 2.36.94-.94Zm8.96 8.96-2.36-2.36-.94.94 2.36 2.36.94-.94Z"></path>
                         </g>
                         <defs>
                           <clipPath id="i1614757057__a">
-                            <path fill="#fff" d="M0 0h16v16H0z"></path>
+                            <path d="M0 0h16v16H0z"></path>
                           </clipPath>
                         </defs>
                       </svg>
@@ -617,11 +591,11 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 12 12"
-                        className="nuxt-icon--fill w-3 h-3 text-[#636059]/30"
+                        className="nuxt-icon--fill w-3 h-3 text-white"
                       >
                         <g clipPath="url(#i-568641931__a)">
                           <path
-                            fill="#636059"
+                            fill="#FFFFF"
                             d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.160 4.968 4.968 0 0 1-1.914.380ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"
                           ></path>
                         </g>

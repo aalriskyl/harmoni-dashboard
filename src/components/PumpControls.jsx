@@ -504,7 +504,7 @@ const PumpControls = ({
         </div>
         {dataExplorerVisible && (
           <div
-            className="fixed z-40 right-12 bg-white shadow-md max-w-[360px] max-h-[450px]"
+            className="fixed z-40 right-12 bg-white/90 rounded-2xl shadow-lg max-w-[360px] max-h-[450px]"
             style={{
               borderRadius: 12,
               padding: "1rem",

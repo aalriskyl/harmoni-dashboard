@@ -11,7 +11,7 @@ const SearchButton = ({ onClick, hidden }) => (
         console.debug("SearchButton: clicked (dummy)");
       } catch (err) {}
     }}
-    className={`flex items-center justify-center p-1 rounded-lg transition-all ${"bg-[#f2f1ef] border-2 border-[#f2f1ef]"} hover:shadow-md`}
+    className={`flex items-center justify-center p-1 rounded-lg transition-all ${"bg-white/90 rounded-2xl shadow-lg"}`}
     title="Search"
     aria-label="Search"
   >
