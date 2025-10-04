@@ -354,7 +354,10 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
               )}
 
             {/* User Avatar */}
-            <button className="flex items-center bg-[#636059] p-4 rounded-xl text-white hover:bg-[#555149] transition-colors">
+            <a
+              className="flex items-center bg-[#636059] p-4 rounded-xl text-white hover:bg-[#555149] transition-colors"
+              href="/dashboard"
+            >
               <svg
                 className="w-6 h-6 text-white"
                 fill="none"
@@ -369,7 +372,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                 />
               </svg>
-            </button>
+            </a>
             {/* Floating Alerts - rendered via portal when `showAlerts` is true (no runtime require) */}
           </div>
         </div>
@@ -472,7 +475,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
 
               <div className="flex-1 w-full h-full flex gap-1 overflow-x-auto">
                 {/* Weather time blocks */}
-                <div className="w-48 min-w-48 h-full rounded-2xl py-2 px-4 divine-y-2 text-2xs bg-[#b4afa6] text-black">
+                <div className="w-48 min-w-48 h-full rounded-2xl py-2 px-4 divine-y-2 text-2xs bg-[#b4afa6] text-white">
                   <div>
                     <p className="text-xs text-white">20.00 WIB</p>
                     <div className="flex items-center justify-between">
@@ -506,7 +509,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="currentColor"
                         viewBox="0 0 12 12"
-                        className="w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-white"
                       >
                         <g clipPath="url(#i-568641931__a)">
                           <path d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.160 4.968 4.968 0 0 1-1.914.380ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"></path>
@@ -524,7 +527,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="currentColor"
                         viewBox="0 0 13 12"
-                        className="w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-white"
                       >
                         <path d="M9.68 5.293 7.034 2.646l-.706.707L8.974 6 6.329 8.646l.708.707 2.642-2.646a1 1 0 0 0 0-1.414Z"></path>
                         <path d="m6.535 5.646-3-3-.706.707L5.474 6 2.829 8.646l.708.707 3-3a.5.5 0 0 0-.002-.707Z"></path>
@@ -536,7 +539,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="currentColor"
                         viewBox="0 0 12 12"
-                        className="w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-white"
                       >
                         <path d="M12 1v1H0V1h12ZM0 11h4v-1H0v1Zm0-4.5h8v-1H0v1Z"></path>
                       </svg>
@@ -547,7 +550,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                         xmlns="http://www.w3.org/2000/svg"
                         fill="currentColor"
                         viewBox="0 0 12 12"
-                        className="w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-white"
                       >
                         <path d="M11.91 5.59C11.471 4.63 9.75 1.5 6 1.5S.528 4.63.09 5.59a.984.984 0 0 0 0 .82C.527 7.37 2.25 10.5 6 10.5s5.471-3.13 5.91-4.09a.984.984 0 0 0 0-.82ZM6 9.5c-3.154 0-4.625-2.683-5-3.495C1.375 5.183 2.846 2.5 6 2.5c3.146 0 4.618 2.671 5 3.5-.382.829-1.854 3.5-5 3.5Z"></path>
                         <path d="M6 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Zm0 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"></path>
@@ -557,8 +560,8 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                   </div>
                 </div>
 
-                <div className="w-48 min-w-48 h-full rounded-2xl py-2 px-4 divine-y-2 text-2xs bg-[#b4afa6] text-black">
-                  <div className="">
+                <div className="w-48 min-w-48 h-full rounded-2xl py-2 px-4 divine-y-2 text-2xs bg-[#b4afa6] text-white">
+                  <div>
                     <p className="text-xs text-white">20.00 WIB</p>
                     <div className="flex items-center justify-between">
                       <p className="text-md font-medium text-white">
@@ -589,73 +592,55 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
                     <div className="flex items-center gap-1">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 12 12"
-                        className="nuxt-icon--fill w-3 h-3 text-white"
+                        className="w-3 h-3 text-white"
                       >
                         <g clipPath="url(#i-568641931__a)">
-                          <path
-                            fill="#FFFFF"
-                            d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.160 4.968 4.968 0 0 1-1.914.380ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"
-                          ></path>
+                          <path d="M6 12a5 5 0 0 1-3.536-8.535L6 .007 9.53 3.46a5.007 5.007 0 0 1-1.617 8.160 4.968 4.968 0 0 1-1.914.380ZM6 1.406l-2.833 2.77a4 4 0 1 0 5.661-.004L6 1.406ZM4.5 5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1Zm3 3a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1ZM4.217 9h1.166l2.4-4H6.617l-2.4 4Z"></path>
                         </g>
                         <defs>
                           <clipPath id="i-568641931__a">
-                            <path fill="#fff" d="M0 0h12v12H0z"></path>
+                            <path d="M0 0h12v12H0z"></path>
                           </clipPath>
                         </defs>
                       </svg>
-                      <p className="text-sm">95</p>
+                      <p className="text-sm text-white">95</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 13 12"
-                        className="nuxt-icon--fill w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-white"
                       >
-                        <path
-                          fill="#636059"
-                          d="M9.68 5.293 7.034 2.646l-.706.707L8.974 6 6.329 8.646l.708.707 2.642-2.646a1 1 0 0 0 0-1.414Z"
-                        ></path>
-                        <path
-                          fill="#636059"
-                          d="m6.535 5.646-3-3-.706.707L5.474 6 2.829 8.646l.708.707 3-3a.5.5 0 0 0-.002-.707Z"
-                        ></path>
+                        <path d="M9.68 5.293 7.034 2.646l-.706.707L8.974 6 6.329 8.646l.708.707 2.642-2.646a1 1 0 0 0 0-1.414Z"></path>
+                        <path d="m6.535 5.646-3-3-.706.707L5.474 6 2.829 8.646l.708.707 3-3a.5.5 0 0 0-.002-.707Z"></path>
                       </svg>
-                      <p className="text-sm">W</p>
+                      <p className="text-sm text-white">W</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 12 12"
-                        className="nuxt-icon--fill w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-white"
                       >
-                        <path
-                          fill="#636059"
-                          d="M12 1v1H0V1h12ZM0 11h4v-1H0v1Zm0-4.5h8v-1H0v1Z"
-                        ></path>
+                        <path d="M12 1v1H0V1h12ZM0 11h4v-1H0v1Zm0-4.5h8v-1H0v1Z"></path>
                       </svg>
-                      <p className="text-sm">0.9km/hour</p>
+                      <p className="text-sm text-white">0.9km/hour</p>
                     </div>
                     <div className="flex items-center gap-1">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
+                        fill="currentColor"
                         viewBox="0 0 12 12"
-                        className="nuxt-icon--fill w-3 h-3 text-[#636059]/30"
+                        className="w-3 h-3 text-white"
                       >
-                        <path
-                          fill="#a49e92"
-                          d="M11.91 5.59C11.471 4.63 9.75 1.5 6 1.5S.528 4.63.09 5.59a.984.984 0 0 0 0 .82C.527 7.37 2.25 10.5 6 10.5s5.471-3.13 5.91-4.09a.984.984 0 0 0 0-.82ZM6 9.5c-3.154 0-4.625-2.683-5-3.495C1.375 5.183 2.846 2.5 6 2.5c3.146 0 4.618 2.671 5 3.5-.382.829-1.854 3.5-5 3.5Z"
-                        ></path>
-                        <path
-                          fill="#a49e92"
-                          d="M6 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Zm0 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
-                        ></path>
+                        <path d="M11.91 5.59C11.471 4.63 9.75 1.5 6 1.5S.528 4.63.09 5.59a.984.984 0 0 0 0 .82C.527 7.37 2.25 10.5 6 10.5s5.471-3.13 5.91-4.09a.984.984 0 0 0 0-.82ZM6 9.5c-3.154 0-4.625-2.683-5-3.495C1.375 5.183 2.846 2.5 6 2.5c3.146 0 4.618 2.671 5 3.5-.382.829-1.854 3.5-5 3.5Z"></path>
+                        <path d="M6 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Zm0 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"></path>
                       </svg>
-                      <p className="text-sm">&lt; 9 km</p>
+                      <p className="text-xs text-white">&lt; 9 km</p>
                     </div>
                   </div>
                 </div>

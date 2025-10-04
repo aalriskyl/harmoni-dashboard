@@ -127,6 +127,11 @@ const FloatingTweets = ({ showWeather = false }) => {
             className="p-4 overflow-y-auto"
             style={{ maxHeight: "calc(80vh - 56px)" }}
           >
+            <div>
+              <label className="text-xl font-semibold mb-4 block">
+                Recent Crowdsourced Tweets
+              </label>
+            </div>
             {/* Date Filter */}
             <div className="mb-4">
               <label

@@ -18,7 +18,9 @@
     "mapbox-gl": "^3.14.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-icons": "^5.5.0",
     "react-map-gl": "^7.1.9",
+    "react-router-dom": "^7.9.3",
     "tailwindcss": "^4.1.11"
   },
   "devDependencies": {
