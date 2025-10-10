@@ -356,7 +356,7 @@ const Navbar = ({ onMenuSelect, onWeatherToggle }) => {
             {/* User Avatar */}
             <a
               className="flex items-center bg-[#636059] p-4 rounded-xl text-white hover:bg-[#555149] transition-colors"
-              href="/dashboard"
+              href="/dashboard/alert-overview"
             >
               <svg
                 className="w-6 h-6 text-white"

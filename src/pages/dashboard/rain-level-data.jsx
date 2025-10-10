@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import Chart from "chart.js/auto";
+import zoomPlugin from "chartjs-plugin-zoom";
+
+Chart.register(zoomPlugin);
 
 function categoryFromReading(mm) {
   // simple thresholding: >50 Heavy, 20-50 Moderate, 0-20 Light, 0 Missing
@@ -93,6 +96,10 @@ export default function RainLevelData() {
     labels: [],
     values: [],
   });
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
@@ -118,8 +125,39 @@ export default function RainLevelData() {
   const visibleRows = useMemo(() => {
     let rs = rows;
     if (selectedStation) rs = rs.filter((r) => r.station === selectedStation);
+    // Apply datetime range filter if provided (matches water-level-data behavior)
+    if (startDate || startTime || endDate || endTime) {
+      const startISO = startDate
+        ? startTime
+          ? `${startDate}T${startTime}`
+          : `${startDate}T00:00:00`
+        : null;
+      const endISO = endDate
+        ? endTime
+          ? `${endDate}T${endTime}`
+          : `${endDate}T23:59:59`
+        : null;
+
+      const startTs = startISO ? Date.parse(startISO) : null;
+      const endTs = endISO ? Date.parse(endISO) : null;
+      rs = rs.filter((r) => {
+        if (!r.timestamp) return false;
+        const ts = Date.parse(r.timestamp);
+        if (isNaN(ts)) {
+          const t2 = Date.parse(r.timestamp.split("T")[0]);
+          if (isNaN(t2)) return false;
+          if (startTs && t2 < startTs) return false;
+          if (endTs && t2 > endTs) return false;
+          return true;
+        }
+        if (startTs && ts < startTs) return false;
+        if (endTs && ts > endTs) return false;
+        return true;
+      });
+    }
+
     return rs.slice(0, 1000);
-  }, [rows, selectedStation]);
+  }, [rows, selectedStation, startDate, startTime, endDate, endTime]);
 
   // data for selected station (first matching row)
   const selectedStationData = useMemo(() => {
@@ -199,17 +237,9 @@ export default function RainLevelData() {
   }, [features, selectedStation]);
 
   // when stationMetrics change, update selectedDeviceSeries so chart refreshes
-  useEffect(() => {
-    if (!stationMetrics) {
-      setSelectedDeviceSeries({ labels: [], values: [] });
-      setSelectedDeviceId("");
-      return;
-    }
-    const labels = stationMetrics.last6.map((x) => x.date);
-    const values = stationMetrics.last6.map((x) => x.value);
-    setSelectedDeviceId(selectedStation);
-    setSelectedDeviceSeries({ labels, values });
-  }, [stationMetrics, selectedStation]);
+  // NOTE: removed limiting to last6 here. The full aggregated series is
+  // computed when a station is selected (below) and the chart will receive
+  // the full series but initialized to show the last 6 points by default.
 
   function formatAlertDate(d) {
     if (!d) return "-";
@@ -255,17 +285,63 @@ export default function RainLevelData() {
   function handleSelectDevice(id) {
     setSelectedDeviceId(id);
     const readingObj = deviceSeriesMap[id] || {};
-    const dates = Object.keys(readingObj || {}).sort();
+    const dates = Object.keys(readingObj || {}).sort((a, b) => {
+      const ta = Date.parse(a);
+      const tb = Date.parse(b);
+      if (isNaN(ta) || isNaN(tb)) return a.localeCompare(b);
+      return ta - tb;
+    });
     if (!dates.length) {
       setSelectedDeviceSeries({ labels: [], values: [] });
       return;
     }
-    // pick only the latest date/value
-    const latestDate = dates[dates.length - 1];
-    const latestVal =
-      readingObj[latestDate] != null ? Number(readingObj[latestDate]) : 0;
-    // single bar chart: label is date, value is latestVal
-    setSelectedDeviceSeries({ labels: [latestDate], values: [latestVal] });
+    // full labels/values
+    const labels = dates;
+    const values = dates.map((d) =>
+      readingObj[d] != null ? Number(readingObj[d]) : NaN
+    );
+
+    // build date filter range from UI inputs
+    const startISO = startDate
+      ? startTime
+        ? `${startDate}T${startTime}`
+        : `${startDate}T00:00:00`
+      : null;
+    const endISO = endDate
+      ? endTime
+        ? `${endDate}T${endTime}`
+        : `${endDate}T23:59:59`
+      : null;
+    const startTs = startISO ? Date.parse(startISO) : null;
+    const endTs = endISO ? Date.parse(endISO) : null;
+
+    let minIdx = Math.max(0, labels.length - 6);
+    let maxIdx = Math.max(0, labels.length - 1);
+    if (startTs || endTs) {
+      const parsed = labels.map((d) => {
+        const t = Date.parse(d);
+        if (!isNaN(t)) return t;
+        const t2 = Date.parse((d || "").split("T")[0]);
+        return isNaN(t2) ? null : t2;
+      });
+      const first = parsed.findIndex(
+        (t) => t != null && (startTs ? t >= startTs : true)
+      );
+      const lastObj = parsed
+        .map((t, i) => ({ t, i }))
+        .reverse()
+        .find((o) => o.t != null && (endTs ? o.t <= endTs : true));
+      if (first !== -1 && lastObj && lastObj.i != null) {
+        minIdx = first;
+        maxIdx = lastObj.i;
+      }
+    }
+
+    setSelectedDeviceSeries({
+      labels,
+      values,
+      view: { min: minIdx, max: maxIdx },
+    });
   }
 
   // when a station is selected from dropdown, compute latest reading across its devices
@@ -292,7 +368,8 @@ export default function RainLevelData() {
       });
     });
 
-    // sort by real time value (numeric) to avoid lexicographic issues
+    // sort by real time value (numeric) to avoid lexicographic issues and
+    // produce the full aggregated series for the station (not only last6).
     const dates = Object.keys(buckets).sort((a, b) => {
       const ta = Date.parse(a);
       const tb = Date.parse(b);
@@ -310,17 +387,57 @@ export default function RainLevelData() {
       const arr = buckets[d] || [];
       const sum = arr.reduce((s, x) => s + x, 0);
       const avg = arr.length ? sum / arr.length : 0;
-      return { date: d, value: avg };
+      return { date: d, value: Number(avg.toFixed(2)) };
     });
 
-    // take the last 6 timestamps
-    const last6 = aggregated.slice(-6);
-    const labels = last6.map((x) => x.date);
-    const values = last6.map((x) => Number(x.value.toFixed(2)));
+    // build full labels/values arrays
+    const labels = aggregated.map((x) => x.date);
+    const values = aggregated.map((x) => x.value);
+
+    // default view: last 6 points
+    let minIdx = Math.max(0, labels.length - 6);
+    let maxIdx = Math.max(0, labels.length - 1);
+
+    // build date filter range from UI inputs
+    const startISO = startDate
+      ? startTime
+        ? `${startDate}T${startTime}`
+        : `${startDate}T00:00:00`
+      : null;
+    const endISO = endDate
+      ? endTime
+        ? `${endDate}T${endTime}`
+        : `${endDate}T23:59:59`
+      : null;
+    const startTs = startISO ? Date.parse(startISO) : null;
+    const endTs = endISO ? Date.parse(endISO) : null;
+    if (startTs || endTs) {
+      const parsed = labels.map((d) => {
+        const t = Date.parse(d);
+        if (!isNaN(t)) return t;
+        const t2 = Date.parse((d || "").split("T")[0]);
+        return isNaN(t2) ? null : t2;
+      });
+      const first = parsed.findIndex(
+        (t) => t != null && (startTs ? t >= startTs : true)
+      );
+      const lastObj = parsed
+        .map((t, i) => ({ t, i }))
+        .reverse()
+        .find((o) => o.t != null && (endTs ? o.t <= endTs : true));
+      if (first !== -1 && lastObj && lastObj.i != null) {
+        minIdx = first;
+        maxIdx = lastObj.i;
+      }
+    }
 
     setSelectedDeviceId(selectedStation);
-    setSelectedDeviceSeries({ labels, values });
-  }, [selectedStation, features]);
+    setSelectedDeviceSeries({
+      labels,
+      values,
+      view: { min: minIdx, max: maxIdx },
+    });
+  }, [selectedStation, features, startDate, startTime, endDate, endTime]);
 
   // render horizontal (inverted) bar chart when selectedDeviceSeries changes
   useEffect(() => {
@@ -333,6 +450,7 @@ export default function RainLevelData() {
     if (!selectedDeviceSeries || !selectedDeviceSeries.labels.length) return;
 
     const ctx = chartRef.current.getContext("2d");
+    const view = selectedDeviceSeries.view;
     chartInstanceRef.current = new Chart(ctx, {
       type: "bar",
       data: {
@@ -345,6 +463,11 @@ export default function RainLevelData() {
               v >= 50 ? "#ef4444" : v >= 20 ? "#f59e0b" : "#10b981"
             ),
             borderRadius: 6,
+            // tune bar sizing: make bars nearly adjacent by widening bars and removing gaps
+            // set percentages to 1.0 and increase max thickness so bars touch or nearly touch
+            maxBarThickness: 22,
+            barPercentage: 1.0,
+            categoryPercentage: 1.0,
           },
         ],
       },
@@ -356,6 +479,10 @@ export default function RainLevelData() {
           x: {
             beginAtZero: true,
             title: { display: true, text: "Timestamp" },
+            // if view is provided, set min/max as category indices so the
+            // chart initially zooms to the last 6 datapoints
+            min: view ? view.min : undefined,
+            max: view ? view.max : undefined,
           },
           y: {
             beginAtZero: true,
@@ -366,6 +493,14 @@ export default function RainLevelData() {
         plugins: {
           legend: { display: false },
           tooltip: { mode: "index", intersect: false },
+          zoom: {
+            pan: { enabled: true, mode: "x" },
+            zoom: {
+              wheel: { enabled: true, mode: "x" },
+              pinch: { enabled: true },
+              mode: "x",
+            },
+          },
         },
       },
     });
@@ -455,30 +590,30 @@ export default function RainLevelData() {
         </select>
         <input
           type="date"
-          placeholder="Select Date"
           className="px-3 py-2 rounded bg-white border"
-          pattern="\d{2}/\d{2}/\d{4}"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
         />
 
         <input
           type="time"
-          placeholder="Select Time"
           className="px-3 py-2 rounded bg-white border"
-          pattern="[0-9]{2}:[0-9]{2}"
+          value={startTime}
+          onChange={(e) => setStartTime(e.target.value)}
         />
         <span>to</span>
         <input
           type="date"
-          placeholder="Select Date"
           className="px-3 py-2 rounded bg-white border"
-          pattern="\d{2}/\d{2}/\d{4}"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
         />
 
         <input
           type="time"
-          placeholder="Select Time"
           className="px-3 py-2 rounded bg-white border"
-          pattern="[0-9]{2}:[0-9]{2}"
+          value={endTime}
+          onChange={(e) => setEndTime(e.target.value)}
         />
       </div>
 
@@ -584,7 +719,7 @@ export default function RainLevelData() {
           </table>
         </div>
 
-        <div className="mt-3">
+        <div className="mt-3 flex items-center gap-2">
           <button
             onClick={downloadCSV}
             className="px-3 py-2 rounded bg-[#636059] text-white"
@@ -603,13 +738,29 @@ export default function RainLevelData() {
             {selectedDeviceId ? (
               <>
                 <div className="text-lg font-bold text-[#636059] mb-1">
-                  Data Visualization
+                  Data Visualization
                 </div>
-                <div className="h-[calc(100%_-_1rem)]">
+                <div className="font-bold text-[#636059] mb-2 text-sm">
+                  Real-time precipitation data over time (Hytograph) from
+                  station, located in Kelurahan, Kecamatan, Kota.
+                </div>
+                <div className="h-[calc(100%)]">
                   <canvas
                     ref={chartRef}
                     style={{ width: "100%", height: "100%" }}
                   />
+                </div>
+                {/* Legend container below the chart */}
+                <div className="mt-3 flex items-center gap-3 justify-start">
+                  <div className="px-3 py-1 rounded-full bg-green-600 text-white text-sm font-semibold">
+                    Low
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-yellow-500 text-white text-sm font-semibold">
+                    Medium
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-red-600 text-white text-sm font-semibold">
+                    High
+                  </div>
                 </div>
               </>
             ) : (
@@ -619,8 +770,6 @@ export default function RainLevelData() {
             )}
           </div>
         </div>
-
-        {/* vertical divider (lg+) */}
         <div className="hidden lg:block w-px bg-gray-200 self-stretch z-50" />
 
         <div className="w-[40rem] p-2">

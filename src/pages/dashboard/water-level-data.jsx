@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import Chart from "chart.js/auto";
+import zoomPlugin from "chartjs-plugin-zoom";
+
+// register zoom plugin so charts can be panned/zoomed
+Chart.register(zoomPlugin);
 
 // Water Level Data page (AWLR) — mirrors the Rain page but reads AWLR geojson and uses meters
 function categoryFromReading(mm) {
@@ -96,6 +100,41 @@ export default function WaterLevelData() {
   const [currentPage, setCurrentPage] = useState(1);
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
+  const [vizMode, setVizMode] = useState("normal"); // 'normal' or 'mdpl'
+
+  // plugin draws Red/Yellow/Green horizontal bands behind the chart
+  const rygBackground = useMemo(() => {
+    return {
+      id: "rygBackground",
+      beforeDraw: (chart) => {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea) return;
+        const { left, right } = chartArea;
+        const yScale = scales.y;
+        if (!yScale) return;
+
+        const bands = [
+          // bottom: green 20-40
+          { from: 20, to: 40, color: "rgba(16,185,129,0.12)" },
+          // middle: yellow 40-60
+          { from: 40, to: 60, color: "rgba(245,158,11,0.12)" },
+          // top: red 60-80
+          { from: 60, to: 80, color: "rgba(239,68,68,0.12)" },
+        ];
+
+        bands.forEach((b) => {
+          const y1 = yScale.getPixelForValue(b.from);
+          const y2 = yScale.getPixelForValue(b.to);
+          const top = Math.min(y1, y2);
+          const height = Math.abs(y2 - y1);
+          ctx.save();
+          ctx.fillStyle = b.color;
+          ctx.fillRect(left, top, right - left, height);
+          ctx.restore();
+        });
+      },
+    };
+  }, []);
 
   useEffect(() => {
     fetch(
@@ -239,17 +278,10 @@ export default function WaterLevelData() {
     };
   }, [features, selectedStation]);
 
-  useEffect(() => {
-    if (!stationMetrics) {
-      setSelectedDeviceSeries({ labels: [], values: [] });
-      setSelectedDeviceId("");
-      return;
-    }
-    const labels = stationMetrics.last6.map((x) => x.date);
-    const values = stationMetrics.last6.map((x) => x.value);
-    setSelectedDeviceId(selectedStation);
-    setSelectedDeviceSeries({ labels, values });
-  }, [stationMetrics, selectedStation]);
+  // NOTE: removed automatic limiting to last6 here. The full aggregated
+  // series is computed when a station is selected (below) and the chart
+  // will receive the full series but initialized to show the last 6 points
+  // by providing `view: { min, max }` in the series object.
 
   function formatWeekday(d) {
     if (!d) return "-";
@@ -281,15 +313,64 @@ export default function WaterLevelData() {
   function handleSelectDevice(id) {
     setSelectedDeviceId(id);
     const readingObj = deviceSeriesMap[id] || {};
-    const dates = Object.keys(readingObj || {}).sort();
+    const dates = Object.keys(readingObj || {}).sort((a, b) => {
+      const ta = Date.parse(a);
+      const tb = Date.parse(b);
+      if (isNaN(ta) || isNaN(tb)) return a.localeCompare(b);
+      return ta - tb;
+    });
     if (!dates.length) {
       setSelectedDeviceSeries({ labels: [], values: [] });
       return;
     }
-    const latestDate = dates[dates.length - 1];
-    const latestVal =
-      readingObj[latestDate] != null ? Number(readingObj[latestDate]) : 0;
-    setSelectedDeviceSeries({ labels: [latestDate], values: [latestVal] });
+    // full labels/values
+    const labels = dates;
+    const values = dates.map((d) =>
+      readingObj[d] != null ? Number(readingObj[d]) : NaN
+    );
+
+    // build date filter range from UI inputs
+    const startISO = startDate
+      ? startTime
+        ? `${startDate}T${startTime}`
+        : `${startDate}T00:00:00`
+      : null;
+    const endISO = endDate
+      ? endTime
+        ? `${endDate}T${endTime}`
+        : `${endDate}T23:59:59`
+      : null;
+    const startTs = startISO ? Date.parse(startISO) : null;
+    const endTs = endISO ? Date.parse(endISO) : null;
+
+    let minIdx = Math.max(0, labels.length - 6);
+    let maxIdx = Math.max(0, labels.length - 1);
+    if (startTs || endTs) {
+      // find first/last indices matching the filter range
+      const parsed = labels.map((d) => {
+        const t = Date.parse(d);
+        if (!isNaN(t)) return t;
+        const t2 = Date.parse((d || "").split("T")[0]);
+        return isNaN(t2) ? null : t2;
+      });
+      const first = parsed.findIndex(
+        (t) => t != null && (startTs ? t >= startTs : true)
+      );
+      const last = parsed
+        .map((t, i) => ({ t, i }))
+        .reverse()
+        .find((o) => o.t != null && (endTs ? o.t <= endTs : true));
+      if (first !== -1 && last && last.i != null) {
+        minIdx = first;
+        maxIdx = last.i;
+      }
+    }
+
+    setSelectedDeviceSeries({
+      labels,
+      values,
+      view: { min: minIdx, max: maxIdx },
+    });
   }
 
   useEffect(() => {
@@ -328,16 +409,57 @@ export default function WaterLevelData() {
       const arr = buckets[d] || [];
       const sum = arr.reduce((s, x) => s + x, 0);
       const avg = arr.length ? sum / arr.length : 0;
-      return { date: d, value: avg };
+      return { date: d, value: Number(avg.toFixed(2)) };
     });
 
-    const last6 = aggregated.slice(-6);
-    const labels = last6.map((x) => x.date);
-    const values = last6.map((x) => Number(x.value.toFixed(2)));
+    // build full labels/values arrays (not limited to 6)
+    const labels = aggregated.map((x) => x.date);
+    const values = aggregated.map((x) => x.value);
+
+    // default view: last 6 points
+    let minIdx = Math.max(0, labels.length - 6);
+    let maxIdx = Math.max(0, labels.length - 1);
+
+    // build date filter range from UI inputs
+    const startISO = startDate
+      ? startTime
+        ? `${startDate}T${startTime}`
+        : `${startDate}T00:00:00`
+      : null;
+    const endISO = endDate
+      ? endTime
+        ? `${endDate}T${endTime}`
+        : `${endDate}T23:59:59`
+      : null;
+    const startTs = startISO ? Date.parse(startISO) : null;
+    const endTs = endISO ? Date.parse(endISO) : null;
+    if (startTs || endTs) {
+      const parsed = labels.map((d) => {
+        const t = Date.parse(d);
+        if (!isNaN(t)) return t;
+        const t2 = Date.parse((d || "").split("T")[0]);
+        return isNaN(t2) ? null : t2;
+      });
+      const first = parsed.findIndex(
+        (t) => t != null && (startTs ? t >= startTs : true)
+      );
+      const lastObj = parsed
+        .map((t, i) => ({ t, i }))
+        .reverse()
+        .find((o) => o.t != null && (endTs ? o.t <= endTs : true));
+      if (first !== -1 && lastObj && lastObj.i != null) {
+        minIdx = first;
+        maxIdx = lastObj.i;
+      }
+    }
 
     setSelectedDeviceId(selectedStation);
-    setSelectedDeviceSeries({ labels, values });
-  }, [selectedStation, features]);
+    setSelectedDeviceSeries({
+      labels,
+      values,
+      view: { min: minIdx, max: maxIdx },
+    });
+  }, [selectedStation, features, startDate, startTime, endDate, endTime]);
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -349,44 +471,20 @@ export default function WaterLevelData() {
 
     const ctx = chartRef.current.getContext("2d");
 
-    // plugin draws Red/Yellow/Green horizontal bands behind the chart
-    const rygBackground = {
-      id: "rygBackground",
-      beforeDraw: (chart) => {
-        const { ctx, chartArea, scales } = chart;
-        if (!chartArea) return;
-        const { left, right } = chartArea;
-        const yScale = scales.y;
-        if (!yScale) return;
-
-        const bands = [
-          // bottom: green 20-40
-          { from: 20, to: 40, color: "rgba(16,185,129,0.12)" },
-          // middle: yellow 40-60
-          { from: 40, to: 60, color: "rgba(245,158,11,0.12)" },
-          // top: red 60-80
-          { from: 60, to: 80, color: "rgba(239,68,68,0.12)" },
-        ];
-
-        bands.forEach((b) => {
-          const y1 = yScale.getPixelForValue(b.from);
-          const y2 = yScale.getPixelForValue(b.to);
-          const top = Math.min(y1, y2);
-          const height = Math.abs(y2 - y1);
-          ctx.save();
-          ctx.fillStyle = b.color;
-          ctx.fillRect(left, top, right - left, height);
-          ctx.restore();
-        });
-      },
-    };
+    // use shared rygBackground plugin (defined with useMemo)
 
     // compute data-driven min/max so small values are visible
     const values = selectedDeviceSeries.values || [];
-    const dataMin = values.length ? Math.min(...values) : 0;
-    const dataMax = values.length ? Math.max(...values) : 0;
-    const yMin = Math.min(20, Math.floor(dataMin));
-    const yMax = Math.max(80, Math.ceil(dataMax));
+    const dataMin = values.length
+      ? Math.min(...values.filter((v) => !Number.isNaN(v)))
+      : 0;
+    const dataMax = values.length
+      ? Math.max(...values.filter((v) => !Number.isNaN(v)))
+      : 0;
+    // Fix y-axis to meters: max 2.0 meters and step of 0.25m. Keep min at 0.
+    const yMin = 0;
+    const yMax = 2.0;
+    const view = selectedDeviceSeries.view;
 
     chartInstanceRef.current = new Chart(ctx, {
       type: "line",
@@ -394,7 +492,7 @@ export default function WaterLevelData() {
         labels: selectedDeviceSeries.labels,
         datasets: [
           {
-            label: "Level (m)",
+            label: vizMode === "mdpl" ? "MDPL" : "Level (m)",
             data: selectedDeviceSeries.values,
             borderColor: "#0ea5a4",
             backgroundColor: "rgba(14,165,164,0.08)",
@@ -420,12 +518,15 @@ export default function WaterLevelData() {
           x: {
             title: { display: true, text: "Date" },
             ticks: { autoSkip: true },
+            min: view ? view.min : undefined,
+            max: view ? view.max : undefined,
           },
           y: {
             min: yMin,
             max: yMax,
             ticks: {
-              stepSize: 20,
+              // show ticks every 0.25 meters
+              stepSize: 0.25,
             },
             title: { display: true, text: "Level (m)" },
           },
@@ -433,6 +534,17 @@ export default function WaterLevelData() {
         plugins: {
           legend: { display: false },
           tooltip: { mode: "index", intersect: false },
+          zoom: {
+            pan: {
+              enabled: true,
+              mode: "x",
+            },
+            zoom: {
+              wheel: { enabled: true, mode: "x" },
+              pinch: { enabled: true },
+              mode: "x",
+            },
+          },
         },
       },
       plugins: [rygBackground],
@@ -445,6 +557,96 @@ export default function WaterLevelData() {
       }
     };
   }, [selectedDeviceSeries]);
+
+  // update chart label immediately when visualization mode changes
+  useEffect(() => {
+    if (!chartRef.current || !selectedDeviceSeries.labels.length) return;
+
+    // Destroy and recreate the chart
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
+    }
+
+    const ctx = chartRef.current.getContext("2d");
+
+    // Recreate the chart with the same code as the main chart creation useEffect
+    const values = selectedDeviceSeries.values || [];
+    const dataMin = values.length
+      ? Math.min(...values.filter((v) => !Number.isNaN(v)))
+      : 0;
+    const dataMax = values.length
+      ? Math.max(...values.filter((v) => !Number.isNaN(v)))
+      : 0;
+    const yMin = 0;
+    const yMax = 2.0;
+    const view = selectedDeviceSeries.view;
+
+    chartInstanceRef.current = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: selectedDeviceSeries.labels,
+        datasets: [
+          {
+            label: vizMode === "mdpl" ? "MDPL" : "Level (m)",
+            data: selectedDeviceSeries.values,
+            borderColor: "#0ea5a4",
+            backgroundColor: "rgba(14,165,164,0.08)",
+            tension: 0.3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: selectedDeviceSeries.values.map((v) =>
+              v >= yMax * 0.75
+                ? "#ef4444"
+                : v >= yMax * 0.5
+                ? "#f59e0b"
+                : "#10b981"
+            ),
+            fill: false,
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            title: { display: true, text: "Date" },
+            ticks: { autoSkip: true },
+            min: view ? view.min : undefined,
+            max: view ? view.max : undefined,
+          },
+          y: {
+            min: yMin,
+            max: yMax,
+            ticks: {
+              stepSize: 0.25,
+            },
+            title: {
+              display: true,
+              text: vizMode === "mdpl" ? "MDPL" : "Level (m)",
+            },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { mode: "index", intersect: false },
+          zoom: {
+            pan: {
+              enabled: true,
+              mode: "x",
+            },
+            zoom: {
+              wheel: { enabled: true, mode: "x" },
+              pinch: { enabled: true },
+              mode: "x",
+            },
+          },
+        },
+      },
+      plugins: [rygBackground],
+    });
+  }, [vizMode, selectedDeviceSeries]);
 
   function downloadCSV() {
     const header = [
@@ -522,7 +724,7 @@ export default function WaterLevelData() {
       </div>
       <div className="flex flex-wrap gap-3 mb-2 items-center">
         <select
-          className="px-3 py-2 rounded bg-white border"
+          className="px-3 py-2 rounded border"
           value={selectedStation}
           onChange={(e) => setSelectedStation(e.target.value)}
         >
@@ -574,34 +776,34 @@ export default function WaterLevelData() {
           <table className="w-full text-left text-sm table-fixed border-collapse">
             <thead>
               <tr className="text-xs text-[#636059]">
-                <th className="pr-2 w-16 sticky top-0 bg-white border-r py-2 truncate">
+                <th className="pr-2 w-16 sticky top-0 border-r py-2 truncate">
                   Device Id
                 </th>
-                <th className="w-36 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                <th className="w-36 sticky top-0 border-r py-2 px-2 truncate">
                   Water Station
                 </th>
-                <th className="w-20 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                <th className="w-20 sticky top-0  border-r py-2 px-2 truncate">
                   City
                 </th>
-                <th className="w-20 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                <th className="w-20 sticky top-0  border-r py-2 px-2 truncate">
                   Kelurahan
                 </th>
-                <th className="w-20 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                <th className="w-20 sticky top-0  border-r py-2 px-2 truncate">
                   Kecamatan
                 </th>
-                <th className="w-28 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                <th className="w-28 sticky top-0  border-r py-2 px-2 truncate">
                   Catchment
                 </th>
-                <th className="w-28 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                <th className="w-28 sticky top-0  border-r py-2 px-2 truncate">
                   Device Condition
                 </th>
-                <th className="w-28 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                <th className="w-28 sticky top-0  border-r py-2 px-2 truncate">
                   Timestamp
                 </th>
-                <th className="w-20 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                <th className="w-20 sticky top-0  border-r py-2 px-2 truncate">
                   Reading
                 </th>
-                <th className="w-28 sticky top-0 bg-white text-center py-2 truncate">
+                <th className="w-28 sticky top-0  text-center py-2 truncate">
                   Alert Threshold
                 </th>
               </tr>
@@ -675,8 +877,6 @@ export default function WaterLevelData() {
           >
             Download Data
           </button>
-
-          {/* Pagination Controls */}
           {visibleRows.length > rowsPerPage && (
             <div className="flex items-center gap-2">
               <button
@@ -713,18 +913,60 @@ export default function WaterLevelData() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4">
-        <div className="lg:flex-[3] flex-1 rounded-lg bg-white p-2 h-56 max-w-full lg:max-w-2xl">
+        <div className="lg:flex-[3] flex-1 rounded-lg p-2 h-56 max-w-full lg:max-w-2xl">
           <div className="w-full h-full rounded-2xl p-2">
             {selectedDeviceId ? (
               <>
-                <div className="text-lg font-bold text-[#636059] mb-1">
-                  Water Level vs. Time
+                <div>
+                  <div className="text-lg font-bold text-[#636059] mb-1 flex items-center gap-3">
+                    <div>Data Visualization</div>
+                    {/* simple toggle */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-[#636059]">Meter</label>
+                      <button
+                        className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-colors ${
+                          vizMode === "mdpl" ? "bg-[#636059]" : "bg-gray-300"
+                        }`}
+                        onClick={() =>
+                          setVizMode((m) => (m === "mdpl" ? "normal" : "mdpl"))
+                        }
+                        aria-pressed={vizMode === "mdpl"}
+                        title="Toggle MDPL mode"
+                      >
+                        <div
+                          className={`w-4 h-4 bg-white rounded-full shadow transform transition-transform ${
+                            vizMode === "mdpl"
+                              ? "translate-x-4"
+                              : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                      <label className="text-sm text-[#636059]">MDPL</label>
+                    </div>
+                    {/* conditional action button */}
+                  </div>
                 </div>
-                <div className="h-[calc(100%_-_1rem)]">
+                <div className="font-bold text-[#636059] mb-2 text-sm">
+                  Real-time water level data over time (Hydrograph) from
+                  station, located in keluarahan, kecamatan, Kota.
+                </div>
+                <div className="h-[calc(100%)]">
                   <canvas
                     ref={chartRef}
                     style={{ width: "100%", height: "100%" }}
                   />
+                </div>
+                {/* Legend container below the chart */}
+                <div className="mt-3 flex items-center gap-3 justify-start">
+                  <div className="px-3 py-1 rounded-full bg-green-600 text-white text-sm font-semibold">
+                    Low
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-yellow-500 text-white text-sm font-semibold">
+                    Medium
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-red-600 text-white text-sm font-semibold">
+                    High
+                  </div>
                 </div>
               </>
             ) : (
@@ -756,7 +998,7 @@ export default function WaterLevelData() {
           </div>
           {stationMetrics && (
             <div className="flex gap-2">
-              <div className="flex-1 bg-white rounded-xl p-2">
+              <div className="flex-1rounded-xl p-2">
                 <div className="text-md font-bold text-[#636059]">
                   Recording Data
                 </div>
@@ -784,7 +1026,7 @@ export default function WaterLevelData() {
                   </div>
                 </div>
               </div>
-              <div className="flex-1 bg-white rounded-xl p-2">
+              <div className="flex-1rounded-xl p-2">
                 <div className="text-md font-bold text-[#636059]">
                   Average Recorded Data
                 </div>
