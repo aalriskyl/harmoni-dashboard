@@ -917,33 +917,30 @@ export default function WaterLevelData() {
           <div className="w-full h-full rounded-2xl p-2">
             {selectedDeviceId ? (
               <>
-                <div>
-                  <div className="text-lg font-bold text-[#636059] mb-1 flex items-center gap-3">
-                    <div>Data Visualization</div>
-                    {/* simple toggle */}
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-[#636059]">Meter</label>
-                      <button
-                        className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-colors ${
-                          vizMode === "mdpl" ? "bg-[#636059]" : "bg-gray-300"
+                <div className="flex justify-between items-center mb-1">
+                  <div className="text-lg font-bold text-[#636059]">
+                    Data Visualization
+                  </div>
+                  {/* MDPL toggle on the right side */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-[#636059]">Meter</label>
+                    <button
+                      className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-colors ${
+                        vizMode === "mdpl" ? "bg-[#636059]" : "bg-gray-300"
+                      }`}
+                      onClick={() =>
+                        setVizMode((m) => (m === "mdpl" ? "normal" : "mdpl"))
+                      }
+                      aria-pressed={vizMode === "mdpl"}
+                      title="Toggle MDPL mode"
+                    >
+                      <div
+                        className={`w-4 h-4 bg-white rounded-full shadow transform transition-transform ${
+                          vizMode === "mdpl" ? "translate-x-4" : "translate-x-0"
                         }`}
-                        onClick={() =>
-                          setVizMode((m) => (m === "mdpl" ? "normal" : "mdpl"))
-                        }
-                        aria-pressed={vizMode === "mdpl"}
-                        title="Toggle MDPL mode"
-                      >
-                        <div
-                          className={`w-4 h-4 bg-white rounded-full shadow transform transition-transform ${
-                            vizMode === "mdpl"
-                              ? "translate-x-4"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                      <label className="text-sm text-[#636059]">MDPL</label>
-                    </div>
-                    {/* conditional action button */}
+                      />
+                    </button>
+                    <label className="text-sm text-[#636059]">MDPL</label>
                   </div>
                 </div>
                 <div className="font-bold text-[#636059] mb-2 text-sm">
