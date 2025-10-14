@@ -334,7 +334,7 @@ export default function CrossSectionData() {
       </div>
       <div className="flex flex-wrap gap-3 mb-2 items-center">
         <select
-          className="px-3 py-2 rounded bg-white border"
+          className="px-3 py-2 rounded-xl bg-white border"
           value={selectedSection}
           onChange={(e) => setSelectedSection(e.target.value)}
         >
@@ -347,7 +347,7 @@ export default function CrossSectionData() {
         </select>
 
         <select
-          className="px-3 py-2 rounded bg-white border"
+          className="px-3 py-2 rounded-xl bg-white border"
           value={filterMeasurementYear}
           onChange={(e) => setFilterMeasurementYear(e.target.value)}
         >
@@ -359,7 +359,7 @@ export default function CrossSectionData() {
           ))}
         </select>
         <select
-          className="px-3 py-2 rounded bg-white border"
+          className="px-3 py-2 rounded-xl bg-white border"
           value={filterMeasurementType}
           onChange={(e) => setFilterMeasurementType(e.target.value)}
         >
@@ -461,7 +461,7 @@ export default function CrossSectionData() {
         <div className="mt-3 flex items-center gap-2">
           <button
             onClick={downloadCSV}
-            className="px-3 py-2 rounded bg-[#636059] text-white"
+            className="px-3 py-2 rounded-xl bg-[#636059] text-white"
           >
             Download Data
           </button>

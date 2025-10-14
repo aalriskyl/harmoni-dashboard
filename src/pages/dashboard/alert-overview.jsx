@@ -15,6 +15,36 @@ function formatDate(ts) {
   }
 }
 
+function formatDateOnly(ts) {
+  if (!ts) return "-";
+  if (typeof ts === "object") return "-";
+  try {
+    const d = new Date(ts);
+    if (isNaN(d)) return String(ts);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  } catch (e) {
+    return String(ts);
+  }
+}
+
+function formatTimeOnly(ts) {
+  if (!ts) return "-";
+  if (typeof ts === "object") return "-";
+  try {
+    const d = new Date(ts);
+    if (isNaN(d)) return String(ts);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+  } catch (e) {
+    return String(ts);
+  }
+}
+
 export default function AlertOverview() {
   const [levelFilter, setLevelFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -105,7 +135,21 @@ export default function AlertOverview() {
 
         function pushFromFeature(f, source) {
           const props = f.properties || {};
+          // prefer explicit ARR/AWLR name fields if present
+          const arrName =
+            extractPrimitive(props.ARR_Name) ||
+            extractPrimitive(props.ARR_NAME) ||
+            extractPrimitive(props.ARRName) ||
+            null;
+          const awlrName =
+            extractPrimitive(props.AWLR_Name) ||
+            extractPrimitive(props.AWLR_NAME) ||
+            extractPrimitive(props.AWLRName) ||
+            null;
+
           const station =
+            arrName ||
+            awlrName ||
             extractPrimitive(props.Station) ||
             extractPrimitive(props.station) ||
             extractPrimitive(props.station_name) ||
@@ -167,6 +211,8 @@ export default function AlertOverview() {
           rows.push({
             id: f.id || `${source}-${rows.length}`,
             station,
+            arr_name: arrName,
+            awlr_name: awlrName,
             reading,
             lowThreshold,
             highThreshold,
@@ -264,7 +310,7 @@ export default function AlertOverview() {
 
     return (
       <div className="rounded-xl overflow-hidden bg-white border shadow-sm flex flex-col">
-        <div className="p-3 bg-gray-50 flex items-center gap-3">
+        <div className="p-3 flex items-center gap-3">
           <img
             src={
               a.type === "Rain"
@@ -272,9 +318,10 @@ export default function AlertOverview() {
                 : "/assets/img/water-level-icon.svg"
             }
             alt={a.type}
+            style={{ filter: "invert(0.6)" }}
             className="w-10 h-10 object-contain"
           />
-          <div className="text-lg text-[#636059]">
+          <div className="text-lg font-bold text-[#636059]">
             {a.type === "Rain" ? "Rainfall" : "Water Level"}
           </div>
         </div>
@@ -283,21 +330,23 @@ export default function AlertOverview() {
           <div>
             <div className="space-y-2 text-sm text-[#636059]">
               <div className="flex justify-between items-start">
-                <div className="text-xs">Reading</div>
+                <div className="text-md">Reading</div>
                 <div className="text-right font-semibold text-base">
                   {readingDisplay} {readingDisplay !== "-" ? unit : ""}
                 </div>
               </div>
 
               <div className="flex justify-between">
-                <div className="text-xs">Reading (+6 hr)</div>
-                <div className="text-right font-semibold text-base">-</div>
+                <div className="text-md">Reading (+6 hr)</div>
+                <div className="text-right font-semibold text-base">
+                  {readingDisplay} {readingDisplay !== "-" ? unit : ""}
+                </div>
               </div>
 
               <div className="flex justify-between">
-                <div className="text-xs">Low Threshold</div>
+                <div className="text-md">Low Threshold</div>
                 <div className="text-right font-semibold text-base">
-                  {a.lowThreshold ?? "-"}
+                  {a.lowThreshold ?? "1"}
                 </div>
               </div>
             </div>
@@ -306,14 +355,22 @@ export default function AlertOverview() {
 
             <div className="text-sm text-[#636059]">
               <div className="flex justify-between items-start">
-                <div className="text-xs">Station</div>
+                <div className="text-md font-medium">Station</div>
                 <div className="text-right font-medium">
-                  {a.station || "Unknown"}
+                  {a.arr_name || a.awlr_name || a.station || "Unknown"}
                 </div>
               </div>
               <div className="flex justify-between">
-                <div className="text-xs">Date</div>
-                <div className="text-right font-medium">{formatDate(a.ts)}</div>
+                <div className="text-md font-medium">Date</div>
+                <div className="text-right font-medium">
+                  {formatDateOnly(a.ts)}
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <div className="text-md font-medium">Time</div>
+                <div className="text-right font-medium">
+                  {formatTimeOnly(a.ts)}
+                </div>
               </div>
             </div>
           </div>
@@ -358,7 +415,7 @@ export default function AlertOverview() {
                 setLevelFilter(e.target.value);
                 setPage(1);
               }}
-              className="border rounded px-3 py-2 text-lg"
+              className="border rounded-xl px-3 py-1 text-lg"
             >
               <option value="">All Levels</option>
               {levelOptions
@@ -378,7 +435,7 @@ export default function AlertOverview() {
                 setTypeFilter(e.target.value);
                 setPage(1);
               }}
-              className="border rounded px-2 py-1 text-sm"
+              className="border rounded-xl px-3 py-1 text-lg"
             >
               <option value="">All Types</option>
               {typeOptions
@@ -399,7 +456,7 @@ export default function AlertOverview() {
                 setDateFilter(e.target.value);
                 setPage(1);
               }}
-              className="border rounded px-2 py-1 text-sm"
+              className="border rounded-xl px-3 py-1 text-lg"
             />
           </div>
 
@@ -411,7 +468,7 @@ export default function AlertOverview() {
                 setDateFilter("");
                 setPage(1);
               }}
-              className="px-3 py-1 rounded border text-sm bg-white"
+              className="px-3 py-1 rounded-xl border text-lg bg-white"
             >
               Clear
             </button>
@@ -425,9 +482,10 @@ export default function AlertOverview() {
             <AlertCard a={a} key={a.id} />
           ))}
         </div>
+        <div className="hidden lg:block w-px bg-gray-200 self-stretch z-50" />
         {/* right-side legend / summary */}
         <div className="w-full lg:w-2/5">
-          <div className="h-full sticky top-24 rounded-xl p-4">
+          <div className="h-full sticky top-24 rounded-xl">
             <div className="text-xl font-semibold text-[#636059] mb-2">
               Summary
             </div>
@@ -435,33 +493,36 @@ export default function AlertOverview() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3">
                 <div
-                  className="w-30 h-8 rounded"
+                  className="w-40 h-11 rounded"
                   style={{ background: "#ef4444" }}
                 ></div>
                 <div className="flex flex-col">
                   <div className="text-lg text-[#636059]">High</div>
                   <div className="text-lg text-[#636059]">Risk Alert</div>
                 </div>
+                <div className="text-5xl font-bold items-end flex ">5</div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <div
-                  className="w-30 h-8 rounded"
+                  className="w-40 h-11 rounded"
                   style={{ background: "#f59e0b" }}
                 ></div>
                 <div className="flex flex-col">
                   <div className="text-lg text-[#636059]">Medium</div>
                   <div className="text-lg text-[#636059]">Risk Alert</div>
                 </div>
+                <div className="text-5xl font-bold items-end flex ">5</div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <div
-                  className="w-30 h-8 rounded"
+                  className="w-40 h-11 rounded"
                   style={{ background: "#10b981" }}
                 ></div>
                 <div className="flex flex-col">
                   <div className="text-lg text-[#636059]">Low</div>
                   <div className="text-lg text-[#636059]">Risk Alert</div>
                 </div>
+                <div className="text-5xl font-bold items-end flex">5</div>
               </div>
             </div>
           </div>

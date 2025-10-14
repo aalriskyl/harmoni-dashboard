@@ -724,7 +724,7 @@ export default function WaterLevelData() {
       </div>
       <div className="flex flex-wrap gap-3 mb-2 items-center">
         <select
-          className="px-3 py-2 rounded border"
+          className="px-3 py-[6px] rounded-xl border"
           value={selectedStation}
           onChange={(e) => setSelectedStation(e.target.value)}
         >
@@ -738,13 +738,13 @@ export default function WaterLevelData() {
         <div className="flex items-center gap-2">
           <input
             type="date"
-            className="px-2 py-1 border rounded"
+            className="px-2 py-1 border rounded-xl"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
           <input
             type="time"
-            className="px-2 py-1 border rounded"
+            className="px-2 py-1 border rounded-xl"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
           />
@@ -754,13 +754,13 @@ export default function WaterLevelData() {
           <div className="text-sm text-[#636059]">To</div>
           <input
             type="date"
-            className="px-2 py-1 border rounded"
+            className="px-2 py-1 border rounded-xl"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
           <input
             type="time"
-            className="px-2 py-1 border rounded"
+            className="px-2 py-1 border rounded-xl"
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
           />
@@ -857,7 +857,7 @@ export default function WaterLevelData() {
                   </td>
                   <td className="py-2 w-full">
                     <span
-                      className={`block w-1/2 mx-auto text-center px-2 py-1 rounded-full text-xs font-semibold ${categoryBadgeClass(
+                      className={`block w-1/2 mx-auto text-center px-2 py-1 rounded-lg text-xs font-semibold ${categoryBadgeClass(
                         r.category
                       )}`}
                     >
@@ -873,7 +873,7 @@ export default function WaterLevelData() {
         <div className="mt-3 flex justify-between items-center">
           <button
             onClick={downloadCSV}
-            className="px-3 py-2 rounded bg-[#636059] text-white"
+            className="px-3 py-2 rounded-xl bg-[#636059] text-white"
           >
             Download Data
           </button>
@@ -958,13 +958,13 @@ export default function WaterLevelData() {
                 </div>
                 {/* Legend container below the chart */}
                 <div className="mt-3 flex items-center gap-3 justify-start">
-                  <div className="px-3 py-1 rounded-full bg-green-600 text-white text-sm font-semibold">
+                  <div className="px-3 py-1 rounded-xl bg-green-600 text-white text-sm font-semibold">
                     Low
                   </div>
-                  <div className="px-3 py-1 rounded-full bg-yellow-500 text-white text-sm font-semibold">
+                  <div className="px-3 py-1 rounded-xl bg-yellow-500 text-white text-sm font-semibold">
                     Medium
                   </div>
-                  <div className="px-3 py-1 rounded-full bg-red-600 text-white text-sm font-semibold">
+                  <div className="px-3 py-1 rounded-xl bg-red-600 text-white text-sm font-semibold">
                     High
                   </div>
                 </div>
@@ -1012,8 +1012,10 @@ export default function WaterLevelData() {
                     {stationMetrics.completionPercent + "%"}
                   </div>
                 </div>
-                <div className="text-md font-bold text-[#636059] mt-4">
-                  Threshold and Alert in Past 6
+                <div className="mt-3 border-t border-gray-200">
+                  <div className="text-md font-bold text-[#636059] mt-4">
+                    Threshold and Alert in Past 6
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 mt-2">
                   <div className="text-md text-[#636059]">
@@ -1026,16 +1028,19 @@ export default function WaterLevelData() {
                   </div>
                 </div>
               </div>
-              <div className="flex-1rounded-xl p-2">
+              <div className="hidden lg:block w-px bg-gray-200 self-stretch z-50" />
+
+              <div className="flex-1 rounded-xl p-2">
                 <div className="text-md font-bold text-[#636059]">
                   Average Recorded Data
                 </div>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="text-md text-[#636059]">Average (m)</div>
-                  <div className="text-4xl font-bold text-[#636059] mt-3">
+                <div className="flex items-end gap-3 mt-2">
+                  <div className="text-md  text-[#636059]">Average (m)</div>
+                  <div className="text-4xl items-center font-bold text-[#636059] mt-3">
                     {stationMetrics.avgRecorded}
                   </div>
                 </div>
+                <div className="mt-3 border-t border-gray-200" />
                 <div className="text-md font-bold text-[#636059] mt-4">
                   Last High Alert Date
                 </div>

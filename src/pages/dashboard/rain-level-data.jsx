@@ -577,7 +577,7 @@ export default function RainLevelData() {
       </div>
       <div className="flex flex-wrap gap-3 mb-2 items-center">
         <select
-          className="px-3 py-2 rounded bg-white border"
+          className="px-3 py-2 rounded-xl bg-white border"
           value={selectedStation}
           onChange={(e) => setSelectedStation(e.target.value)}
         >
@@ -590,28 +590,28 @@ export default function RainLevelData() {
         </select>
         <input
           type="date"
-          className="px-3 py-2 rounded bg-white border"
+          className="px-3 py-2 rounded-xl bg-white border"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
         />
 
         <input
           type="time"
-          className="px-3 py-2 rounded bg-white border"
+          className="px-3 py-2 rounded-xl bg-white border"
           value={startTime}
           onChange={(e) => setStartTime(e.target.value)}
         />
         <span>to</span>
         <input
           type="date"
-          className="px-3 py-2 rounded bg-white border"
+          className="px-3 py-2 rounded-xl bg-white border"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
         />
 
         <input
           type="time"
-          className="px-3 py-2 rounded bg-white border"
+          className="px-3 py-2 rounded-xl bg-white border"
           value={endTime}
           onChange={(e) => setEndTime(e.target.value)}
         />
@@ -706,7 +706,7 @@ export default function RainLevelData() {
                   </td>
                   <td className="py-2 w-full">
                     <span
-                      className={`block w-1/2 mx-auto text-center px-2 py-1 rounded-full text-xs font-semibold ${categoryBadgeClass(
+                      className={`block w-1/2 mx-auto text-center px-2 py-1 rounded-xl text-xs font-semibold ${categoryBadgeClass(
                         r.category
                       )}`}
                     >
@@ -722,7 +722,7 @@ export default function RainLevelData() {
         <div className="mt-3 flex items-center gap-2">
           <button
             onClick={downloadCSV}
-            className="px-3 py-2 rounded bg-[#636059] text-white"
+            className="px-3 py-2 rounded-xl bg-[#636059] text-white"
           >
             Download Data
           </button>
