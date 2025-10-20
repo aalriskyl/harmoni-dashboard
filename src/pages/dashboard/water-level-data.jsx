@@ -714,9 +714,14 @@ export default function WaterLevelData() {
           className="w-12 h-12"
           style={{ filter: "invert(0.6)" }}
         />
-        <h1 className="text-2xl font-semibold text-[#636059]">
-          Water Level Data
-        </h1>
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-semibold text-[#636059]">
+            Water Level Data
+          </h1>
+          <p className="text-sm text-[#636059]">
+            Water Level profiles and related data
+          </p>
+        </div>
       </div>
 
       <div className="mb-2 text-xl font-semibold text-[#636059]">
@@ -922,6 +927,30 @@ export default function WaterLevelData() {
                     Data Visualization
                   </div>
                   {/* MDPL toggle on the right side */}
+                </div>
+                <div className="font-bold text-[#636059] mb-2 text-sm">
+                  Real-time water level data over time (Hydrograph) from
+                  station, located in keluarahan, kecamatan, Kota.
+                </div>
+                <div className="h-[calc(100%)]">
+                  <canvas
+                    ref={chartRef}
+                    style={{ width: "100%", height: "100%" }}
+                  />
+                </div>
+                <div className="flex flex-row justify-between">
+                  {/* Legend container below the chart */}
+                  <div className="mt-3 flex items-center gap-3 justify-start">
+                    <div className="px-3 py-1 rounded-xl bg-green-600 text-white text-sm font-semibold">
+                      Low
+                    </div>
+                    <div className="px-3 py-1 rounded-xl bg-yellow-500 text-white text-sm font-semibold">
+                      Medium
+                    </div>
+                    <div className="px-3 py-1 rounded-xl bg-red-600 text-white text-sm font-semibold">
+                      High
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <label className="text-sm text-[#636059]">Meter</label>
                     <button
@@ -941,28 +970,6 @@ export default function WaterLevelData() {
                       />
                     </button>
                     <label className="text-sm text-[#636059]">MDPL</label>
-                  </div>
-                </div>
-                <div className="font-bold text-[#636059] mb-2 text-sm">
-                  Real-time water level data over time (Hydrograph) from
-                  station, located in keluarahan, kecamatan, Kota.
-                </div>
-                <div className="h-[calc(100%)]">
-                  <canvas
-                    ref={chartRef}
-                    style={{ width: "100%", height: "100%" }}
-                  />
-                </div>
-                {/* Legend container below the chart */}
-                <div className="mt-3 flex items-center gap-3 justify-start">
-                  <div className="px-3 py-1 rounded-xl bg-green-600 text-white text-sm font-semibold">
-                    Low
-                  </div>
-                  <div className="px-3 py-1 rounded-xl bg-yellow-500 text-white text-sm font-semibold">
-                    Medium
-                  </div>
-                  <div className="px-3 py-1 rounded-xl bg-red-600 text-white text-sm font-semibold">
-                    High
                   </div>
                 </div>
               </>

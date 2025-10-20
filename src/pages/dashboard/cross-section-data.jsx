@@ -238,10 +238,11 @@ export default function CrossSectionData() {
             },
           },
           zoom: {
-            pan: { enabled: true, mode: "x" },
+            // Disable chart interactions (no panning/zooming)
+            pan: { enabled: false, mode: "x" },
             zoom: {
-              wheel: { enabled: true, mode: "x" },
-              pinch: { enabled: true },
+              wheel: { enabled: false, mode: "x" },
+              pinch: { enabled: false },
               mode: "x",
             },
           },
@@ -251,7 +252,8 @@ export default function CrossSectionData() {
             type: "linear",
             title: { display: true, text: "Station (m)" },
             grid: { display: false },
-            min: selectedSeries.view ? selectedSeries.view.min : undefined,
+            // Always start X axis at 0 so station 0 (if present) is visible
+            min: 0,
             max: selectedSeries.view ? selectedSeries.view.max : undefined,
           },
           y: {
@@ -324,9 +326,14 @@ export default function CrossSectionData() {
           className="w-12 h-12"
           style={{ filter: "invert(0.4)" }}
         />
-        <h1 className="text-2xl font-semibold text-[#636059]">
-          Cross Section Data
-        </h1>
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-semibold text-[#636059]">
+            Cross Section Data
+          </h1>
+          <p className="text-sm text-[#636059]">
+            River cross-section profiles and related data
+          </p>
+        </div>
       </div>
 
       <div className="mb-2 text-xl font-semibold text-[#636059]">

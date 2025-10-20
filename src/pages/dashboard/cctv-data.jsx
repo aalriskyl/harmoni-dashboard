@@ -31,10 +31,15 @@ export default function CCTVData() {
           className="w-12 h-12"
           style={{ filter: "invert(0.6)" }}
         />
-        <h1 className="text-2xl font-semibold text-[#636059]">CCTV Data</h1>
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-semibold text-[#636059]">CCTV Data</h1>
+          <p className="text-sm text-[#636059]">
+            CCTV profiles and related data
+          </p>
+        </div>
       </div>
 
-      <div className="mb-2 text-lg font-semibold text-[#636059]">
+      <div className="mb-2 text-sm text-[#636059]">
         Live CCTV feeds (dummy placeholders)
       </div>
 

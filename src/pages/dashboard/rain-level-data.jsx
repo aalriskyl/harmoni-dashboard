@@ -566,9 +566,14 @@ export default function RainLevelData() {
           className="w-12 h-12"
           style={{ filter: "invert(0.6)" }}
         />
-        <h1 className="text-2xl font-semibold text-[#636059]">
-          Rain Level Data
-        </h1>
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-semibold text-[#636059]">
+            Rain Level Data
+          </h1>
+          <p className="text-sm text-[#636059]">
+            Rain Level profiles and related data
+          </p>
+        </div>
       </div>
       {/* <hr className="w-full mb-4 " /> */}
       {/* Filter row */}
@@ -706,7 +711,7 @@ export default function RainLevelData() {
                   </td>
                   <td className="py-2 w-full">
                     <span
-                      className={`block w-1/2 mx-auto text-center px-2 py-1 rounded-xl text-xs font-semibold ${categoryBadgeClass(
+                      className={`block w-1/2 mx-auto text-center px-2 py-1 rounded-lg text-xs font-semibold ${categoryBadgeClass(
                         r.category
                       )}`}
                     >

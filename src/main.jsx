@@ -13,6 +13,8 @@ import WaterLevelData from "./pages/dashboard/water-level-data.jsx";
 import CrossSectionData from "./pages/dashboard/cross-section-data.jsx";
 import AlertOverview from "./pages/dashboard/alert-overview.jsx";
 import CCTVData from "./pages/dashboard/cctv-data.jsx";
+import TopographyData from "./pages/dashboard/topography-data.jsx";
+import RiverPathData from "./pages/dashboard/river-path-data.jsx";
 
 function AppRoot() {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -48,6 +50,8 @@ createRoot(document.getElementById("root")).render(
         <Route path="cross-section-data" element={<CrossSectionData />} />
         <Route path="alert-overview" element={<AlertOverview />} />
         <Route path="cctv-data" element={<CCTVData />} />
+        <Route path="topography-data" element={<TopographyData />} />
+        <Route path="river-path-data" element={<RiverPathData />} />
       </Route>
       <Route path="/" element={<AppRoot />} />
     </Routes>
