@@ -263,6 +263,7 @@ const TopographyData = () => {
       popupRef.current = new mapboxgl.Popup({
         closeButton: false,
         closeOnClick: false,
+        className: "custom-popup", // Add custom class for styling
       });
 
       // Hover handlers for vector layer
@@ -271,21 +272,33 @@ const TopographyData = () => {
         if (!e.features || !e.features.length) return;
         const f = e.features[0];
         const props = f.properties || {};
-        const html =
-          `<div style=\"min-width:180px;\">` +
-          `<div style=\"font-weight:600;margin-bottom:6px;\">DEM Source: ${
-            props.source || "-"
-          }</div>` +
-          `<div style=\"font-size:12px;\">Survey date: ${
-            props.survey_date || "-"
-          }</div>` +
-          `<div style=\"font-size:12px;\">Resolution: ${
-            props.resolution || "-"
-          }</div>` +
-          (props.notes
-            ? `<div style=\"margin-top:6px;font-size:12px;color:#444;\">${props.notes}</div>`
-            : "") +
-          `</div>`;
+        const html = `
+          <div class="min-w-[200px] p-3">
+            <div class="font-semibold text-gray-800 mb-2 pb-2 border-b border-gray-200">
+              DEM Source: ${props.source || "-"}
+            </div>
+            <div class="space-y-1 text-sm text-gray-600">
+              <div class="flex justify-between">
+                <span class="font-medium">Survey Date:</span>
+                <span>${props.survey_date || "-"}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="font-medium">Resolution:</span>
+                <span>${props.resolution || "-"}</span>
+              </div>
+              ${
+                props.notes
+                  ? `
+                <div class="mt-2 pt-2 border-t border-gray-100">
+                  <div class="font-medium text-gray-700 mb-1">Notes:</div>
+                  <div class="text-gray-600 leading-relaxed">${props.notes}</div>
+                </div>
+              `
+                  : ""
+              }
+            </div>
+          </div>
+        `;
 
         popupRef.current.setLngLat(e.lngLat).setHTML(html).addTo(map);
       });
@@ -298,7 +311,8 @@ const TopographyData = () => {
 
     // Add a small reset view control (top-right)
     const resetBtn = document.createElement("button");
-    resetBtn.className = "mapboxgl-ctrl-icon";
+    resetBtn.className =
+      "mapboxgl-ctrl-icon hover:bg-gray-100 transition-colors duration-200";
     resetBtn.type = "button";
     resetBtn.title = "Reset bird's-eye view";
     resetBtn.innerHTML = "\u21BB"; // clockwise arrow
@@ -414,7 +428,7 @@ const TopographyData = () => {
           {/* DEM Source Dropdown */}
           <div className="flex items-center gap-2">
             <select
-              className="px-3 py-2 rounded-xl border border-gray-300 bg-white min-w-[140px]"
+              className="px-3 py-2 rounded-xl border border-gray-300 bg-white min-w-[140px] hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
               value={selectedDemSource}
               onChange={(e) => setSelectedDemSource(e.target.value)}
             >
@@ -430,7 +444,7 @@ const TopographyData = () => {
           <div className="flex items-center gap-2">
             <input
               type="date"
-              className="px-3 py-2 rounded-xl border border-gray-300 bg-white min-w-[170px]"
+              className="px-3 py-2 rounded-xl border border-gray-300 bg-white min-w-[170px] hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
               value={selectedSurveyDate || ""}
               onChange={(e) => {
                 const v = e.target.value;
@@ -438,11 +452,11 @@ const TopographyData = () => {
                 setSelectedSurveyDate(v ? v : null);
               }}
             />
-            <button className="px-3 py-2 rounded-xl border border-gray-300 bg-white text-lg">
+            <button className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 transition-all duration-200 font-medium text-gray-700 shadow-sm hover:shadow">
               Download Data
             </button>
             <button
-              className="px-3 py-2 rounded-xl border border-gray-300 bg-white text-lg"
+              className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 transition-all duration-200 font-medium text-gray-700 shadow-sm hover:shadow"
               onClick={() => setSelectedSurveyDate(null)}
               title="Clear date"
             >
@@ -452,7 +466,7 @@ const TopographyData = () => {
         </div>
       </div>
       <div
-        className="w-full p-0 h-[620px] rounded-lg overflow-hidden"
+        className="w-full p-0 h-[620px] rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300"
         ref={mapContainer}
       />
     </div>

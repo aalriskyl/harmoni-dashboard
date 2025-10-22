@@ -8,6 +8,7 @@ import React, {
   useMemo,
   createElement,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { createRoot } from "react-dom/client";
 import mapboxgl from "mapbox-gl";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
@@ -155,6 +156,7 @@ const Map = ({
   onToggleCrossSections,
   rasterOverlay = { path: null, index: null },
 }) => {
+  const navigate = useNavigate();
   // Refs
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -3698,7 +3700,9 @@ const Map = ({
                 console.warn("popup.open handler failed", e);
               }
             });
-          } catch (e) {}
+          } catch (e) {
+            // ignore
+          }
 
           markersById.current[point.id] = {
             id: point.id,
@@ -3707,41 +3711,141 @@ const Map = ({
             type: point.type,
           };
 
-          // Attach chart button and close button handlers; actual popup initialization
-          // (Chart/SVG) runs when popup emits 'open' to ensure correct layout.
+          // Attach chart, see-more and close handlers on the popup content
           try {
             const chartButton = popupContent.querySelector(".chart-btn");
-            if (chartButton)
+            if (chartButton) {
               chartButton.onclick = (e) => {
                 e.stopPropagation();
                 toggleChart(point);
               };
+            }
+
+            // Attach "See More Data" handlers
+            try {
+              const maybeButtons = popupContent.querySelectorAll("button");
+              maybeButtons.forEach((btn) => {
+                try {
+                  if (
+                    btn &&
+                    btn.textContent &&
+                    btn.textContent
+                      .trim()
+                      .toLowerCase()
+                      .includes("see more data")
+                  ) {
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    newBtn.addEventListener("click", (ev) => {
+                      ev.stopPropagation();
+                      try {
+                        const deviceId =
+                          point.deviceId ||
+                          point.properties?.Device_ID ||
+                          point.properties?.DeviceId ||
+                          point.properties?.Station_ID ||
+                          null;
+                        const station =
+                          point.title ||
+                          point.properties?.ARR_Name ||
+                          point.properties?.AWLR_Name ||
+                          point.properties?.Station ||
+                          "";
+                        const base =
+                          point.type === "RainRecorder"
+                            ? "/dashboard/rain-level-data"
+                            : point.type === "WaterLevel"
+                            ? "/dashboard/water-level-data"
+                            : "/dashboard/rain-level-data";
+                        const params = new URLSearchParams();
+                        if (deviceId) params.set("device_id", deviceId);
+                        if (station) params.set("station", station);
+                        // Attempt to derive a timestamp/date from available data
+                        let rawDate = null;
+                        if (
+                          point &&
+                          point.latestReading &&
+                          point.latestReading.date
+                        )
+                          rawDate = point.latestReading.date;
+                        if (!rawDate && point && point.timestamp)
+                          rawDate = point.timestamp;
+                        if (
+                          !rawDate &&
+                          point &&
+                          point.properties &&
+                          point.properties.Reading
+                        ) {
+                          try {
+                            const k = Object.keys(
+                              point.properties.Reading || {}
+                            );
+                            if (k.length) rawDate = k.sort()[k.length - 1];
+                          } catch (e) {}
+                        }
+                        if (rawDate) {
+                          // rawDate may be 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM:SS' or similar
+                          const parts = String(rawDate).split("T");
+                          const datePart = parts[0];
+                          const timePart = parts[1]
+                            ? parts[1].split(".")[0]
+                            : null;
+                          if (datePart) params.set("startDate", datePart);
+                          if (timePart) params.set("startTime", timePart);
+                          else if (datePart)
+                            params.set("startTime", "00:00:00");
+                          // set end to end of same day by default
+                          if (datePart) params.set("endDate", datePart);
+                          if (timePart) params.set("endTime", timePart);
+                          else if (datePart) params.set("endTime", "23:59:59");
+                        }
+                        navigate(`${base}?${params.toString()}`);
+                        const mapPopupEl = ev.target.closest(".mapboxgl-popup");
+                        if (mapPopupEl) mapPopupEl.remove();
+                      } catch (err) {
+                        console.warn("See More Data handler failed", err);
+                      }
+                    });
+                  }
+                } catch (err) {
+                  // ignore
+                }
+              });
+            } catch (err) {
+              // ignore
+            }
+
             // Attach close button handlers so the internal "x" closes the popup
             try {
               const closeBtns = popupContent.querySelectorAll(".close-popup");
               closeBtns.forEach((btn) => {
-                // clone to remove previously attached listeners
-                const newBtn = btn.cloneNode(true);
-                btn.parentNode.replaceChild(newBtn, btn);
-                newBtn.addEventListener("click", (ev) => {
-                  ev.stopPropagation();
-                  try {
-                    if (popup && typeof popup.remove === "function")
-                      popup.remove();
-                  } catch (e) {
-                    // ignore
-                  }
-                });
+                try {
+                  const newBtn = btn.cloneNode(true);
+                  btn.parentNode.replaceChild(newBtn, btn);
+                  newBtn.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                    try {
+                      if (popup && typeof popup.remove === "function")
+                        popup.remove();
+                    } catch (e) {
+                      // ignore
+                    }
+                  });
+                } catch (err) {
+                  // ignore
+                }
               });
             } catch (e) {
               // ignore
             }
-          } catch (e) {}
-        } catch (err) {
-          console.warn("Failed to create marker for point:", point, err);
+          } catch (e) {
+            // ignore top-level errors
+          }
+        } catch (error) {
+          // ignore creation errors
         }
-      }
-    });
+      } // <-- This closing brace was missing for the else block
+    }); // <-- This closing parenthesis was missing for the forEach
 
     // Rebuild markers.current grouped arrays for compatibility with other code
     markers.current = {

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import Chart from "chart.js/auto";
 import zoomPlugin from "chartjs-plugin-zoom";
 
@@ -98,6 +99,7 @@ export default function WaterLevelData() {
   const [endDate, setEndDate] = useState("");
   const [endTime, setEndTime] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const location = useLocation();
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
   const [vizMode, setVizMode] = useState("normal"); // 'normal' or 'mdpl'
@@ -144,6 +146,47 @@ export default function WaterLevelData() {
       .then((j) => setFeatures(j.features || []))
       .catch((e) => console.error("Failed to load AWLR geojson", e));
   }, []);
+
+  // read query params (device_id or station) and auto-select when features load
+  useEffect(() => {
+    if (!location || !location.search) return;
+    const params = new URLSearchParams(location.search);
+    const qDevice = params.get("device_id");
+    const qStation = params.get("station");
+    const qStartDate = params.get("startDate");
+    const qStartTime = params.get("startTime");
+    const qEndDate = params.get("endDate");
+    const qEndTime = params.get("endTime");
+
+    if (qStation && features && features.length) {
+      const found = features.find((f, idx) => {
+        const p = f.properties || {};
+        const stationName = p.AWLR_Name || p.Station || `Station ${idx + 1}`;
+        return stationName === qStation;
+      });
+      if (found) setSelectedStation(qStation);
+    }
+
+    if (qDevice && features && features.length) {
+      const found = features.find((f, idx) => {
+        const p = f.properties || {};
+        const id = p.Device_ID || p.Station_ID || `ID-${idx + 1}`;
+        return String(id) === String(qDevice);
+      });
+      if (found) {
+        const p = found.properties || {};
+        const stationName = p.AWLR_Name || p.Station || "";
+        if (stationName) setSelectedStation(stationName);
+        setSelectedDeviceId(qDevice);
+        setTimeout(() => handleSelectDevice(qDevice), 50);
+      }
+    }
+    // populate date/time filters if present
+    if (qStartDate) setStartDate(qStartDate);
+    if (qStartTime) setStartTime(qStartTime);
+    if (qEndDate) setEndDate(qEndDate);
+    if (qEndTime) setEndTime(qEndTime);
+  }, [location, features]);
 
   const rows = useMemo(() => objectToRows(features), [features]);
 

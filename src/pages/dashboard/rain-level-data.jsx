@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import Chart from "chart.js/auto";
 import zoomPlugin from "chartjs-plugin-zoom";
 
@@ -100,6 +101,7 @@ export default function RainLevelData() {
   const [startTime, setStartTime] = useState("");
   const [endDate, setEndDate] = useState("");
   const [endTime, setEndTime] = useState("");
+  const location = useLocation();
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
@@ -113,6 +115,54 @@ export default function RainLevelData() {
         console.error("Failed to load ARR geojson", e);
       });
   }, []);
+
+  // read query params (device_id or station) and auto-select when features load
+  useEffect(() => {
+    if (!location || !location.search) return;
+    const params = new URLSearchParams(location.search);
+    const qDevice = params.get("device_id");
+    const qStation = params.get("station");
+    const qStartDate = params.get("startDate");
+    const qStartTime = params.get("startTime");
+    const qEndDate = params.get("endDate");
+    const qEndTime = params.get("endTime");
+
+    // if device_id or station provided and features already loaded, set selection
+    if (qStation && features && features.length) {
+      // find a matching station name
+      const found = features.find((f, idx) => {
+        const p = f.properties || {};
+        const stationName = p.ARR_Name || p.Station || `Station ${idx + 1}`;
+        return stationName === qStation;
+      });
+      if (found) setSelectedStation(qStation);
+    }
+
+    if (qDevice && features && features.length) {
+      // try to find a device id that matches
+      const found = features.find((f, idx) => {
+        const p = f.properties || {};
+        const id = p.Device_ID || p.Station_ID || `ID-${idx + 1}`;
+        return String(id) === String(qDevice);
+      });
+      if (found) {
+        // set station that owns the device too for context
+        const p = found.properties || {};
+        const stationName = p.ARR_Name || p.Station || "";
+        if (stationName) setSelectedStation(stationName);
+        // select device series directly
+        setSelectedDeviceId(qDevice);
+        // build device series by calling handleSelectDevice
+        // small delay to ensure deviceSeriesMap computed
+        setTimeout(() => handleSelectDevice(qDevice), 50);
+      }
+    }
+    // populate date/time filters if present
+    if (qStartDate) setStartDate(qStartDate);
+    if (qStartTime) setStartTime(qStartTime);
+    if (qEndDate) setEndDate(qEndDate);
+    if (qEndTime) setEndTime(qEndTime);
+  }, [location, features]);
 
   const rows = useMemo(() => objectToRows(features), [features]);
 

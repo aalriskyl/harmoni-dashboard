@@ -44,6 +44,9 @@ createRoot(document.getElementById("root")).render(
       <Route path="/dashboard/*" element={<DashboardLayout />}>
         <Route index element={<DashboardIndex />} />
         <Route path="reports" element={<DashboardReports />} />
+        <Route path="rain-report" element={<DashboardReports />} />
+        <Route path="water-level-report" element={<DashboardReports />} />
+        <Route path="flood-report" element={<DashboardReports />} />
         <Route path="rain-level-data" element={<RainLevelData />} />
         <Route path="settings" element={<DashboardSettings />} />
         <Route path="water-level-data" element={<WaterLevelData />} />

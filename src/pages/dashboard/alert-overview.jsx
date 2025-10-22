@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const PAGE_SIZE = 12; // 3x4 grid
 
@@ -210,6 +211,8 @@ export default function AlertOverview() {
 
           rows.push({
             id: f.id || `${source}-${rows.length}`,
+            device_id:
+              props.Device_ID || props.DeviceId || props.Station_ID || null,
             station,
             arr_name: arrName,
             awlr_name: awlrName,
@@ -308,8 +311,35 @@ export default function AlertOverview() {
         ? "-"
         : String(a.reading);
 
+    const navigate = useNavigate();
+
+    function goToDevice() {
+      try {
+        const device = a.device_id || a.id || "";
+        const station = a.arr_name || a.awlr_name || a.station || "";
+        const qs = new URLSearchParams();
+        if (device) qs.set("device_id", String(device));
+        if (station) qs.set("station", String(station));
+        const base =
+          a.type === "Rain"
+            ? "/dashboard/rain-level-data"
+            : "/dashboard/water-level-data";
+        navigate(`${base}?${qs.toString()}`);
+      } catch (e) {
+        // ignore navigation errors
+      }
+    }
+
     return (
-      <div className="rounded-xl overflow-hidden bg-white border shadow-sm flex flex-col">
+      <div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") goToDevice();
+        }}
+        onClick={goToDevice}
+        className="rounded-xl overflow-hidden bg-white border shadow-sm flex flex-col cursor-pointer hover:shadow-md"
+      >
         <div className="p-3 flex items-center gap-3">
           <img
             src={
