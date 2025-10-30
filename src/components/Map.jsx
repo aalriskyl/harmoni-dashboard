@@ -3592,24 +3592,182 @@ const Map = ({
             try {
               const closeBtns = popupEl.querySelectorAll(".close-popup");
               closeBtns.forEach((btn) => {
-                // remove any existing listener by cloning the node to avoid duplicates
-                const newBtn = btn.cloneNode(true);
-                btn.parentNode.replaceChild(newBtn, btn);
-                newBtn.addEventListener("click", (ev) => {
-                  ev.stopPropagation();
-                  try {
-                    if (
-                      existing &&
-                      existing.popup &&
-                      typeof existing.popup.remove === "function"
-                    )
-                      existing.popup.remove();
-                  } catch (e) {
-                    // ignore
-                  }
-                });
+                try {
+                  const newBtn = btn.cloneNode(true);
+                  btn.parentNode.replaceChild(newBtn, btn);
+                  newBtn.addEventListener("click", (ev) => {
+                    ev.stopPropagation();
+                    try {
+                      if (
+                        existing &&
+                        existing.popup &&
+                        typeof existing.popup.remove === "function"
+                      )
+                        existing.popup.remove();
+                    } catch (e) {
+                      // ignore
+                    }
+                  });
+                } catch (err) {
+                  // ignore
+                }
               });
             } catch (e) {
+              // ignore
+            }
+            // Attach "See More Data" handlers for updated popup content (existing popup)
+            try {
+              const maybeButtons = popupEl.querySelectorAll("button");
+              maybeButtons.forEach((btn) => {
+                try {
+                  if (
+                    btn &&
+                    btn.textContent &&
+                    btn.textContent
+                      .trim()
+                      .toLowerCase()
+                      .includes("see more data")
+                  ) {
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    newBtn.addEventListener("click", (ev) => {
+                      ev.stopPropagation();
+                      try {
+                        // For CrossSection, only send section + measurement filters
+                        if (point.type === "CrossSection") {
+                          const params = new URLSearchParams();
+                          const sectionId =
+                            point.id ||
+                            point.properties?.Cross_Section_ID ||
+                            null;
+                          if (sectionId) params.set("section", sectionId);
+                          const mType =
+                            point.properties?.Measurement_Type ||
+                            point.properties?.Topography_Method ||
+                            "";
+                          if (mType) params.set("measurementType", mType);
+                          let mYear =
+                            point.properties?.Topography_Date ||
+                            point.properties?.Measurement_Year ||
+                            "";
+                          if (
+                            !mYear &&
+                            point.properties?.Model_CalibrationDate
+                          ) {
+                            try {
+                              const y = new Date(
+                                point.properties.Model_CalibrationDate
+                              ).getFullYear();
+                              if (y && !isNaN(y)) mYear = String(y);
+                            } catch (e) {}
+                          }
+                          if (mYear)
+                            params.set("measurementYear", String(mYear));
+                          const base = "/dashboard/cross-section-data";
+                          navigate(`${base}?${params.toString()}`);
+                          const mapPopupEl =
+                            ev.target.closest(".mapboxgl-popup");
+                          if (mapPopupEl) mapPopupEl.remove();
+                          return;
+                        }
+
+                        // Otherwise, RainRecorder / WaterLevel: include device/station and time range
+                        const deviceId =
+                          point.deviceId ||
+                          point.properties?.Device_ID ||
+                          point.properties?.DeviceId ||
+                          point.properties?.Station_ID ||
+                          null;
+                        const station =
+                          point.title ||
+                          point.properties?.ARR_Name ||
+                          point.properties?.AWLR_Name ||
+                          point.properties?.Station ||
+                          "";
+
+                        // derive timestamp/date params from latestReading or simulatedDate
+                        const latest = point.latestReading || {};
+                        const maybeDate =
+                          latest.date ||
+                          latest.timestamp ||
+                          point.simulatedDate ||
+                          point.properties?.Simulated_Date ||
+                          "";
+                        let sd = "";
+                        let st = "";
+                        if (maybeDate) {
+                          if (maybeDate.includes("T")) {
+                            const parts = maybeDate.split("T");
+                            sd = parts[0];
+                            st = (parts[1] || "")
+                              .split(":")
+                              .slice(0, 2)
+                              .join(":");
+                          } else {
+                            sd = maybeDate;
+                          }
+                        }
+                        const base =
+                          point.type === "RainRecorder"
+                            ? "/dashboard/rain-level-data"
+                            : point.type === "WaterLevel"
+                            ? "/dashboard/water-level-data"
+                            : "/dashboard/rain-level-data";
+                        const params = new URLSearchParams();
+                        if (deviceId) params.set("device_id", deviceId);
+                        if (station) params.set("station", station);
+                        if (sd) params.set("startDate", sd);
+                        if (st) params.set("startTime", st);
+                        // Attempt to derive a timestamp/date from available data
+                        let rawDate = null;
+                        if (
+                          point &&
+                          point.latestReading &&
+                          point.latestReading.date
+                        )
+                          rawDate = point.latestReading.date;
+                        if (!rawDate && point && point.timestamp)
+                          rawDate = point.timestamp;
+                        if (
+                          !rawDate &&
+                          point &&
+                          point.properties &&
+                          point.properties.Reading
+                        ) {
+                          try {
+                            const k = Object.keys(
+                              point.properties.Reading || {}
+                            );
+                            if (k.length) rawDate = k.sort()[k.length - 1];
+                          } catch (e) {}
+                        }
+                        if (rawDate) {
+                          const parts = String(rawDate).split("T");
+                          const datePart = parts[0];
+                          const timePart = parts[1]
+                            ? parts[1].split(".")[0]
+                            : null;
+                          if (datePart) params.set("startDate", datePart);
+                          if (timePart) params.set("startTime", timePart);
+                          else if (datePart)
+                            params.set("startTime", "00:00:00");
+                          if (datePart) params.set("endDate", datePart);
+                          if (timePart) params.set("endTime", timePart);
+                          else if (datePart) params.set("endTime", "23:59:59");
+                        }
+                        navigate(`${base}?${params.toString()}`);
+                        const mapPopupEl = ev.target.closest(".mapboxgl-popup");
+                        if (mapPopupEl) mapPopupEl.remove();
+                      } catch (err) {
+                        console.warn("See More Data handler failed", err);
+                      }
+                    });
+                  }
+                } catch (err) {
+                  // ignore
+                }
+              });
+            } catch (err) {
               // ignore
             }
             // re-initialize internals
@@ -3751,15 +3909,50 @@ const Map = ({
                           point.properties?.AWLR_Name ||
                           point.properties?.Station ||
                           "";
+                        // derive timestamp/date params from latestReading or simulatedDate
+                        const latest = point.latestReading || {};
+                        const maybeDate =
+                          latest.date ||
+                          latest.timestamp ||
+                          point.simulatedDate ||
+                          point.properties?.Simulated_Date ||
+                          "";
+                        // If maybeDate contains a T, split into date/time
+                        let sd = "";
+                        let st = "";
+                        if (maybeDate) {
+                          if (maybeDate.includes("T")) {
+                            const parts = maybeDate.split("T");
+                            sd = parts[0];
+                            st = (parts[1] || "")
+                              .split(":")
+                              .slice(0, 2)
+                              .join(":");
+                          } else {
+                            sd = maybeDate;
+                          }
+                        }
                         const base =
                           point.type === "RainRecorder"
                             ? "/dashboard/rain-level-data"
                             : point.type === "WaterLevel"
                             ? "/dashboard/water-level-data"
+                            : point.type === "CrossSection"
+                            ? "/dashboard/cross-section-data"
                             : "/dashboard/rain-level-data";
                         const params = new URLSearchParams();
                         if (deviceId) params.set("device_id", deviceId);
                         if (station) params.set("station", station);
+                        // For cross-section popups, include the section id
+                        if (point.type === "CrossSection") {
+                          const sectionId =
+                            point.id ||
+                            point.properties?.Cross_Section_ID ||
+                            null;
+                          if (sectionId) params.set("section", sectionId);
+                        }
+                        if (sd) params.set("startDate", sd);
+                        if (st) params.set("startTime", st);
                         // Attempt to derive a timestamp/date from available data
                         let rawDate = null;
                         if (

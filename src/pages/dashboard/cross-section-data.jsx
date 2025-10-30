@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import Chart from "chart.js/auto";
 import zoomPlugin from "chartjs-plugin-zoom";
 
@@ -39,7 +40,10 @@ function objectToRows(features) {
     const calibrationMethod = p.Methodology || p.Calibration_Method || "";
 
     return {
+      // id is the canonical cross-section identifier (from properties) while
+      // markerId mirrors the numeric marker id used by the Map component (4000+index)
       id: p.Cross_Section_ID || `XS-${idx + 1}`,
+      markerId: String(4000 + idx),
       no: idx + 1,
       river: p.River_Name || "",
       crossSectionId: p.Cross_Section_ID || "",
@@ -63,8 +67,13 @@ function objectToRows(features) {
 export default function CrossSectionData() {
   const [features, setFeatures] = useState([]);
   const [selectedSection, setSelectedSection] = useState("");
+  const location = useLocation();
   const [filterMeasurementType, setFilterMeasurementType] = useState("");
   const [filterMeasurementYear, setFilterMeasurementYear] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [selectedSeries, setSelectedSeries] = useState({
     data: [],
     view: null,
@@ -98,13 +107,41 @@ export default function CrossSectionData() {
 
   // apply measurement filters to rows
   const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
+    let rs = rows.filter((r) => {
       if (filterMeasurementType && r.measurementType !== filterMeasurementType)
         return false;
       if (filterMeasurementYear && r.measurementYear !== filterMeasurementYear)
         return false;
       return true;
     });
+    // Apply datetime filter against simulatedDate if provided
+    if (startDate || startTime || endDate || endTime) {
+      const startISO = startDate
+        ? startTime
+          ? `${startDate}T${startTime}`
+          : `${startDate}T00:00:00`
+        : null;
+      const endISO = endDate
+        ? endTime
+          ? `${endDate}T${endTime}`
+          : `${endDate}T23:59:59`
+        : null;
+      const startTs = startISO ? Date.parse(startISO) : null;
+      const endTs = endISO ? Date.parse(endISO) : null;
+      rs = rs.filter((r) => {
+        const sim =
+          r.simulatedDate ||
+          (r.rawProperties && r.rawProperties.Simulated_Date) ||
+          "";
+        if (!sim) return false;
+        const t = Date.parse(sim.includes("T") ? sim : `${sim}T00:00:00`);
+        if (isNaN(t)) return false;
+        if (startTs && t < startTs) return false;
+        if (endTs && t > endTs) return false;
+        return true;
+      });
+    }
+    return rs;
   }, [rows, filterMeasurementType, filterMeasurementYear]);
 
   const visibleRows = useMemo(
@@ -196,6 +233,63 @@ export default function CrossSectionData() {
 
     setSelectedSeries({ data: dataPoints, view: { min: minX, max: maxX } });
   }, [selectedSection, rows]);
+
+  // read query params to pre-select a section or simulated date
+  useEffect(() => {
+    if (!location || !location.search) return;
+    const params = new URLSearchParams(location.search);
+    const qSection = params.get("section");
+    const qDevice = params.get("device_id") || params.get("deviceId");
+    const qStation = params.get("station");
+    const qStartDate = params.get("startDate");
+    const qStartTime = params.get("startTime");
+    const qEndDate = params.get("endDate");
+    const qEndTime = params.get("endTime");
+    const qMeasurementType = params.get("measurementType");
+    const qMeasurementYear = params.get("measurementYear");
+    // Attempt to resolve a selected section by multiple possible inputs.
+    // The map may pass either the canonical Cross_Section_ID or the numeric
+    // marker id (4000+index). Also allow device_id/station to match the
+    // Cross_Section_ID stored as crossSectionId.
+    const resolveSection = (val) => {
+      if (!val) return null;
+      // First try matching canonical id
+      let found = rows.find((r) => r.id === val || r.crossSectionId === val);
+      if (found) return found.id;
+      // Then try matching markerId (numeric id from Map.jsx)
+      found = rows.find((r) => r.markerId === String(val));
+      if (found) return found.id;
+      return null;
+    };
+
+    if (qSection) {
+      const resolved = resolveSection(qSection);
+      if (resolved) setSelectedSection(resolved);
+    } else if (qDevice) {
+      const resolved = resolveSection(qDevice);
+      if (resolved) setSelectedSection(resolved);
+    } else if (qStation) {
+      const resolved = resolveSection(qStation);
+      if (resolved) setSelectedSection(resolved);
+    }
+    // store simulated date/time as defaults in the UI if provided
+    if (qStartDate) {
+      // set filters or simulatedDate UI if such state is added; currently we will
+      // set selectedSectionData.simulatedDate implicitly by selecting the section
+      // and relying on the page's display. No separate state for sim date exists.
+    }
+    // set datetime filter UI states so filteredRows can use them
+    if (qStartDate) setStartDate(qStartDate);
+    if (qStartTime) setStartTime(qStartTime);
+    if (qEndDate) setEndDate(qEndDate);
+    if (qEndTime) setEndTime(qEndTime);
+    if (qMeasurementType) {
+      setFilterMeasurementType(qMeasurementType);
+    }
+    if (qMeasurementYear) {
+      setFilterMeasurementYear(qMeasurementYear);
+    }
+  }, [location, rows]);
 
   // build chart
   useEffect(() => {

@@ -26,6 +26,8 @@ export default function ReportForm({ type = "rain", title }) {
   const [kota, setKota] = useState("");
   const [kecamatan, setKecamatan] = useState("");
   const [kelurahan, setKelurahan] = useState("");
+  const [manager, setManager] = useState("");
+  const [riverRegion, setRiverRegion] = useState("");
   const [timestamp, setTimestamp] = useState("");
   const [reading, setReading] = useState("");
   const [operatorName, setOperatorName] = useState("");
@@ -93,6 +95,39 @@ export default function ReportForm({ type = "rain", title }) {
     return Array.from(s);
   }, [features]);
 
+  // manager options (try a few common property names)
+  const managerOptions = useMemo(() => {
+    const s = new Set(
+      features
+        .map(
+          (f) =>
+            f.properties?.Manager ||
+            f.properties?.Operator ||
+            f.properties?.PIC ||
+            ""
+        )
+        .filter(Boolean)
+    );
+    return Array.from(s);
+  }, [features]);
+
+  // river/region options
+  const riverOptions = useMemo(() => {
+    const s = new Set(
+      features
+        .map(
+          (f) =>
+            f.properties?.River_Region ||
+            f.properties?.Sungai ||
+            f.properties?.RiverName ||
+            f.properties?.Region ||
+            ""
+        )
+        .filter(Boolean)
+    );
+    return Array.from(s);
+  }, [features]);
+
   useEffect(() => {
     // when station changes, auto-fill the location fields
     if (!stationId) return;
@@ -102,6 +137,9 @@ export default function ReportForm({ type = "rain", title }) {
     setKota(p.Kota || p.Provinsi || p.City || "");
     setKecamatan(p.Kecamatan || p.District || "");
     setKelurahan(p.Kelurahan || p.Village || "");
+    // auto-fill manager and riverRegion if available
+    setManager(p.Manager || p.Operator || p.PIC || "");
+    setRiverRegion(p.River_Region || p.Sungai || p.RiverName || p.Region || "");
   }, [stationId, stationOptions]);
 
   const onSubmit = (e) => {
@@ -129,6 +167,8 @@ export default function ReportForm({ type = "rain", title }) {
       kota,
       kecamatan,
       kelurahan,
+      manager,
+      riverRegion,
       timestamp,
       reading: readingNum,
       operatorName,
@@ -155,13 +195,40 @@ export default function ReportForm({ type = "rain", title }) {
     setTimestamp("");
     setReading("");
     setOperatorName("");
+    setManager("");
+    setRiverRegion("");
   };
 
   return (
     <div className="p-4 bg-white">
-      <h2 className="text-2xl font-semibold text-[#636059] mb-3">
-        {title || `${type.charAt(0).toUpperCase() + type.slice(1)} Report`}
-      </h2>
+      <div className="flex items-center gap-3 mb-3">
+        <img
+          src={
+            type === "rain"
+              ? "/assets/logos/Rain Level Data Icon.svg"
+              : type === "water"
+              ? "/assets/logos/Water Level Data Icon.svg"
+              : "/assets/logos/Flood Data Icon.svg"
+          }
+          alt="type"
+          className="w-10 h-10"
+          style={{ filter: "invert(0.6)" }}
+        />
+        <div>
+          <h2 className="text-2xl font-semibold text-[#636059] mb-0">
+            {title || `${type.charAt(0).toUpperCase() + type.slice(1)} Report`}
+          </h2>
+          <div className="text-sm text-gray-600">
+            {`Manual ${
+              type === "rain"
+                ? "Rain"
+                : type === "water"
+                ? "Water Level"
+                : "Flood"
+            } data report`}
+          </div>
+        </div>
+      </div>
 
       {loading ? (
         <div>Loading station data…</div>
@@ -170,7 +237,7 @@ export default function ReportForm({ type = "rain", title }) {
           <label className="flex flex-col">
             <span className="text-sm text-gray-600">Nama Stasiun</span>
             <select
-              className="px-3 py-2 rounded border"
+              className="px-3 py-2 rounded-xl border"
               value={stationId}
               onChange={(e) => setStationId(e.target.value)}
             >
@@ -187,7 +254,7 @@ export default function ReportForm({ type = "rain", title }) {
             <label className="flex flex-col">
               <span className="text-sm text-gray-600">Kota</span>
               <select
-                className={`px-3 py-2 rounded border ${
+                className={`px-3 py-2 rounded-xl border ${
                   stationId
                     ? "bg-gray-100 cursor-not-allowed opacity-70"
                     : "bg-white"
@@ -213,7 +280,7 @@ export default function ReportForm({ type = "rain", title }) {
             <label className="flex flex-col">
               <span className="text-sm text-gray-600">Kecamatan</span>
               <select
-                className={`px-3 py-2 rounded border ${
+                className={`px-3 py-2 rounded-xl border ${
                   stationId
                     ? "bg-gray-100 cursor-not-allowed opacity-70"
                     : "bg-white"
@@ -239,7 +306,7 @@ export default function ReportForm({ type = "rain", title }) {
             <label className="flex flex-col">
               <span className="text-sm text-gray-600">Kelurahan</span>
               <select
-                className={`px-3 py-2 rounded border ${
+                className={`px-3 py-2 rounded-xl border ${
                   stationId
                     ? "bg-gray-100 cursor-not-allowed opacity-70"
                     : "bg-white"
@@ -263,13 +330,68 @@ export default function ReportForm({ type = "rain", title }) {
             </label>
           </div>
 
+          {/* Manager and River Region placed below Kota/Kecamatan/Kelurahan as requested */}
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col">
+              <span className="text-sm text-gray-600">Manager</span>
+              <select
+                className={`px-3 py-2 rounded-xl border ${
+                  stationId
+                    ? "bg-gray-100 cursor-not-allowed opacity-70"
+                    : "bg-white"
+                }`}
+                value={manager}
+                onChange={(e) => setManager(e.target.value)}
+                disabled={!!stationId}
+                title={
+                  stationId
+                    ? "Locked because a station is selected"
+                    : "Select manager"
+                }
+              >
+                <option value="">-- Manager --</option>
+                {managerOptions.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col">
+              <span className="text-sm text-gray-600">River Region</span>
+              <select
+                className={`px-3 py-2 rounded-xl border ${
+                  stationId
+                    ? "bg-gray-100 cursor-not-allowed opacity-70"
+                    : "bg-white"
+                }`}
+                value={riverRegion}
+                onChange={(e) => setRiverRegion(e.target.value)}
+                disabled={!!stationId}
+                title={
+                  stationId
+                    ? "Locked because a station is selected"
+                    : "Select river region"
+                }
+              >
+                <option value="">-- River Region --</option>
+                {riverOptions.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <label className="flex flex-col">
             <span className="text-sm text-gray-600">
               Timestamp (tanggal waktu)
             </span>
             <input
               type="datetime-local"
-              className="px-3 py-2 rounded border"
+              className="px-3 py-2 rounded-xl border"
               value={timestamp}
               onChange={(e) => setTimestamp(e.target.value)}
             />
@@ -280,7 +402,7 @@ export default function ReportForm({ type = "rain", title }) {
             <input
               type="number"
               step="any"
-              className="px-3 py-2 rounded border"
+              className="px-3 py-2 rounded-xl border"
               value={reading}
               onChange={(e) => setReading(e.target.value)}
             />
@@ -290,7 +412,7 @@ export default function ReportForm({ type = "rain", title }) {
             <span className="text-sm text-gray-600">Nama Operator</span>
             <input
               type="text"
-              className="px-3 py-2 rounded border"
+              className="px-3 py-2 rounded-xl border"
               value={operatorName}
               onChange={(e) => setOperatorName(e.target.value)}
             />
@@ -298,20 +420,22 @@ export default function ReportForm({ type = "rain", title }) {
 
           <div className="flex items-center gap-3 pt-2">
             <button
-              className="px-4 py-2 bg-[#636059] text-white rounded"
+              className="px-4 py-2 bg-[#636059] text-white rounded-xl"
               type="submit"
             >
               Submit
             </button>
             <button
               type="button"
-              className="px-4 py-2 border rounded"
+              className="px-4 py-2 border rounded-xl"
               onClick={() => {
                 // reset form
                 setStationId("");
                 setKota("");
                 setKecamatan("");
                 setKelurahan("");
+                setManager("");
+                setRiverRegion("");
                 setTimestamp("");
                 setReading("");
                 setOperatorName("");

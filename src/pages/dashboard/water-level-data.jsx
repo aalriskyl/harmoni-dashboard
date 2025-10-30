@@ -6,6 +6,9 @@ import zoomPlugin from "chartjs-plugin-zoom";
 // register zoom plugin so charts can be panned/zoomed
 Chart.register(zoomPlugin);
 
+// Add the rowsPerPage constant here
+const rowsPerPage = 5;
+
 // Water Level Data page (AWLR) — mirrors the Rain page but reads AWLR geojson and uses meters
 function categoryFromReading(mm) {
   if (mm == null) return "No Data";
@@ -81,6 +84,13 @@ function objectToRows(features) {
       timestamp: latestDate || "",
       reading: latestVal != null ? `${latestVal} m` : "",
       readingValue: latestVal,
+      // manual reading: try common manual reading property names (including lowercase) or fallback to latestVal
+      reading_manual:
+        p.Reading_Manual ??
+        p.reading_manual ??
+        p.Manual_Reading ??
+        p.ManualReading ??
+        latestVal,
       category: categoryFromReading(latestVal),
     };
   });
@@ -98,6 +108,9 @@ export default function WaterLevelData() {
   const [startTime, setStartTime] = useState("");
   const [endDate, setEndDate] = useState("");
   const [endTime, setEndTime] = useState("");
+  // showAutomatic default true, showManual default false
+  const [showAutomatic, setShowAutomatic] = useState(true);
+  const [showManual, setShowManual] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const location = useLocation();
   const chartRef = useRef(null);
@@ -139,6 +152,7 @@ export default function WaterLevelData() {
   }, []);
 
   useEffect(() => {
+    // load the AWLR geojson - corrected file name
     fetch(
       "/data/Automatic_Water_Level_Recorder_(AWLR)_with_Data-_Jakarta.geojson"
     )
@@ -195,15 +209,106 @@ export default function WaterLevelData() {
     return Array.from(new Set(names)).filter(Boolean);
   }, [rows]);
 
-  // Pagination constants
-  const rowsPerPage = 5;
+  // expanded list: one entry per reading timestamp (so the table can show daily readings)
+  const entryRows = useMemo(() => {
+    const out = [];
+    (features || []).forEach((f, idx) => {
+      const p = f.properties || {};
+      const device_id = p.Device_ID || p.Station_ID || `ID-${idx + 1}`;
+      const station = p.AWLR_Name || p.Station || `Station ${idx + 1}`;
+      const city = p.Kota || p.Provinsi || "";
+      const kelurahan = p.Kelurahan || "";
+      const kecamatan = p.Kecamatan || "";
+      const catchment = p.Catchment_Name || p.Catchment || "";
+      const device = p.Device_Condition || p.Station_Condition || "Unknown";
 
+      const readingObj = p.Reading || {};
+      const manualObj =
+        p.Reading_Manual ||
+        p.reading_manual ||
+        p.Manual_Reading ||
+        p.ManualReading ||
+        {};
+
+      // Get ALL timestamps from both automatic and manual readings
+      const keySet = new Set([
+        ...Object.keys(readingObj || {}),
+        ...Object.keys(manualObj || {}),
+      ]);
+
+      Array.from(keySet).forEach((key) => {
+        // Get automatic reading value
+        const raw = Object.prototype.hasOwnProperty.call(readingObj, key)
+          ? readingObj[key]
+          : null;
+
+        // Get manual reading raw value
+        const manualValRaw = Object.prototype.hasOwnProperty.call(
+          manualObj,
+          key
+        )
+          ? manualObj[key]
+          : null;
+
+        // if both views shown and manual missing, create dummy manual from automatic
+        let manualVal = manualValRaw;
+        if (
+          manualVal == null &&
+          showAutomatic &&
+          showManual &&
+          raw != null &&
+          !Number.isNaN(Number(raw))
+        ) {
+          manualVal = Number(raw);
+        }
+
+        const autoValue = raw != null ? Number(raw) : null;
+
+        out.push({
+          device_id,
+          station,
+          city,
+          kelurahan,
+          kecamatan,
+          catchment,
+          device,
+          timestamp: key,
+          reading:
+            autoValue != null && Number.isFinite(autoValue)
+              ? `${autoValue} m`
+              : raw || "",
+          readingValue: autoValue,
+          reading_manual: manualVal != null ? manualVal : null,
+          category: categoryFromReading(autoValue),
+        });
+      });
+    });
+
+    // sort descending by timestamp (newest first)
+    out.sort((a, b) => {
+      const ta = Date.parse(a.timestamp);
+      const tb = Date.parse(b.timestamp);
+      if (isNaN(ta) || isNaN(tb))
+        return String(b.timestamp).localeCompare(a.timestamp);
+      return tb - ta;
+    });
+
+    // assign sequential numbers for display/keys
+    out.forEach((e, i) => {
+      e.no = i + 1;
+    });
+    return out;
+  }, [features, showAutomatic, showManual]);
+
+  // Then fix the visibleRows filtering logic:
   const visibleRows = useMemo(() => {
-    let rs = rows;
+    let rs = entryRows;
     if (selectedStation) rs = rs.filter((r) => r.station === selectedStation);
-    // Apply datetime range filter if provided
+
+    // Date filtering (keep your existing code)
+    let startTs = null;
+    let endTs = null;
     if (startDate || startTime || endDate || endTime) {
-      // build start/end ISO strings when possible
       const startISO = startDate
         ? startTime
           ? `${startDate}T${startTime}`
@@ -214,28 +319,57 @@ export default function WaterLevelData() {
           ? `${endDate}T${endTime}`
           : `${endDate}T23:59:59`
         : null;
+      startTs = startISO ? Date.parse(startISO) : null;
+      endTs = endISO ? Date.parse(endISO) : null;
+    }
 
-      const startTs = startISO ? Date.parse(startISO) : null;
-      const endTs = endISO ? Date.parse(endISO) : null;
-
+    if (startTs || endTs) {
       rs = rs.filter((r) => {
         if (!r.timestamp) return false;
-        const ts = Date.parse(r.timestamp);
+        let ts = Date.parse(r.timestamp);
         if (isNaN(ts)) {
-          // try parsing date-only form
-          const t2 = Date.parse(r.timestamp.split("T")[0]);
+          const t2 = Date.parse((r.timestamp || "").split("T")[0]);
           if (isNaN(t2)) return false;
-          if (startTs && t2 < startTs) return false;
-          if (endTs && t2 > endTs) return false;
-          return true;
+          ts = t2;
         }
         if (startTs && ts < startTs) return false;
         if (endTs && ts > endTs) return false;
         return true;
       });
     }
+
+    // Apply Automatic/Manual reading filters - tolerant manual presence check
+    const manualPresent = (m) =>
+      m != null && String(m).trim() !== "" && String(m).toLowerCase() !== "nan";
+
+    if (showAutomatic && showManual) {
+      // Show rows that have either automatic OR manual data (manual may be non-numeric)
+      rs = rs.filter(
+        (r) =>
+          (r.readingValue != null && Number.isFinite(r.readingValue)) ||
+          manualPresent(r.reading_manual)
+      );
+    } else if (showAutomatic && !showManual) {
+      // Automatic-only: show everything (do not filter out missing/NaN automatic values)
+      rs = rs;
+    } else if (!showAutomatic && showManual) {
+      // Manual-only: show rows with manual data (accept non-numeric values too)
+      rs = rs.filter((r) => manualPresent(r.reading_manual));
+    } else {
+      rs = [];
+    }
+
     return rs;
-  }, [rows, selectedStation]);
+  }, [
+    entryRows,
+    selectedStation,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    showAutomatic,
+    showManual, // Keep checkboxes here for filtering
+  ]);
 
   // Calculate paginated data
   const totalPages = Math.ceil(visibleRows.length / rowsPerPage);
@@ -352,6 +486,28 @@ export default function WaterLevelData() {
     });
     return m;
   }, [features]);
+
+  // Ensure at least one of Automatic or Manual is always selected.
+  function handleShowAutomaticChange(checked) {
+    if (!checked && !showManual) {
+      // prevent both from being unchecked
+      alert(
+        "Please keep at least one of Automatic or Manual readings selected."
+      );
+      return;
+    }
+    setShowAutomatic(checked);
+  }
+
+  function handleShowManualChange(checked) {
+    if (!checked && !showAutomatic) {
+      alert(
+        "Please keep at least one of Automatic or Manual readings selected."
+      );
+      return;
+    }
+    setShowManual(checked);
+  }
 
   function handleSelectDevice(id) {
     setSelectedDeviceId(id);
@@ -702,6 +858,7 @@ export default function WaterLevelData() {
       "Device Condition",
       "Timestamp",
       "Reading",
+      ...(showManual ? ["Reading (Manual)"] : []),
       "Category",
     ];
     const lines = [header.join(",")];
@@ -716,7 +873,16 @@ export default function WaterLevelData() {
         `"${(r.catchment || "").replace(/"/g, '""')}"`,
         `"${(r.device || "").replace(/"/g, '""')}"`,
         `"${(r.timestamp || "").replace(/"/g, '""')}"`,
-        r.reading || "",
+        showAutomatic ? r.reading || "" : "",
+        ...(showManual
+          ? [
+              r.reading_manual != null
+                ? Number.isFinite(Number(r.reading_manual))
+                  ? `${Number(r.reading_manual)} m`
+                  : r.reading_manual
+                : "",
+            ]
+          : []),
         r.category || "",
       ];
       lines.push(row.join(","));
@@ -815,8 +981,27 @@ export default function WaterLevelData() {
         </div>
       </div>
 
-      <div className="mb-2 text-lg font-semibold text-[#636059]">
-        Automatic Water Level Recorder (AWLR) Data
+      {/* Automatic / Manual reading checkboxes */}
+      <div className="mb-3 flex items-center gap-4">
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showAutomatic}
+            onChange={(e) => handleShowAutomaticChange(e.target.checked)}
+            className="form-checkbox h-4 w-4"
+          />
+          <span className="text-sm text-[#636059]">Automatic Reading</span>
+        </label>
+
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showManual}
+            onChange={(e) => handleShowManualChange(e.target.checked)}
+            className="form-checkbox h-4 w-4"
+          />
+          <span className="text-sm text-[#636059]">Manual Reading</span>
+        </label>
       </div>
 
       <div className="  p-2 mb-2">
@@ -848,9 +1033,16 @@ export default function WaterLevelData() {
                 <th className="w-28 sticky top-0  border-r py-2 px-2 truncate">
                   Timestamp
                 </th>
-                <th className="w-20 sticky top-0  border-r py-2 px-2 truncate">
-                  Reading
-                </th>
+                {showAutomatic && (
+                  <th className="w-20 sticky top-0  border-r py-2 px-2 truncate">
+                    Reading
+                  </th>
+                )}
+                {showManual && (
+                  <th className="w-24 sticky top-0  border-r py-2 px-2 truncate">
+                    Reading (Manual)
+                  </th>
+                )}
                 <th className="w-28 sticky top-0  text-center py-2 truncate">
                   Alert Threshold
                 </th>
@@ -860,7 +1052,7 @@ export default function WaterLevelData() {
               {paginatedRows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={9 + (showAutomatic ? 1 : 0) + (showManual ? 1 : 0)}
                     className="p-4 text-center text-sm text-[#a49e92]"
                   >
                     No data loaded yet.
@@ -900,9 +1092,20 @@ export default function WaterLevelData() {
                   <td className="py-2 px-2 border-r truncate text-sm">
                     {r.timestamp}
                   </td>
-                  <td className="py-2 px-2 border-r truncate text-sm">
-                    {r.reading}
-                  </td>
+                  {showAutomatic && (
+                    <td className="py-2 px-2 border-r truncate text-sm">
+                      {r.reading}
+                    </td>
+                  )}
+                  {showManual && (
+                    <td className="py-2 px-2 border-r truncate text-sm">
+                      {r.reading_manual != null
+                        ? Number.isFinite(Number(r.reading_manual))
+                          ? `${Number(r.reading_manual)} m`
+                          : r.reading_manual
+                        : ""}
+                    </td>
+                  )}
                   <td className="py-2 w-full">
                     <span
                       className={`block w-1/2 mx-auto text-center px-2 py-1 rounded-lg text-xs font-semibold ${categoryBadgeClass(

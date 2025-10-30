@@ -56,7 +56,40 @@ export default function DashboardReports() {
       <div className="w-2/3">
         <ReportForm type={type} title={title} />
       </div>
-      <div className="w-1/3 pl-6"></div>
+      <div className="w-1/3 min-h-screen pl-6 flex">
+        <hr className="w-[0.5px] min-h-screen bg-[#636059]" />
+
+        {/* Heading copied from ReportForm (lines ~217-230) */}
+        <div className="flex p-4 gap-3 mb-3">
+          <img
+            src={
+              type === "rain"
+                ? "/assets/logos/Rain Level Data Icon.svg"
+                : type === "water"
+                ? "/assets/logos/Water Level Data Icon.svg"
+                : "/assets/logos/Flood Data Icon.svg"
+            }
+            alt="type"
+            className="w-10 h-10"
+            style={{ filter: "invert(0.6)" }}
+          />
+          <div>
+            <h2 className="text-2xl font-semibold text-[#636059] mb-0">
+              {title ||
+                `${type.charAt(0).toUpperCase() + type.slice(1)} Report`}
+            </h2>
+            <div className="text-sm text-gray-600">
+              {`Manual ${
+                type === "rain"
+                  ? "Rain"
+                  : type === "water"
+                  ? "Water Level"
+                  : "Flood"
+              } data report`}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

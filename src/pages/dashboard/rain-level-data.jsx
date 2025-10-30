@@ -84,6 +84,13 @@ function objectToRows(features) {
       timestamp: latestDate ? `${latestDate} 00:00` : "",
       reading: latestVal != null ? `${latestVal} mm` : "",
       readingValue: latestVal,
+      // manual reading: try common manual reading property names (including lowercase) or fallback to latestVal
+      reading_manual:
+        p.Reading_Manual ??
+        p.reading_manual ??
+        p.Manual_Reading ??
+        p.ManualReading ??
+        latestVal,
       category: categoryFromReading(latestVal),
     };
   });
@@ -101,9 +108,16 @@ export default function RainLevelData() {
   const [startTime, setStartTime] = useState("");
   const [endDate, setEndDate] = useState("");
   const [endTime, setEndTime] = useState("");
+  // showAutomatic default true, showManual default false
+  const [showAutomatic, setShowAutomatic] = useState(true);
+  const [showManual, setShowManual] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const location = useLocation();
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
+
+  // Pagination constants
+  const rowsPerPage = 5;
 
   useEffect(() => {
     fetch("/data/Automatic_Rain_Recorder_(ARR)_with_Data-_Jakarta.geojson")
@@ -166,6 +180,85 @@ export default function RainLevelData() {
 
   const rows = useMemo(() => objectToRows(features), [features]);
 
+  // expanded list: one entry per reading timestamp (so the table can show daily readings)
+  const entryRows = useMemo(() => {
+    const out = [];
+    (features || []).forEach((f, idx) => {
+      const p = f.properties || {};
+      const device_id = p.Device_ID || p.Station_ID || `ID-${idx + 1}`;
+      const station = p.ARR_Name || p.Station || `Station ${idx + 1}`;
+      const city = p.Kota || p.Provinsi || "";
+      const kelurahan = p.Kelurahan || "";
+      const kecamatan = p.Kecamatan || "";
+      const catchment = p.Catchment_Name || p.Catchment || "";
+      const device = p.Device_Condition || p.Station_Condition || "Unknown";
+
+      const readingObj = p.Reading || {};
+      const manualObj =
+        p.Reading_Manual ||
+        p.reading_manual ||
+        p.Manual_Reading ||
+        p.ManualReading ||
+        {};
+      // iterate union of automatic and manual timestamps so manual-only entries appear
+      const keySet = new Set([
+        ...Object.keys(readingObj || {}),
+        ...Object.keys(manualObj || {}),
+      ]);
+
+      Array.from(keySet).forEach((key) => {
+        const raw = Object.prototype.hasOwnProperty.call(readingObj, key)
+          ? readingObj[key]
+          : null;
+        const manualValRaw =
+          Object.prototype.hasOwnProperty.call(manualObj, key) &&
+          manualObj[key] != null
+            ? manualObj[key]
+            : null;
+        // if both views shown and manual missing, create dummy manual from automatic
+        let manualVal = manualValRaw;
+        if (
+          manualVal == null &&
+          showAutomatic &&
+          showManual &&
+          raw != null &&
+          !Number.isNaN(Number(raw))
+        ) {
+          manualVal = Number(raw);
+        }
+        const val = raw != null ? Number(raw) : null;
+        out.push({
+          device_id,
+          station,
+          city,
+          kelurahan,
+          kecamatan,
+          catchment,
+          device,
+          timestamp: key,
+          reading:
+            val != null && Number.isFinite(val) ? `${val} mm` : raw || "",
+          readingValue: val,
+          reading_manual: manualVal != null ? manualVal : null,
+          category: categoryFromReading(val),
+        });
+      });
+    });
+    // sort descending by timestamp (newest first)
+    out.sort((a, b) => {
+      const ta = Date.parse(a.timestamp);
+      const tb = Date.parse(b.timestamp);
+      if (isNaN(ta) || isNaN(tb))
+        return String(b.timestamp).localeCompare(a.timestamp);
+      return tb - ta;
+    });
+    // assign sequential numbers for display/keys
+    out.forEach((e, i) => {
+      e.no = i + 1;
+    });
+    return out;
+  }, [features, showAutomatic, showManual]);
+
   const stationOptions = useMemo(() => {
     // unique station names for dropdown
     const names = rows.map((r) => r.station || "");
@@ -173,9 +266,13 @@ export default function RainLevelData() {
   }, [rows]);
 
   const visibleRows = useMemo(() => {
-    let rs = rows;
+    // start from per-reading entries (one row per timestamp)
+    let rs = entryRows;
     if (selectedStation) rs = rs.filter((r) => r.station === selectedStation);
-    // Apply datetime range filter if provided (matches water-level-data behavior)
+
+    // Determine date range: if user provided a range use it, otherwise show all entries
+    let startTs = null;
+    let endTs = null;
     if (startDate || startTime || endDate || endTime) {
       const startISO = startDate
         ? startTime
@@ -187,18 +284,22 @@ export default function RainLevelData() {
           ? `${endDate}T${endTime}`
           : `${endDate}T23:59:59`
         : null;
+      startTs = startISO ? Date.parse(startISO) : null;
+      endTs = endISO ? Date.parse(endISO) : null;
+    } else {
+      // no date filters supplied — show all available entries (don't restrict to last 365 days)
+      startTs = null;
+      endTs = null;
+    }
 
-      const startTs = startISO ? Date.parse(startISO) : null;
-      const endTs = endISO ? Date.parse(endISO) : null;
+    if (startTs || endTs) {
       rs = rs.filter((r) => {
         if (!r.timestamp) return false;
-        const ts = Date.parse(r.timestamp);
+        let ts = Date.parse(r.timestamp);
         if (isNaN(ts)) {
-          const t2 = Date.parse(r.timestamp.split("T")[0]);
+          const t2 = Date.parse((r.timestamp || "").split("T")[0]);
           if (isNaN(t2)) return false;
-          if (startTs && t2 < startTs) return false;
-          if (endTs && t2 > endTs) return false;
-          return true;
+          ts = t2;
         }
         if (startTs && ts < startTs) return false;
         if (endTs && ts > endTs) return false;
@@ -206,10 +307,57 @@ export default function RainLevelData() {
       });
     }
 
-    return rs.slice(0, 1000);
-  }, [rows, selectedStation, startDate, startTime, endDate, endTime]);
+    // Apply Automatic/Manual reading filters (tolerant manual presence check)
+    const manualPresent = (m) =>
+      m != null && String(m).trim() !== "" && String(m).toLowerCase() !== "nan";
 
-  // data for selected station (first matching row)
+    if (showAutomatic && showManual) {
+      rs = rs.filter(
+        (r) =>
+          Number.isFinite(Number(r.readingValue)) ||
+          manualPresent(r.reading_manual)
+      );
+    } else if (showAutomatic && !showManual) {
+      // Automatic-only: show everything (do not filter out missing/NaN automatic values)
+      rs = rs;
+    } else if (!showAutomatic && showManual) {
+      rs = rs.filter((r) => manualPresent(r.reading_manual));
+    } else {
+      rs = [];
+    }
+
+    return rs;
+  }, [
+    entryRows,
+    selectedStation,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    showAutomatic,
+    showManual,
+  ]);
+
+  // Pagination: total pages and paginated slice
+  const totalPages = Math.ceil(visibleRows.length / rowsPerPage);
+  const paginatedRows = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return visibleRows.slice(startIndex, startIndex + rowsPerPage);
+  }, [visibleRows, currentPage, rowsPerPage]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    selectedStation,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    showAutomatic,
+    showManual,
+  ]);
+
   const selectedStationData = useMemo(() => {
     if (!selectedStation) return null;
     return rows.find((r) => r.station === selectedStation) || null;
@@ -331,6 +479,27 @@ export default function RainLevelData() {
     });
     return m;
   }, [features]);
+
+  // Ensure at least one of Automatic or Manual is always selected.
+  function handleShowAutomaticChange(checked) {
+    if (!checked && !showManual) {
+      alert(
+        "Please keep at least one of Automatic or Manual readings selected."
+      );
+      return;
+    }
+    setShowAutomatic(checked);
+  }
+
+  function handleShowManualChange(checked) {
+    if (!checked && !showAutomatic) {
+      alert(
+        "Please keep at least one of Automatic or Manual readings selected."
+      );
+      return;
+    }
+    setShowManual(checked);
+  }
 
   function handleSelectDevice(id) {
     setSelectedDeviceId(id);
@@ -574,10 +743,12 @@ export default function RainLevelData() {
       "Device Condition",
       "Timestamp",
       "Reading",
+      ...(showManual ? ["Reading (Manual)"] : []),
       "Category",
     ];
     const lines = [header.join(",")];
-    visibleRows.forEach((r) => {
+    // export only the current page
+    paginatedRows.forEach((r) => {
       const row = [
         r.no,
         `"${r.station.replace(/"/g, '""')}"`,
@@ -587,7 +758,16 @@ export default function RainLevelData() {
         `"${(r.catchment || "").replace(/"/g, '""')}"`,
         `"${(r.device || "").replace(/"/g, '""')}"`,
         `"${(r.timestamp || "").replace(/"/g, '""')}"`,
-        r.reading || "",
+        showAutomatic ? r.reading || "" : "",
+        ...(showManual
+          ? [
+              r.reading_manual != null
+                ? Number.isFinite(Number(r.reading_manual))
+                  ? `${Number(r.reading_manual)} mm`
+                  : r.reading_manual
+                : "",
+            ]
+          : []),
         r.category || "",
       ];
       lines.push(row.join(","));
@@ -632,7 +812,7 @@ export default function RainLevelData() {
       </div>
       <div className="flex flex-wrap gap-3 mb-2 items-center">
         <select
-          className="px-3 py-2 rounded-xl bg-white border"
+          className="px-3 py-[6px]  rounded-xl bg-white border"
           value={selectedStation}
           onChange={(e) => setSelectedStation(e.target.value)}
         >
@@ -645,31 +825,54 @@ export default function RainLevelData() {
         </select>
         <input
           type="date"
-          className="px-3 py-2 rounded-xl bg-white border"
+          className="px-2 py-1 rounded-xl bg-white border"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
         />
 
         <input
           type="time"
-          className="px-3 py-2 rounded-xl bg-white border"
+          className="px-2 py-1 rounded-xl bg-white border"
           value={startTime}
           onChange={(e) => setStartTime(e.target.value)}
         />
         <span>to</span>
         <input
           type="date"
-          className="px-3 py-2 rounded-xl bg-white border"
+          className="px-2 py-1 rounded-xl bg-white border"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
         />
 
         <input
           type="time"
-          className="px-3 py-2 rounded-xl bg-white border"
+          className="px-2 py-1 rounded-xl bg-white border"
           value={endTime}
           onChange={(e) => setEndTime(e.target.value)}
         />
+      </div>
+
+      {/* Automatic / Manual reading checkboxes */}
+      <div className="mb-3 flex items-center gap-4">
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showAutomatic}
+            onChange={(e) => handleShowAutomaticChange(e.target.checked)}
+            className="form-checkbox h-4 w-4"
+          />
+          <span className="text-sm text-[#636059]">Automatic Reading</span>
+        </label>
+
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showManual}
+            onChange={(e) => handleShowManualChange(e.target.checked)}
+            className="form-checkbox h-4 w-4"
+          />
+          <span className="text-sm text-[#636059]">Manual Reading</span>
+        </label>
       </div>
 
       {/* Table section */}
@@ -703,9 +906,16 @@ export default function RainLevelData() {
                 <th className="w-28 sticky top-0 bg-white border-r py-2 px-2 truncate">
                   Timestamp
                 </th>
-                <th className="w-20 sticky top-0 bg-white border-r py-2 px-2 truncate">
-                  Reading
-                </th>
+                {showAutomatic && (
+                  <th className="w-20 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                    Reading
+                  </th>
+                )}
+                {showManual && (
+                  <th className="w-24 sticky top-0 bg-white border-r py-2 px-2 truncate">
+                    Reading (Manual)
+                  </th>
+                )}
                 <th className="w-28 sticky top-0 bg-white text-center py-2 truncate">
                   Alert Threshold
                 </th>
@@ -713,17 +923,17 @@ export default function RainLevelData() {
             </thead>
 
             <tbody>
-              {visibleRows.length === 0 && (
+              {paginatedRows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={9 + (showAutomatic ? 1 : 0) + (showManual ? 1 : 0)}
                     className="p-4 text-center text-sm text-[#a49e92]"
                   >
                     No data loaded yet.
                   </td>
                 </tr>
               )}
-              {visibleRows.map((r) => (
+              {paginatedRows.map((r) => (
                 <tr key={r.no} className="">
                   <td className="pr-2 py-2 border-r truncate text-sm">
                     {r.device_id}
@@ -756,9 +966,20 @@ export default function RainLevelData() {
                   <td className="py-2 px-2 border-r truncate text-sm">
                     {r.timestamp}
                   </td>
-                  <td className="py-2 px-2 border-r truncate text-sm">
-                    {r.reading}
-                  </td>
+                  {showAutomatic && (
+                    <td className="py-2 px-2 border-r truncate text-sm">
+                      {r.reading}
+                    </td>
+                  )}
+                  {showManual && (
+                    <td className="py-2 px-2 border-r truncate text-sm">
+                      {r.reading_manual != null
+                        ? Number.isFinite(Number(r.reading_manual))
+                          ? `${Number(r.reading_manual)} mm`
+                          : r.reading_manual
+                        : ""}
+                    </td>
+                  )}
                   <td className="py-2 w-full">
                     <span
                       className={`block w-1/2 mx-auto text-center px-2 py-1 rounded-lg text-xs font-semibold ${categoryBadgeClass(
@@ -773,14 +994,46 @@ export default function RainLevelData() {
             </tbody>
           </table>
         </div>
-
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex justify-between items-center">
           <button
             onClick={downloadCSV}
             className="px-3 py-2 rounded-xl bg-[#636059] text-white"
           >
             Download Data
           </button>
+          {visibleRows.length > rowsPerPage && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded ${
+                  currentPage === 1
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-[#636059] text-white"
+                }`}
+              >
+                Previous
+              </button>
+
+              <span className="text-sm text-[#636059]">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1 rounded ${
+                  currentPage === totalPages
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-[#636059] text-white"
+                }`}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
         {/* horizontal divider below the download button */}
         <div className="mt-3 border-t border-gray-200" />

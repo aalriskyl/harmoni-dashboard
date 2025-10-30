@@ -46,6 +46,24 @@ function formatTimeOnly(ts) {
   }
 }
 
+// format time in 12-hour clock with AM/PM (e.g., "1:30 PM")
+function formatTimeAmPm(ts) {
+  if (!ts) return "";
+  if (typeof ts === "object") return "";
+  try {
+    const d = new Date(ts);
+    if (isNaN(d)) return "";
+    let hours = d.getHours();
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${hours}:${minutes} ${ampm}`;
+  } catch (e) {
+    return "";
+  }
+}
+
 export default function AlertOverview() {
   const [levelFilter, setLevelFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -320,6 +338,25 @@ export default function AlertOverview() {
         const qs = new URLSearchParams();
         if (device) qs.set("device_id", String(device));
         if (station) qs.set("station", String(station));
+        // include date range filters based on the alert timestamp so the
+        // destination page can pre-populate its date inputs. Use the
+        // same YYYY-MM-DD format used by the page inputs.
+        try {
+          const dateOnly = formatDateOnly(a.ts);
+          // formatDateOnly returns '-' when it can't parse; only set when valid
+          if (dateOnly && dateOnly !== "-") {
+            qs.set("startDate", String(dateOnly));
+            qs.set("endDate", String(dateOnly));
+            // also include times in AM/PM format for components that use 12-hour clocks
+            const t = formatTimeAmPm(a.ts);
+            if (t) {
+              qs.set("startTime", String(t));
+              qs.set("endTime", String(t));
+            }
+          }
+        } catch (e) {
+          // ignore date formatting errors
+        }
         const base =
           a.type === "Rain"
             ? "/dashboard/rain-level-data"
@@ -445,7 +482,7 @@ export default function AlertOverview() {
                 setLevelFilter(e.target.value);
                 setPage(1);
               }}
-              className="border rounded-xl px-3 py-1 text-lg"
+              className="border rounded-xl px-3 py-2 text-lg"
             >
               <option value="">All Levels</option>
               {levelOptions
@@ -465,7 +502,7 @@ export default function AlertOverview() {
                 setTypeFilter(e.target.value);
                 setPage(1);
               }}
-              className="border rounded-xl px-3 py-1 text-lg"
+              className="border rounded-xl px-3 py-2 text-lg"
             >
               <option value="">All Types</option>
               {typeOptions

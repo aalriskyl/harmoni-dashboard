@@ -76,7 +76,7 @@ export default function CCTVData() {
         </div>
       </div>
 
-      <div className="flex flex-row flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+      <div className="flex flex-row flex-wrap gap-4 mb-6">
         {items.map((item) => (
           <div key={item.id} className="flex flex-col min-w-[200px]">
             <label
@@ -89,7 +89,7 @@ export default function CCTVData() {
               id={`cctv-${item.id}`}
               value={item.videoId}
               onChange={(e) => handleVideoChange(item.id, e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="none">None</option>
               {sampleVideos.map((video) => (

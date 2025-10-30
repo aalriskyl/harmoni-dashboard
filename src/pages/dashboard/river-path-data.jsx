@@ -474,7 +474,6 @@ const RiverPathData = () => {
     });
   };
 
-  // Download CSV
   // Download JSON
   const downloadJSON = () => {
     let out = features.slice();
@@ -537,54 +536,56 @@ const RiverPathData = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center mb-4">
-        <div className="flex items-center gap-2">
+      {/* Controls section with proper flex layout */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4 mb-4">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={toggleVisibility}
             className="px-3 py-1 rounded-xl border bg-white hover:bg-gray-50 transition-colors"
           >
             {visible ? "Hide" : "Show"} Rivers
           </button>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">River name</label>
+            <select
+              className="px-3 py-1 border rounded-xl bg-white"
+              value={selectedName}
+              onChange={(e) => setSelectedName(e.target.value)}
+            >
+              <option value="">All Rivers</option>
+              {names.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Stream order</label>
+            <select
+              className="px-3 py-1 border rounded-xl bg-white"
+              value={selectedOrder}
+              onChange={(e) => setSelectedOrder(e.target.value)}
+            >
+              <option value="">All Orders</option>
+              {orders.map((o) => (
+                <option key={o} value={o}>
+                  Order {o}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium">River name</label>
-          <select
-            className="px-3 py-1 border rounded-xl bg-white"
-            value={selectedName}
-            onChange={(e) => setSelectedName(e.target.value)}
-          >
-            <option value="">All Rivers</option>
-            {names.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium">Stream order</label>
-          <select
-            className="px-3 py-1 border rounded-xl bg-white"
-            value={selectedOrder}
-            onChange={(e) => setSelectedOrder(e.target.value)}
-          >
-            <option value="">All Orders</option>
-            {orders.map((o) => (
-              <option key={o} value={o}>
-                Order {o}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
+        {/* Download button positioned at the far right */}
+        <div className="flex items-center ml-auto">
           <button
             onClick={downloadJSON}
-            className="px-3 py-1 rounded-xl border bg-white hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 rounded-xl bg-[#636059] text-white hover:bg-[#4a4843] transition-colors whitespace-nowrap"
           >
-            Download JSON
+            Download Data
           </button>
         </div>
       </div>

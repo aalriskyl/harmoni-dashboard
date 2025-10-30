@@ -401,6 +401,39 @@ const TopographyData = () => {
     }
   }, [selectedDemSource, selectedSurveyDate]);
 
+  // Simple CSV download for the sample tile metadata
+  function downloadCSV() {
+    try {
+      const header = ["id", "source", "survey_date", "resolution", "notes"];
+      const lines = [header.join(",")];
+      (sampleTileBoundaries.features || []).forEach((f) => {
+        const p = f.properties || {};
+        const row = [
+          p.id || "",
+          p.source || "",
+          p.survey_date || "",
+          p.resolution || "",
+          `"${(p.notes || "").replace(/"/g, '""')}"`,
+        ];
+        lines.push(row.join(","));
+      });
+
+      const blob = new Blob([lines.join("\n")], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "topography_tiles.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Failed to generate CSV", e);
+    }
+  }
+
   return (
     <div className="w-full">
       <div>
@@ -452,9 +485,7 @@ const TopographyData = () => {
                 setSelectedSurveyDate(v ? v : null);
               }}
             />
-            <button className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 transition-all duration-200 font-medium text-gray-700 shadow-sm hover:shadow">
-              Download Data
-            </button>
+
             <button
               className="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 transition-all duration-200 font-medium text-gray-700 shadow-sm hover:shadow"
               onClick={() => setSelectedSurveyDate(null)}
@@ -463,6 +494,16 @@ const TopographyData = () => {
               Clear
             </button>
           </div>
+
+          {/* Download Data button moved out so `ml-auto` can push it to the right side of the toolbar */}
+          <button
+            onClick={() => {
+              downloadCSV();
+            }}
+            className="ml-auto px-3 py-2 rounded-xl bg-[#636059] text-white"
+          >
+            Download Data
+          </button>
         </div>
       </div>
       <div

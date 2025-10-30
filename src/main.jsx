@@ -15,6 +15,7 @@ import AlertOverview from "./pages/dashboard/alert-overview.jsx";
 import CCTVData from "./pages/dashboard/cctv-data.jsx";
 import TopographyData from "./pages/dashboard/topography-data.jsx";
 import RiverPathData from "./pages/dashboard/river-path-data.jsx";
+import APIPort from "./pages/dashboard/api-port.jsx";
 
 function AppRoot() {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -55,6 +56,7 @@ createRoot(document.getElementById("root")).render(
         <Route path="cctv-data" element={<CCTVData />} />
         <Route path="topography-data" element={<TopographyData />} />
         <Route path="river-path-data" element={<RiverPathData />} />
+        <Route path="api-port" element={<APIPort />} />
       </Route>
       <Route path="/" element={<AppRoot />} />
     </Routes>
